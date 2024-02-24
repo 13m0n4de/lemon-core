@@ -33,41 +33,43 @@ env:
 
 # Build the kernel binary
 build:
-  @ echo "Platform: {{board}}"
-  @ cp "src/linker-{{board}}.ld" "src/linker.ld"
-  cargo build {{mode_arg}}
-  @ rm src/linker.ld
-  {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
+    @ cd ../user && just build
+    @ echo "Platform: {{board}}"
+    @ cp "src/linker-{{board}}.ld" "src/linker.ld"
+    cargo build {{mode_arg}}
+    @ rm src/linker.ld
+    @ rm src/link_app.S
+    {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
 
 # Clean build artifacts
 clean:
-  cargo clean
+    cargo clean
 
 # Disassemble for inspection using bat
 disasm: build
-  {{objdump}} -d {{kernel_elf}} | bat -l asm
+    {{objdump}} -d {{kernel_elf}} | bat -l asm
 
 # Disassemble for inspection using LunarVim
 disasm-vim: build
-  {{objdump}} -d {{kernel_elf}} > {{disasm_tmp}}
-  lvim {{disasm_tmp}}
-  rm {{disasm_tmp}}
+    {{objdump}} -d {{kernel_elf}} > {{disasm_tmp}}
+    lvim {{disasm_tmp}}
+    rm {{disasm_tmp}}
 
 # Run the kernel in QEMU
 run: build
-  @ echo "Running QEMU"
-  qemu-system-riscv64 {{qemu_args}}
+    @ echo "Running QEMU"
+    qemu-system-riscv64 {{qemu_args}}
 
 # Debug the kernel in QEMU using tmux
 debug: build
-  tmux new-session -d "qemu-system-riscv64 {{qemu_args}} -s -S"
-  tmux split-window -h "gdb-multiarch -ex 'file {{kernel_elf}}' -ex 'target remote localhost:1234'"
-  tmux -2 attach-session -d
+    tmux new-session -d "qemu-system-riscv64 {{qemu_args}} -s -S"
+    tmux split-window -h "gdb-multiarch -ex 'file {{kernel_elf}}' -ex 'target remote localhost:1234'"
+    tmux -2 attach-session -d
 
 # Start a GDB server for debugging
 gdbserver: build
-  qemu-system-riscv64 {{qemu_args}} -s -S
+    qemu-system-riscv64 {{qemu_args}} -s -S
 
 # Connect to the GDB server
 gdbclient:
-  gdb-multiarch -ex "file {{kernel_elf}}" -ex "target remote localhost:1234"
+    gdb-multiarch -ex "file {{kernel_elf}}" -ex "target remote localhost:1234"
