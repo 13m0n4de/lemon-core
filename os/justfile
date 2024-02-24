@@ -1,4 +1,6 @@
 # Variables
+export LOG := "DEBUG"
+
 target := "riscv64gc-unknown-none-elf"
 mode := "release"
 mode_arg := "--" + mode
