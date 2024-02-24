@@ -1,6 +1,10 @@
 #![no_std]
 #![feature(linkage)]
+#![feature(panic_info_message)]
 
+#[macro_use]
+pub mod console;
+mod lang_items;
 mod syscall;
 
 #[no_mangle]
