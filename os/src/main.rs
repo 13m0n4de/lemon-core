@@ -6,6 +6,7 @@
 #![no_main]
 
 mod lang_items;
+mod sbi;
 
 use core::arch::global_asm;
 
