@@ -12,6 +12,9 @@ mod batch;
 mod lang_items;
 mod logging;
 mod sbi;
+mod sync;
+mod syscall;
+mod trap;
 
 use core::arch::global_asm;
 use log::*;
@@ -56,9 +59,9 @@ pub fn rust_main() -> ! {
     );
     debug!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
 
-    info!("[kernel] Hello world!");
-
-    sbi::shutdown(false)
+    trap::init();
+    batch::print_app_info();
+    batch::run_next_app();
 }
 
 /// clear BSS segment
