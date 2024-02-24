@@ -1,0 +1,18 @@
+target := "riscv64gc-unknown-none-elf"
+mode := "release"
+app_dir := "src/bin"
+target_dir := "target" / target / mode
+
+objcopy := "rust-objcopy --binary-architecture=riscv64"
+
+build:
+    #!/usr/bin/env sh
+    for src in `find {{app_dir}} -name '*.rs'`; do \
+        base=`basename $src .rs`; \
+        elf_target="{{target_dir}}/$base"; \
+        bin_target="{{target_dir}}/$base.bin"; \
+        echo "Building $elf_target from $src..."
+        cargo build --target {{target}} --release --bin $base; \
+        {{objcopy}} $elf_target --strip-all -O binary $bin_target; \
+    done
+
