@@ -4,6 +4,7 @@
 #![deny(warnings)]
 #![no_std]
 #![no_main]
+#![feature(panic_info_message)]
 
 #[macro_use]
 mod console;
@@ -19,7 +20,7 @@ global_asm!(include_str!("entry.asm"));
 pub fn rust_main() -> ! {
     clear_bss();
     println!("Hello world!");
-    loop {}
+    panic!("Shutdown machine!");
 }
 
 /// clear BSS segment
