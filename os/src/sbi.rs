@@ -1,4 +1,4 @@
-#![allow(unused)]
+//! # SBI Interface Functions
 
 /// use sbi call to putchar in console (qemu uart handler)
 pub fn console_putchar(c: usize) {
