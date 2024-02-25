@@ -1,3 +1,7 @@
+//! # Simple Logging Module
+//!
+//! A simple logger implementation using the `log` crate.
+
 use log::{Level, LevelFilter, Log, Metadata, Record};
 
 struct Logger;
@@ -12,11 +16,11 @@ impl Log for Logger {
             return;
         }
         let color = match record.level() {
-            Level::Error => 31,
-            Level::Warn => 93,
-            Level::Info => 34,
-            Level::Debug => 32,
-            Level::Trace => 90,
+            Level::Error => 31, // Red
+            Level::Warn => 93,  // Yellow
+            Level::Info => 34,  // Blue
+            Level::Debug => 32, // Green
+            Level::Trace => 90, // Grey
         };
         println!(
             "\u{1B}[{}m[{:>5}] {}\u{1B}[0m",
@@ -29,6 +33,8 @@ impl Log for Logger {
     fn flush(&self) {}
 }
 
+/// Initializes the logger with a specific log level based on the `LOG` environment variable.
+/// Defaults to `LevelFilter::Off` if the variable is unset or not recognized.
 pub fn init() {
     static LOGGER: Logger = Logger;
     log::set_logger(&LOGGER).unwrap();
