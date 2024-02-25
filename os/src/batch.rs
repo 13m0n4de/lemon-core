@@ -1,4 +1,4 @@
-//! batch subsystem
+//! # Batch subsystem
 
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
@@ -12,19 +12,26 @@ const MAX_APP_NUM: usize = 16;
 const APP_BASE_ADDRESS: usize = 0x80400000;
 const APP_SIZE_LIMIT: usize = 0x20000;
 
+// stack for kernel mode
 #[repr(align(4096))]
 struct KernelStack {
     data: [u8; KERNEL_STACK_SIZE],
 }
+
+// stack for user mode
 #[repr(align(4096))]
 struct UserStack {
     data: [u8; USER_STACK_SIZE],
 }
 
+// global instance of `KernelStack`
+// will be placed on the `.rodata`, but currently the `.rodata` segment is RWX
 static KERNEL_STACK: KernelStack = KernelStack {
     data: [0; KERNEL_STACK_SIZE],
 };
 
+// global instance of `UserStack`
+// will be placed on the `.rodata`, but currently the `.rodata` segment is RWX
 static USER_STACK: UserStack = UserStack {
     data: [0; USER_STACK_SIZE],
 };
@@ -37,8 +44,8 @@ impl KernelStack {
         let cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
         unsafe {
             *cx_ptr = cx;
+            &mut *cx_ptr
         }
-        unsafe { cx_ptr.as_mut().unwrap() }
     }
 }
 
