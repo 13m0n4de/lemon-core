@@ -20,6 +20,9 @@ objcopy := "rust-objcopy --binary-architecture=riscv64"
 
 qemu_args := "-machine virt -nographic -bios " + bootloader + " -device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
 
+app_dir := "../user/src/bin"
+app_target_path := "../user/target" / target / mode
+
 # Default
 default:
     just --list
@@ -31,14 +34,47 @@ env:
     rustup component add rust-src
     rustup component add llvm-tools-preview
 
+insert_app_data:
+    #!/usr/bin/env python3
+    import os
+
+    apps = os.listdir("{{app_dir}}")
+    apps.sort()
+
+    app_index = f"""
+        .align 3
+        .section .data
+        .global _num_app
+    _num_app:
+        .quad {len(apps)}
+    """
+    app_data = ""
+
+    for app_id, app in enumerate(apps):
+        base = os.path.splitext(app)[0]
+        app_index += f"    .quad app_{app_id}_start\n"
+        app_data += f"""
+        .section .data
+        .global app_{app_id}_start
+        .global app_{app_id}_end
+    app_{app_id}_start:
+        .incbin "{{app_target_path}}/{base}.bin"
+    app_{app_id}_end:
+    """
+
+    app_index += f"    .quad app_{len(apps) - 1}_end\n"
+
+    with open("src/link_app.S", "w") as f:
+        f.write(app_index)
+        f.write(app_data)
+
 # Build the kernel binary
-build:
+build: insert_app_data
     @ cd ../user && just build
     @ echo "Platform: {{board}}"
     @ cp "src/linker-{{board}}.ld" "src/linker.ld"
     cargo build {{mode_arg}}
     @ rm src/linker.ld
-    @ rm src/link_app.S
     {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
 
 # Clean build artifacts
