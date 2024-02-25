@@ -1,3 +1,8 @@
+//! # Console Module
+//!
+//! Uses the SBI to send characters to the console.
+//! Implements macros `print!` and `println!` for formatted output.
+
 use crate::sbi::console_putchar;
 use core::fmt::{self, Arguments, Write};
 
