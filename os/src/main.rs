@@ -1,4 +1,10 @@
-//! The main module and entrypoint
+//! # OS Kernel Entrypoint
+//!
+//! - Includes `entry.asm` for initial setup.
+//! - Initializes `.bss` to zero.
+//! - Initializes logging.
+//! - Displays memory segment layouts (`.text`, `.rodata`, `.data`, `.bss`).
+//! - Outputs "Hello world!" then shuts down.
 
 #![deny(missing_docs)]
 #![deny(warnings)]
@@ -20,17 +26,29 @@ global_asm!(include_str!("entry.asm"));
 /// the rust entrypoint of OS
 #[no_mangle]
 pub fn rust_main() -> ! {
+    /* External Symbols:
+     * - `stext`: start addr of text segment
+     * - `etext`: end addr of text segment
+     * - `srodata`: start addr of Read-Only data segment
+     * - `erodata`: end addr of Read-Only data segment
+     * - `sdata`: start addr of data segment
+     * - `edata`: end addr of data segment
+     * - `sbss`: start addr of BSS segment
+     * - `ebss`: end addr of BSS segment
+     * - `boot_stack_lower_bound`: lower bound of the boot stack
+     * - `boot_stack_top`: top addr of the boot stack
+     */
     extern "C" {
-        fn stext(); // begin addr of text segment
-        fn etext(); // end addr of text segment
-        fn srodata(); // start addr of Read-Only data segment
-        fn erodata(); // end addr of Read-Only data ssegment
-        fn sdata(); // start addr of data segment
-        fn edata(); // end addr of data segment
-        fn sbss(); // start addr of BSS segment
-        fn ebss(); // end addr of BSS segment
-        fn boot_stack_lower_bound(); // stack lower bound
-        fn boot_stack_top(); // stack top
+        fn stext();
+        fn etext();
+        fn srodata();
+        fn erodata();
+        fn sdata();
+        fn edata();
+        fn sbss();
+        fn ebss();
+        fn boot_stack_lower_bound();
+        fn boot_stack_top();
     }
 
     clear_bss();
