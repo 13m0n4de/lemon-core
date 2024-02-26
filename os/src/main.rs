@@ -10,7 +10,6 @@
 //!
 //! Submodules:
 //!
-//! - [`batch`]: Manages the loading and execution of multiple applications.
 //! - [`trap`]: Handles all cases of switching from userspace to the kernel.
 //! - [`syscall`]: System call handling and implementation.
 
@@ -22,12 +21,14 @@
 
 #[macro_use]
 mod console;
+mod config;
 mod lang_items;
 mod loader;
 mod logging;
 mod sbi;
 mod sync;
 mod syscall;
+mod task;
 mod trap;
 
 use core::arch::global_asm;
@@ -44,7 +45,8 @@ pub fn rust_main() -> ! {
     print_segment_info();
     trap::init();
     loader::load_apps();
-    unreachable!("unreachable in rust_main!");
+    task::run_first_task();
+    panic!("unreachable in rust_main!");
 }
 
 /// clear BSS segment
