@@ -48,3 +48,7 @@ pub fn exit(exit_code: i32) -> ! {
 pub fn yield_() -> isize {
     sys_yield()
 }
+
+pub fn get_time() -> isize {
+    sys_get_time()
+}
