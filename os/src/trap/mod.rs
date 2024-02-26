@@ -1,4 +1,12 @@
-//! Trap handling functionality
+//! Trap Handling Module
+//!
+//! - Set CSR `stvec` to `__alltraps`.
+//! - On trap, system jumps to `__alltraps`.
+//!   - saves context.
+//!   - switches stack form user to kernel.
+//!   - call [`trap_handler`]
+//! - Handle syscall or other exceptions
+
 mod context;
 
 use crate::{syscall::syscall, task::exit_current_and_run_next};
@@ -12,6 +20,7 @@ use riscv::register::{
 
 global_asm!(include_str!("trap.S"));
 
+/// initialize CSR `stvec` as the entry of `__alltraps`
 pub fn init() {
     extern "C" {
         fn __alltraps();
