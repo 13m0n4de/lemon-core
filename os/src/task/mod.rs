@@ -1,3 +1,7 @@
+//! # Task Management
+//!
+//! Use [`TaskManager`] to manage tasks, and use [`__switch`] to switch tasks.
+
 mod context;
 mod switch;
 
@@ -53,6 +57,7 @@ impl TaskPool {
 }
 
 impl TaskManager {
+    // Run the first task in task list.
     fn run_first_task(&self) -> ! {
         let mut inner = self.inner.exclusive_access();
         let task0 = &mut inner.tasks[0];
@@ -67,12 +72,14 @@ impl TaskManager {
         panic!("unreachable in run_first_task!");
     }
 
+    // Find next task to run and return app id.
     fn mark_current_exited(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Exited;
     }
 
+    // Find next task to run and return app id.
     fn find_next_task(&self) -> Option<usize> {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
@@ -81,12 +88,16 @@ impl TaskManager {
             .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
     }
 
+    // Change the status of current `Running` task into `Ready`.
     fn mark_current_suspended(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
         inner.tasks[current].task_status = TaskStatus::Ready;
     }
 
+    // Find the next 'Ready' task and set its status to 'Running'.
+    // Update `current_task` to this task.
+    // Call `__switch` to switch tasks.
     fn run_next_task(&self) {
         if let Some(next) = self.find_next_task() {
             let mut inner = self.inner.exclusive_access();
