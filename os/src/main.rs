@@ -6,12 +6,13 @@
 //! - Initializes logging.
 //! - Displays memory segment layouts (`.text`, `.rodata`, `.data`, `.bss`).
 //! - Initializes trap.
-//! - call [`batch::run_next_app`] and for the first time go to userspace.
+//! - call [`task::run_first_task`] and for the first time go to userspace.
 //!
 //! Submodules:
 //!
 //! - [`trap`]: Handles all cases of switching from userspace to the kernel.
 //! - [`syscall`]: System call handling and implementation.
+//! - [`task`]: Task management
 
 #![deny(missing_docs)]
 #![deny(warnings)]
