@@ -30,6 +30,7 @@ mod sbi;
 mod sync;
 mod syscall;
 mod task;
+mod timer;
 mod trap;
 
 use core::arch::global_asm;
