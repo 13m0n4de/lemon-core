@@ -11,7 +11,9 @@ mod context;
 
 use crate::{
     syscall::syscall,
-    task::{exit_current_and_run_next, suspend_current_and_run_next},
+    task::{
+        exit_current_and_run_next, suspend_current_and_run_next, user_time_end, user_time_start,
+    },
     timer::set_next_trigger,
 };
 use core::arch::global_asm;
@@ -45,6 +47,8 @@ pub fn enable_timer_interrupt() {
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
 pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+    user_time_end();
+
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
     match scause.cause() {
@@ -72,6 +76,7 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             );
         }
     }
+    user_time_start();
     cx
 }
 
