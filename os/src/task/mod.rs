@@ -81,7 +81,13 @@ impl TaskManager {
             .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
     }
 
-    fn run_next_task(&self) -> ! {
+    fn mark_current_suspended(&self) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].task_status = TaskStatus::Ready;
+    }
+
+    fn run_next_task(&self) {
         if let Some(next) = self.find_next_task() {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
@@ -94,7 +100,7 @@ impl TaskManager {
             unsafe {
                 __switch(current_task_cx_ptr, next_task_cx_ptr);
             }
-            panic!("unreachable in run_first_task!");
+            // go back to user mode
         } else {
             info!("[kernel] All applications completed!");
             shutdown(false);
@@ -121,5 +127,11 @@ pub fn run_first_task() {
 /// exit current task,  then run next task
 pub fn exit_current_and_run_next() {
     TASK_MANAGER.mark_current_exited();
+    TASK_MANAGER.run_next_task();
+}
+
+/// suspend current task, then run next task
+pub fn suspend_current_and_run_next() {
+    TASK_MANAGER.mark_current_suspended();
     TASK_MANAGER.run_next_task();
 }
