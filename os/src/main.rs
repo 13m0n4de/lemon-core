@@ -22,8 +22,8 @@
 
 #[macro_use]
 mod console;
-mod batch;
 mod lang_items;
+mod loader;
 mod logging;
 mod sbi;
 mod sync;
@@ -39,6 +39,28 @@ global_asm!(include_str!("link_app.S"));
 /// the rust entrypoint of OS
 #[no_mangle]
 pub fn rust_main() -> ! {
+    clear_bss();
+    logging::init();
+    print_segment_info();
+    trap::init();
+    loader::load_apps();
+    unreachable!("unreachable in rust_main!");
+}
+
+/// clear BSS segment
+fn clear_bss() {
+    extern "C" {
+        fn sbss();
+        fn ebss();
+    }
+
+    unsafe {
+        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
+            .fill(0);
+    }
+}
+
+fn print_segment_info() {
     /* External Symbols:
      * - `stext`: start addr of text segment
      * - `etext`: end addr of text segment
@@ -64,9 +86,6 @@ pub fn rust_main() -> ! {
         fn boot_stack_top();
     }
 
-    clear_bss();
-    logging::init();
-
     debug!(
         "[kernel] .text [{:#x}, {:#x})",
         stext as usize, etext as usize
@@ -84,21 +103,4 @@ pub fn rust_main() -> ! {
         boot_stack_top as usize, boot_stack_lower_bound as usize
     );
     debug!("[kernel] .bss [{:#x}, {:#x})", sbss as usize, ebss as usize);
-
-    trap::init();
-    batch::print_app_info();
-    batch::run_next_app();
-}
-
-/// clear BSS segment
-fn clear_bss() {
-    extern "C" {
-        fn sbss();
-        fn ebss();
-    }
-
-    unsafe {
-        core::slice::from_raw_parts_mut(sbss as usize as *mut u8, ebss as usize - sbss as usize)
-            .fill(0);
-    }
 }
