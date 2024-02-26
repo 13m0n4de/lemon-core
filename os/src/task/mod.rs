@@ -9,6 +9,7 @@ use crate::config::MAX_APP_NUM;
 use crate::loader::init_app_cx;
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
+use crate::timer::get_time_ms;
 use lazy_static::*;
 use log::*;
 use switch::__switch;
@@ -23,12 +24,15 @@ struct TaskManager {
 struct TaskPool {
     tasks: [TaskControlBlock; MAX_APP_NUM],
     current_task: usize,
+    stop_watch: usize,
 }
 
 #[derive(Copy, Clone)]
 struct TaskControlBlock {
-    pub task_status: TaskStatus,
-    pub task_cx: TaskContext,
+    task_status: TaskStatus,
+    task_cx: TaskContext,
+    user_time: usize,
+    kernel_time: usize,
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -44,6 +48,8 @@ impl TaskPool {
         let mut tasks = [TaskControlBlock {
             task_cx: TaskContext::zero_init(),
             task_status: TaskStatus::UnInit,
+            user_time: 0,
+            kernel_time: 0,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
             task.task_cx = TaskContext::goto_restore(init_app_cx(i));
@@ -52,7 +58,14 @@ impl TaskPool {
         Self {
             tasks,
             current_task: 0,
+            stop_watch: 0,
         }
+    }
+
+    fn refresh_stop_watch(&mut self) -> usize {
+        let start_time = self.stop_watch;
+        self.stop_watch = get_time_ms();
+        self.stop_watch - start_time
     }
 }
 
@@ -61,8 +74,12 @@ impl TaskManager {
     fn run_first_task(&self) -> ! {
         let mut inner = self.inner.exclusive_access();
         let task0 = &mut inner.tasks[0];
+
         task0.task_status = TaskStatus::Running;
         let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
+
+        inner.refresh_stop_watch();
+
         drop(inner);
         let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
@@ -76,7 +93,14 @@ impl TaskManager {
     fn mark_current_exited(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        trace!("[kernel] task {} exited", current);
+
+        inner.tasks[current].kernel_time += inner.refresh_stop_watch();
+        trace!(
+            "[kernel] Task {} exited. user_time: {} ms, kernle_time: {} ms.",
+            current,
+            inner.tasks[current].user_time,
+            inner.tasks[current].kernel_time
+        );
         inner.tasks[current].task_status = TaskStatus::Exited;
     }
 
@@ -93,7 +117,10 @@ impl TaskManager {
     fn mark_current_suspended(&self) {
         let mut inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        trace!("[kernel] task {} suspended", current);
+
+        trace!("[kernel] Task {} suspended", current);
+
+        inner.tasks[current].kernel_time += inner.refresh_stop_watch();
         inner.tasks[current].task_status = TaskStatus::Ready;
     }
 
@@ -104,7 +131,7 @@ impl TaskManager {
         if let Some(next) = self.find_next_task() {
             let mut inner = self.inner.exclusive_access();
             let current = inner.current_task;
-            trace!("[kernel] task {} start", current);
+            trace!("[kernel] Task {} start", current);
             inner.tasks[next].task_status = TaskStatus::Running;
             inner.current_task = next;
             let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
@@ -119,6 +146,20 @@ impl TaskManager {
             info!("[kernel] All applications completed!");
             shutdown(false);
         }
+    }
+
+    // Counting kernel time, starting from now is user time.
+    fn user_time_start(&self) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].kernel_time += inner.refresh_stop_watch();
+    }
+
+    // Counting user time, starting from now is kernel time.
+    fn user_time_end(&self) {
+        let mut inner = self.inner.exclusive_access();
+        let current = inner.current_task;
+        inner.tasks[current].user_time += inner.refresh_stop_watch();
     }
 }
 
@@ -148,4 +189,14 @@ pub fn exit_current_and_run_next() {
 pub fn suspend_current_and_run_next() {
     TASK_MANAGER.mark_current_suspended();
     TASK_MANAGER.run_next_task();
+}
+
+// Counting kernel time, starting from now is user time.
+pub fn user_time_start() {
+    TASK_MANAGER.user_time_start()
+}
+
+// Counting user time, starting from now is kernel time.
+pub fn user_time_end() {
+    TASK_MANAGER.user_time_end()
 }
