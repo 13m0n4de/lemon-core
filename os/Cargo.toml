@@ -9,3 +9,4 @@ riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
 log = "0.4.20"
 sbi-rt = { version = "0.0.3", features = ["legacy"] }
 buddy_system_allocator = "0.9.1"
+bitflags = "2.4.2"
