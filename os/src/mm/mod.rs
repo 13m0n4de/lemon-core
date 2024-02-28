@@ -1,3 +1,7 @@
+mod address;
 mod heap_allocator;
 
-pub use heap_allocator::{heap_test, init_heap};
+/// Initiate heap allocator
+pub fn init() {
+    heap_allocator::init_heap();
+}

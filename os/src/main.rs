@@ -51,9 +51,7 @@ pub fn rust_main() -> ! {
     logging::init();
     print_segment_info();
 
-    mm::init_heap();
-    mm::heap_test();
-
+    mm::init();
     trap::init();
     loader::load_apps();
     trap::enable_timer_interrupt();
