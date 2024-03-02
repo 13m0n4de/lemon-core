@@ -1,6 +1,8 @@
+use alloc::vec;
+use alloc::vec::Vec;
 use bitflags::*;
 
-use super::address::PhysPageNum;
+use super::{address::VirtPageNum, frame_alloc, FrameTracker, PhysPageNum};
 
 bitflags! {
     /// [`PageTableEntry`] flags
@@ -57,5 +59,54 @@ impl PageTableEntry {
 
     pub fn executable(&self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
+    }
+}
+
+pub struct PageTable {
+    root_ppn: PhysPageNum,
+    frames: Vec<FrameTracker>,
+}
+
+impl PageTable {
+    pub fn new() -> Self {
+        let frame = frame_alloc().unwrap();
+        PageTable {
+            root_ppn: frame.ppn,
+            frames: vec![frame],
+        }
+    }
+
+    fn find_pte_then_alloc(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let idxs = vpn.indexes();
+        let mut ppn = self.root_ppn;
+        let mut result: Option<&mut PageTableEntry> = None;
+
+        for idx in idxs {
+            let pte = ppn.get_pte_array().get_mut(idx)?;
+            if !pte.is_valid() {
+                let frame = frame_alloc().unwrap();
+                *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                self.frames.push(frame);
+            }
+            ppn = pte.ppn();
+            result = Some(pte);
+        }
+        result
+    }
+
+    fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+        let idxs = vpn.indexes();
+        let mut ppn = self.root_ppn;
+        let mut result: Option<&mut PageTableEntry> = None;
+
+        for idx in idxs {
+            let pte = ppn.get_pte_array().get_mut(idx)?;
+            if !pte.is_valid() {
+                return None;
+            }
+            ppn = pte.ppn();
+            result = Some(pte);
+        }
+        result
     }
 }
