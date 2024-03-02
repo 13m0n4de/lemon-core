@@ -2,6 +2,7 @@
 
 use super::PageTableEntry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
+use core::fmt::{self, Debug, Formatter};
 
 //              Virtual Address (39 bits)
 // 38                  12 11           0
@@ -35,8 +36,9 @@ pub struct PhysPageNum(pub usize);
 #[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
 pub struct VirtPageNum(pub usize);
 
-// From usize To PhysAddr, PhysPageNum, VirtAddr, VirtPageNum
-
+/*
+* From usize To PhysAddr, PhysPageNum, VirtAddr, VirtPageNum
+*/
 impl From<usize> for PhysAddr {
     fn from(value: usize) -> Self {
         Self(value & ((1 << PA_WIDTH_SV39) - 1))
@@ -61,8 +63,9 @@ impl From<usize> for VirtPageNum {
     }
 }
 
-// From PhysAddr, PhysPageNum, VirtAddr, VirtPageNum To usize
-
+/*
+* From PhysAddr, PhysPageNum, VirtAddr, VirtPageNum To usize
+*/
 impl From<PhysAddr> for usize {
     fn from(value: PhysAddr) -> Self {
         value.0
@@ -94,8 +97,9 @@ impl From<VirtPageNum> for usize {
     }
 }
 
-// Conversion between PhysAddr and PhysPageNum
-
+/*
+* Conversion between PhysAddr and PhysPageNum
+*/
 impl PhysAddr {
     /// Get the pgae offset
     pub fn page_offset(&self) -> usize {
@@ -121,8 +125,9 @@ impl From<PhysPageNum> for PhysAddr {
     }
 }
 
-// Conversion between VirtAddr and VirtPageNum
-
+/*
+* Conversion between VirtAddr and VirtPageNum
+*/
 impl VirtAddr {
     /// Get the pgae offset
     pub fn page_offset(&self) -> usize {
@@ -148,8 +153,9 @@ impl From<VirtPageNum> for VirtAddr {
     }
 }
 
-// PhysPageNum
-
+/*
+* PhysPageNum
+*/
 impl PhysPageNum {
     pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
         let pa: PhysAddr = (*self).into();
@@ -164,5 +170,21 @@ impl PhysPageNum {
     pub fn get_mut<T>(&self) -> &'static mut T {
         let pa: PhysAddr = (*self).into();
         unsafe { (pa.0 as *mut T).as_mut().unwrap() }
+    }
+}
+
+/*
+* VirtPageNum
+*/
+impl VirtPageNum {
+    /// - `id[0]`: VPN[38..=30]
+    /// - `id[1]`: VPN[29..=21]
+    /// - `id[2]`: VPN[20..=12]
+    pub fn indexes(&self) -> [usize; 3] {
+        [
+            (self.0 >> 18) & 0b111111111,
+            (self.0 >> 9) & 0b111111111,
+            self.0 & 0b111111111,
+        ]
     }
 }
