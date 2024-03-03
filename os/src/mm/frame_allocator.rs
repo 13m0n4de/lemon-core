@@ -1,8 +1,5 @@
-use super::PhysPageNum;
-use crate::{
-    config::{MEMORY_END, PAGE_SIZE},
-    sync::UPSafeCell,
-};
+use super::{PhysAddr, PhysPageNum};
+use crate::{config::MEMORY_END, sync::UPSafeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
@@ -96,8 +93,8 @@ pub fn init_frame_allocator() {
     }
 
     FRAME_ALLOCATOR.exclusive_access().init(
-        PhysPageNum::from((ekernel as usize - 1 + PAGE_SIZE) / PAGE_SIZE),
-        PhysPageNum::from(MEMORY_END / PAGE_SIZE),
+        PhysAddr::from(ekernel as usize).ceil_to_ppn(),
+        PhysAddr::from(MEMORY_END).floor_to_ppn(),
     );
 }
 
