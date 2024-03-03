@@ -1,11 +1,17 @@
 use super::frame_alloc;
 use super::StepByOne;
-use super::{PTEFlags, PageTable, PhysPageNum};
+use super::{PTEFlags, PageTable};
+use super::{PhysAddr, PhysPageNum};
 use super::{VPNRange, VirtAddr, VirtPageNum};
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
+use crate::sync::UPSafeCell;
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use bitflags::bitflags;
+use core::arch::asm;
+use lazy_static::lazy_static;
 use log::*;
+use riscv::register::satp;
 
 extern "C" {
     fn stext();
@@ -18,6 +24,11 @@ extern "C" {
     fn ebss();
     fn ekernel();
     fn strampoline();
+}
+
+lazy_static! {
+    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
+        Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
 }
 
 /// map area structure, controls a contiguous piece of virtual memory
@@ -127,6 +138,14 @@ impl MemorySet {
         }
     }
 
+    pub fn activate(&self) {
+        let satp = self.page_table.token();
+        unsafe {
+            satp::write(satp);
+            asm!("sfence.vma");
+        }
+    }
+
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
@@ -149,7 +168,11 @@ impl MemorySet {
     }
 
     fn map_trampoline(&mut self) {
-        todo!()
+        self.page_table.map(
+            VirtAddr::from(TRAMPOLINE).into(),
+            PhysAddr::from(strampoline as usize).into(),
+            PTEFlags::R | PTEFlags::X,
+        )
     }
 
     pub fn new_kernel() -> Self {
@@ -309,4 +332,41 @@ impl MemorySet {
             elf.header.pt2.entry_point() as usize,
         )
     }
+}
+
+#[allow(unused)]
+pub fn remap_test() {
+    let mut kernel_space = KERNEL_SPACE.exclusive_access();
+    let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+    let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+    let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_text.floor_to_vpn())
+            .unwrap()
+            .writable(),
+        false
+    );
+
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_rodata.floor_to_vpn())
+            .unwrap()
+            .writable(),
+        false,
+    );
+
+    assert_eq!(
+        kernel_space
+            .page_table
+            .translate(mid_data.floor_to_vpn())
+            .unwrap()
+            .executable(),
+        false,
+    );
+
+    println!("remap_test passed!");
 }
