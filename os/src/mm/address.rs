@@ -134,12 +134,24 @@ impl PhysAddr {
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
+
+    pub fn floor_to_ppn(&self) -> PhysPageNum {
+        PhysPageNum(self.0 / PAGE_SIZE)
+    }
+
+    pub fn ceil_to_ppn(&self) -> PhysPageNum {
+        if self.0 == 0 {
+            PhysPageNum(0)
+        } else {
+            PhysPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
+        }
+    }
 }
 
 impl From<PhysAddr> for PhysPageNum {
     fn from(value: PhysAddr) -> Self {
         assert!(value.aligned());
-        PhysPageNum(value.0 / PAGE_SIZE)
+        value.floor_to_ppn()
     }
 }
 
@@ -162,12 +174,24 @@ impl VirtAddr {
     pub fn aligned(&self) -> bool {
         self.page_offset() == 0
     }
+
+    pub fn floor_to_vpn(&self) -> VirtPageNum {
+        VirtPageNum(self.0 / PAGE_SIZE)
+    }
+
+    pub fn ceil_to_vpn(&self) -> VirtPageNum {
+        if self.0 == 0 {
+            VirtPageNum(0)
+        } else {
+            VirtPageNum((self.0 - 1 + PAGE_SIZE) / PAGE_SIZE)
+        }
+    }
 }
 
 impl From<VirtAddr> for VirtPageNum {
     fn from(value: VirtAddr) -> Self {
         assert!(value.aligned());
-        VirtPageNum(value.0 / PAGE_SIZE_BITS)
+        value.floor_to_vpn()
     }
 }
 
@@ -213,9 +237,7 @@ impl VirtPageNum {
     }
 }
 
-/*
-* StepByOne trait
-*/
+/// StepByOne
 pub trait StepByOne {
     fn step(&mut self);
 }
