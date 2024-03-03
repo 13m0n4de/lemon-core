@@ -8,9 +8,12 @@ pub use address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPage
 pub use frame_allocator::{frame_alloc, FrameTracker};
 pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 
+use self::memory_set::KERNEL_SPACE;
+
 /// Initiate heap allocator
 pub fn init() {
     heap_allocator::init_heap();
     frame_allocator::init_frame_allocator();
-    frame_allocator::frame_allocator_test();
+    KERNEL_SPACE.exclusive_access().activate();
+    memory_set::remap_test();
 }

@@ -136,4 +136,8 @@ impl PageTable {
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
+
+    pub fn token(&self) -> usize {
+        8usize << 60 | self.root_ppn.0
+    }
 }
