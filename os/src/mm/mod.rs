@@ -4,9 +4,9 @@ mod heap_allocator;
 mod memory_set;
 mod page_table;
 
-pub use address::{PhysAddr, PhysPageNum, VPNRange, VirtAddr, VirtPageNum};
+pub use address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum};
 pub use frame_allocator::{frame_alloc, FrameTracker};
-pub use page_table::{PageTable, PageTableEntry};
+pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 
 /// Initiate heap allocator
 pub fn init() {
