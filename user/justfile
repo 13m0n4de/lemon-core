@@ -5,17 +5,10 @@ target_dir := "target" / target / mode
 
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
-base_address := "0x80400000"
-step := "0x20000"
-linker := "src/linker.ld"
-
 build:
     #!/usr/bin/env python3
     import os
     import subprocess
-
-    with open("{{linker}}") as f:
-        raw_linker = f.read()
 
     apps = os.listdir("{{app_dir}}")
     apps.sort()
@@ -24,15 +17,7 @@ build:
         elf_target = os.path.join("{{target_dir}}", base)
         bin_target = elf_target + ".bin"
 
-        app_address = {{base_address}} + {{step}} * app_id
-        new_linker = raw_linker.replace(
-            hex({{base_address}}), hex(app_address)
-        )
-        with open("{{linker}}", "w") as f:
-            f.write(new_linker)
-
         print(f"Building {elf_target} from {{app_dir}}/{app}")
-        print(f"Application {app} start with address {hex(app_address)}")
         subprocess.run(
             ["cargo", "build", "--target", "{{target}}", "--release", "--bin", base],
             check=True,
@@ -50,6 +35,3 @@ build:
             ],
             check=True,
         )
-
-        with open("{{linker}}", "w") as f:
-            f.write(raw_linker)
