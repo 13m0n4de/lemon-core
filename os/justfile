@@ -54,11 +54,12 @@ insert_app_data:
         base = os.path.splitext(app)[0]
         app_index += f"    .quad app_{app_id}_start\n"
         app_data += f"""
+        .align 3
         .section .data
         .global app_{app_id}_start
         .global app_{app_id}_end
     app_{app_id}_start:
-        .incbin "{{app_target_path}}/{base}.bin"
+        .incbin "{{app_target_path}}/{base}"
     app_{app_id}_end:
     """
 
