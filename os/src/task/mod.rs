@@ -3,12 +3,12 @@
 //! Use [`TaskManager`] to manage tasks, and use [`__switch`] to switch tasks.
 
 mod context;
+mod manager;
 mod switch;
 
 use crate::config::{kernel_stack_position, TRAP_CONTEXT};
 use crate::loader::{get_app_data, get_num_app};
 use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
-use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use crate::timer::get_time_ms;
 use crate::trap::{trap_handler, TrapContext};
@@ -17,12 +17,8 @@ use lazy_static::*;
 use log::*;
 use switch::__switch;
 
-pub use context::TaskContext;
-
-struct TaskManager {
-    num_app: usize,
-    inner: UPSafeCell<TaskPool>,
-}
+use context::TaskContext;
+use manager::TaskManager;
 
 struct TaskPool {
     tasks: Vec<TaskControlBlock>,
@@ -82,6 +78,10 @@ impl TaskControlBlock {
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
         self.trap_cx_ppn.get_mut()
     }
+
+    pub fn get_user_token(&self) -> usize {
+        self.memory_set.token()
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -97,100 +97,6 @@ impl TaskPool {
         let start_time = self.stop_watch;
         self.stop_watch = get_time_ms();
         self.stop_watch - start_time
-    }
-}
-
-impl TaskManager {
-    // Run the first task in task list.
-    fn run_first_task(&self) -> ! {
-        let mut inner = self.inner.exclusive_access();
-        let task0 = &mut inner.tasks[0];
-
-        task0.task_status = TaskStatus::Running;
-        let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
-
-        inner.refresh_stop_watch();
-
-        drop(inner);
-        let mut _unused = TaskContext::zero_init();
-        // before this, we should drop local variables that must be dropped manually
-        unsafe {
-            __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
-        }
-        panic!("unreachable in run_first_task!");
-    }
-
-    // Find next task to run and return app id.
-    fn mark_current_exited(&self) {
-        let mut inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-
-        inner.tasks[current].kernel_time += inner.refresh_stop_watch();
-        trace!(
-            "[kernel] Task {} exited. user_time: {} ms, kernle_time: {} ms.",
-            current,
-            inner.tasks[current].user_time,
-            inner.tasks[current].kernel_time
-        );
-        inner.tasks[current].task_status = TaskStatus::Exited;
-    }
-
-    // Find next task to run and return app id.
-    fn find_next_task(&self) -> Option<usize> {
-        let inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        (current + 1..current + self.num_app + 1)
-            .map(|id| id % self.num_app)
-            .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
-    }
-
-    // Change the status of current `Running` task into `Ready`.
-    fn mark_current_suspended(&self) {
-        let mut inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-
-        trace!("[kernel] Task {} suspended", current);
-
-        inner.tasks[current].kernel_time += inner.refresh_stop_watch();
-        inner.tasks[current].task_status = TaskStatus::Ready;
-    }
-
-    // Find the next 'Ready' task and set its status to 'Running'.
-    // Update `current_task` to this task.
-    // Call `__switch` to switch tasks.
-    fn run_next_task(&self) {
-        if let Some(next) = self.find_next_task() {
-            let mut inner = self.inner.exclusive_access();
-            let current = inner.current_task;
-            trace!("[kernel] Task {} start", current);
-            inner.tasks[next].task_status = TaskStatus::Running;
-            inner.current_task = next;
-            let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
-            let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
-            drop(inner);
-            // before this, we should drop local variables that must be dropped manually
-            unsafe {
-                __switch(current_task_cx_ptr, next_task_cx_ptr);
-            }
-            // go back to user mode
-        } else {
-            info!("[kernel] All applications completed!");
-            shutdown(false);
-        }
-    }
-
-    // Counting kernel time, starting from now is user time.
-    fn user_time_start(&self) {
-        let mut inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        inner.tasks[current].kernel_time += inner.refresh_stop_watch();
-    }
-
-    // Counting user time, starting from now is kernel time.
-    fn user_time_end(&self) {
-        let mut inner = self.inner.exclusive_access();
-        let current = inner.current_task;
-        inner.tasks[current].user_time += inner.refresh_stop_watch();
     }
 }
 
@@ -239,4 +145,12 @@ pub fn user_time_start() {
 // Counting user time, starting from now is kernel time.
 pub fn user_time_end() {
     TASK_MANAGER.user_time_end()
+}
+
+pub fn current_user_token() -> usize {
+    TASK_MANAGER.get_current_token()
+}
+
+pub fn current_trap_cx() -> &'static mut TrapContext {
+    TASK_MANAGER.get_current_trap_cx()
 }
