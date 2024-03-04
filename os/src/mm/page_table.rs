@@ -1,7 +1,7 @@
-use alloc::collections::BTreeMap;
+use alloc::{collections::BTreeMap, vec, vec::Vec};
 use bitflags::*;
 
-use super::{address::VirtPageNum, frame_alloc, FrameTracker, PhysPageNum};
+use super::{frame_alloc, FrameTracker, PhysPageNum, VirtPageNum};
 
 bitflags! {
     /// [`PageTableEntry`] flags
@@ -63,7 +63,8 @@ impl PageTableEntry {
 
 pub struct PageTable {
     root_ppn: PhysPageNum,
-    frames: BTreeMap<VirtPageNum, FrameTracker>,
+    data_frames: BTreeMap<VirtPageNum, FrameTracker>,
+    metadata_frames: Vec<FrameTracker>,
 }
 
 impl PageTable {
@@ -71,16 +72,17 @@ impl PageTable {
         let frame = frame_alloc().unwrap();
         PageTable {
             root_ppn: frame.ppn,
-            frames: BTreeMap::new(),
+            data_frames: BTreeMap::new(),
+            metadata_frames: vec![frame],
         }
     }
 
     pub fn insert(&mut self, vpn: VirtPageNum, frame: FrameTracker) -> Option<FrameTracker> {
-        self.frames.insert(vpn, frame)
+        self.data_frames.insert(vpn, frame)
     }
 
     pub fn remove(&mut self, vpn: &VirtPageNum) -> Option<FrameTracker> {
-        self.frames.remove(vpn)
+        self.data_frames.remove(vpn)
     }
 
     fn find_pte_then_alloc(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
@@ -92,6 +94,7 @@ impl PageTable {
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                self.metadata_frames.push(frame);
             }
             ppn = pte.ppn();
         }
@@ -129,7 +132,8 @@ impl PageTable {
     pub fn from_token(satp: usize) -> Self {
         Self {
             root_ppn: PhysPageNum::from(satp & (1usize << 44) - 1),
-            frames: BTreeMap::new(),
+            data_frames: BTreeMap::new(),
+            metadata_frames: vec![],
         }
     }
 
