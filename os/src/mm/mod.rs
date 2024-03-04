@@ -7,7 +7,7 @@ mod page_table;
 pub use address::{PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr, VirtPageNum};
 pub use frame_allocator::{frame_alloc, FrameTracker};
 pub use memory_set::{MapPermission, MemorySet, KERNEL_SPACE};
-pub use page_table::{PTEFlags, PageTable, PageTableEntry};
+pub use page_table::{translated_byte_buffer, PTEFlags, PageTable, PageTableEntry};
 
 /// Initiate heap allocator
 pub fn init() {
