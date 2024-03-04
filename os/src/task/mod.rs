@@ -31,6 +31,7 @@ struct TaskControlBlock {
     task_cx: TaskContext,
     memory_set: MemorySet,
     trap_cx_ppn: PhysPageNum,
+    #[allow(dead_code)]
     base_size: usize,
     user_time: usize,
     kernel_time: usize,
@@ -86,7 +87,6 @@ impl TaskControlBlock {
 
 #[derive(Copy, Clone, PartialEq)]
 enum TaskStatus {
-    UnInit,
     Ready,
     Running,
     Exited,
