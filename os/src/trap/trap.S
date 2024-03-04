@@ -11,7 +11,7 @@
     .align 2
 __alltraps:
     csrrw sp, sscratch, sp
-    # now sp->kernel stack, sscratch->user stack
+    # now sp->*TrapContext in user space, sscratch->user stack
     # save other general purpose registers
     sd x1, 1*8(sp)
     # skip sp(x2), we will save it later
@@ -23,12 +23,12 @@ __alltraps:
         SAVE_GP %n
         .set n, n+1
     .endr
-    # we can use t0/t1/t2 freely, because they were saved on kernel stack
+    # we can use t0/t1/t2 freely, because they have been saved in TrapContext
     csrr t0, sstatus
     csrr t1, sepc
     sd t0, 32*8(sp)
     sd t1, 33*8(sp)
-    # read user stack from sscratch and save it on the kernel stack
+    # read user stack from sscratch and save it in TrapContext
     csrr t2, sscratch
     sd t2, 2*8(sp)
     # load kernel_satp into t0

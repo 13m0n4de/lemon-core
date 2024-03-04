@@ -68,6 +68,7 @@ impl MapArea {
         page_table.map(vpn, ppn, pte_flags);
     }
 
+    #[allow(unused)]
     pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         match self.map_type {
             MapType::Framed => {
@@ -84,6 +85,7 @@ impl MapArea {
         }
     }
 
+    #[allow(unused)]
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.unmap_one(page_table, vpn);
@@ -305,17 +307,6 @@ impl MemorySet {
         memory_set.push(
             MapArea::new(
                 user_stack_bottom.into(),
-                user_stack_top.into(),
-                MapType::Framed,
-                MapPermission::R | MapPermission::W | MapPermission::U,
-            ),
-            None,
-        );
-
-        // used in sbrk
-        memory_set.push(
-            MapArea::new(
-                user_stack_top.into(),
                 user_stack_top.into(),
                 MapType::Framed,
                 MapPermission::R | MapPermission::W | MapPermission::U,
