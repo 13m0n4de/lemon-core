@@ -1,6 +1,6 @@
 use super::frame_alloc;
 use super::StepByOne;
-use super::{PTEFlags, PageTable};
+use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum};
 use super::{VPNRange, VirtAddr, VirtPageNum};
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
@@ -144,6 +144,14 @@ impl MemorySet {
             satp::write(satp);
             asm!("sfence.vma");
         }
+    }
+
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+        self.page_table.translate(vpn)
+    }
+
+    pub fn token(&self) -> usize {
+        self.page_table.token()
     }
 
     fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
