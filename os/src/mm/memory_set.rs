@@ -94,7 +94,7 @@ impl MapArea {
         assert_eq!(self.map_type, MapType::Framed);
 
         let mut current_vpn = self.vpn_range.get_start();
-        for src_chunk in data.chunks_exact(PAGE_SIZE) {
+        for src_chunk in data.chunks_exact(PAGE_SIZE.min(data.len())) {
             let dst_bytes = &mut page_table
                 .translate(current_vpn)
                 .unwrap()
