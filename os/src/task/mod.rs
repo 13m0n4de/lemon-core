@@ -6,11 +6,13 @@ mod context;
 mod switch;
 
 use crate::config::{kernel_stack_position, TRAP_CONTEXT};
+use crate::loader::{get_app_data, get_num_app};
 use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use crate::timer::get_time_ms;
 use crate::trap::{trap_handler, TrapContext};
+use alloc::vec::Vec;
 use lazy_static::*;
 use log::*;
 use switch::__switch;
@@ -23,7 +25,7 @@ struct TaskManager {
 }
 
 struct TaskPool {
-    tasks: [TaskControlBlock; MAX_APP_NUM],
+    tasks: Vec<TaskControlBlock>,
     current_task: usize,
     stop_watch: usize,
 }
@@ -91,24 +93,6 @@ enum TaskStatus {
 }
 
 impl TaskPool {
-    fn new() -> Self {
-        let mut tasks = [TaskControlBlock {
-            task_cx: TaskContext::zero_init(),
-            task_status: TaskStatus::UnInit,
-            user_time: 0,
-            kernel_time: 0,
-        }; MAX_APP_NUM];
-        for (i, task) in tasks.iter_mut().enumerate() {
-            task.task_cx = TaskContext::goto_restore(init_app_cx(i));
-            task.task_status = TaskStatus::Ready;
-        }
-        Self {
-            tasks,
-            current_task: 0,
-            stop_watch: 0,
-        }
-    }
-
     fn refresh_stop_watch(&mut self) -> usize {
         let start_time = self.stop_watch;
         self.stop_watch = get_time_ms();
@@ -212,11 +196,20 @@ impl TaskManager {
 
 lazy_static! {
     static ref TASK_MANAGER: TaskManager = {
-        extern "C" {
-            fn _num_app();
-        }
-        let num_app = unsafe { (_num_app as usize as *const usize).read_volatile() };
-        let inner = unsafe { UPSafeCell::new(TaskPool::new()) };
+        let num_app = get_num_app();
+        debug!("num_app = {num_app}");
+
+        let tasks: Vec<TaskControlBlock> = (0..num_app)
+            .map(|i| TaskControlBlock::new(get_app_data(i), i))
+            .collect();
+
+        let inner = unsafe {
+            UPSafeCell::new(TaskPool {
+                tasks,
+                current_task: 0,
+                stop_watch: 0,
+            })
+        };
         TaskManager { num_app, inner }
     };
 }
