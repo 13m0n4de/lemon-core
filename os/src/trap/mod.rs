@@ -80,4 +80,12 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     cx
 }
 
+/// set the new addr of __restore asm function in TRAMPOLINE page,
+/// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
+/// finally, jump to new addr of __restore asm function
+#[no_mangle]
+pub fn trap_return() -> ! {
+    todo!()
+}
+
 pub use context::TrapContext;
