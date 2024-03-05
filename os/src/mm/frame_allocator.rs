@@ -1,9 +1,12 @@
+//! Implementation of [`FrameAllocator`]
+
 use super::{PhysAddr, PhysPageNum};
 use crate::{config::MEMORY_END, sync::UPSafeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
 
+/// Manage a frame which has the same lifecycle as the tracker
 pub struct FrameTracker {
     pub ppn: PhysPageNum,
 }
@@ -34,6 +37,7 @@ trait FrameAllocator {
     fn dealloc(&mut self, ppn: PhysPageNum);
 }
 
+/// An implementation for frame allocator
 pub struct StackFrameAllocator {
     current: usize,
     end: usize,
@@ -86,7 +90,7 @@ lazy_static! {
         unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
 }
 
-/// initiate the frame allocator using `ekernel` and `MEMORY_END`
+/// Initiate the frame allocator using `ekernel` and [`MEMORY_END`]
 pub fn init_frame_allocator() {
     extern "C" {
         fn ekernel();
@@ -98,7 +102,7 @@ pub fn init_frame_allocator() {
     );
 }
 
-/// allocate a frame
+/// Allocate a frame
 pub fn frame_alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
@@ -106,12 +110,12 @@ pub fn frame_alloc() -> Option<FrameTracker> {
         .map(FrameTracker::new)
 }
 
-/// deallocate a frame
+/// Deallocate a frame
 fn frame_dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
-/// a simple test for frame allocator
+/// A simple test for frame allocator
 #[allow(unused)]
 pub fn frame_allocator_test() {
     let mut v: Vec<FrameTracker> = Vec::new();

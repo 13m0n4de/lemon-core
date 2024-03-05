@@ -1,16 +1,22 @@
+//! The global allocator
+
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
 
+/// Heap allocator instance
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap<32> = LockedHeap::<32>::empty();
 
+/// Heap space (`[u8; KERNEL_HEAP_SIZE]`)
 static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
 
+/// Panic when headp allocation error occurs
 #[alloc_error_handler]
 pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Headp allocation error, layout = {:?}", layout);
 }
 
+/// Initiate heap allocator
 pub fn init_heap() {
     unsafe {
         HEAP_ALLOCATOR
@@ -19,6 +25,7 @@ pub fn init_heap() {
     }
 }
 
+/// A simple test for heap allocator
 #[allow(unused)]
 pub fn heap_test() {
     use alloc::boxed::Box;

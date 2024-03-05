@@ -1,4 +1,5 @@
-//! App management syscalls
+//! Process management syscalls
+
 use log::*;
 
 use crate::{

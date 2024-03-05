@@ -1,3 +1,5 @@
+//! Implementation of [`PageTableEntry`] and [`PageTable`].
+
 use super::{frame_alloc, FrameTracker, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 use alloc::{collections::BTreeMap, vec, vec::Vec};
 use bitflags::*;
@@ -21,7 +23,7 @@ bitflags! {
 #[repr(C)]
 #[derive(Copy, Clone)]
 pub struct PageTableEntry {
-    pub bits: usize,
+    bits: usize,
 }
 
 impl PageTableEntry {
@@ -60,6 +62,10 @@ impl PageTableEntry {
     }
 }
 
+/// Page Table
+/// - `root_ppn`: The physical page number of the root of the page table
+/// - `data_frames`: Physical frames for the data
+/// - `metadata_frames`: Physical frames for the page table itself and its directory entries
 pub struct PageTable {
     root_ppn: PhysPageNum,
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
@@ -75,11 +81,12 @@ impl PageTable {
             metadata_frames: vec![frame],
         }
     }
-
+    /// Inserts a mapping for a [`VirtPageNum`] to a [`FrameTracker`], replacing any existing mapping, and returns the old frame if it existed.
     pub fn insert(&mut self, vpn: VirtPageNum, frame: FrameTracker) -> Option<FrameTracker> {
         self.data_frames.insert(vpn, frame)
     }
 
+    /// Removes and returns the frame mapping for a [`VirtPageNum`] if it exists.
     pub fn remove(&mut self, vpn: &VirtPageNum) -> Option<FrameTracker> {
         self.data_frames.remove(vpn)
     }
@@ -115,12 +122,14 @@ impl PageTable {
         ppn.get_pte_array().get_mut(idxs[2])
     }
 
+    /// Insert a key-value pair into the multi-level page table
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.find_pte_then_alloc(vpn).unwrap();
         assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
 
+    /// Remove a key-value pair from the multi-level page table
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
         assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
@@ -136,10 +145,12 @@ impl PageTable {
         }
     }
 
+    /// Translates a [`VirtPageNum`] to a [`PageTableEntry`] if it exists.
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
 
+    /// Generates a token representing the physical address of the page table
     pub fn token(&self) -> usize {
         8usize << 60 | self.root_ppn.0
     }
