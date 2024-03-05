@@ -1,15 +1,21 @@
 #![no_std]
 #![feature(linkage)]
 #![feature(panic_info_message)]
+#![feature(alloc_error_handler)]
 
 #[macro_use]
 pub mod console;
+mod heap_allocator;
 mod lang_items;
 mod syscall;
+
+use heap_allocator::init_heap;
+use syscall::*;
 
 #[no_mangle]
 #[link_section = ".text.entry"]
 pub extern "C" fn _start() -> ! {
+    init_heap();
     exit(main())
 }
 
@@ -18,8 +24,6 @@ pub extern "C" fn _start() -> ! {
 fn main() -> i32 {
     panic!("Cannot find main!");
 }
-
-use syscall::*;
 
 pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf)
