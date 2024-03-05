@@ -1,3 +1,5 @@
+//! Implementation of [`MapArea`] and [`MemorySet`].
+
 use super::frame_alloc;
 use super::StepByOne;
 use super::{PTEFlags, PageTable, PageTableEntry};
@@ -5,8 +7,7 @@ use super::{PhysAddr, PhysPageNum};
 use super::{VPNRange, VirtAddr, VirtPageNum};
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
 use crate::sync::UPSafeCell;
-use alloc::sync::Arc;
-use alloc::vec::Vec;
+use alloc::{sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use core::arch::asm;
 use lazy_static::lazy_static;
@@ -27,11 +28,29 @@ extern "C" {
 }
 
 lazy_static! {
+    /// The memory set instance of kernel space
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
         Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
 }
 
-/// map area structure, controls a contiguous piece of virtual memory
+/// Map type for memory set: `identical` or `framed`
+#[derive(Copy, Clone, PartialEq, Debug)]
+pub enum MapType {
+    Identical,
+    Framed,
+}
+
+bitflags! {
+    /// Map permission corresponding to that in pte: `R W X U`
+    pub struct MapPermission: u8 {
+        const R = 1 << 1;
+        const W = 1 << 2;
+        const X = 1 << 3;
+        const U = 1 << 4;
+    }
+}
+
+/// Map area structure, controls a contiguous piece of virtual memory
 pub struct MapArea {
     vpn_range: VPNRange,
     map_type: MapType,
@@ -54,7 +73,8 @@ impl MapArea {
         }
     }
 
-    pub fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
+    /// Maps a single virtual page to a physical page based on the [`MapType`] and [`MapPermission`].
+    fn map_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         let ppn = match self.map_type {
             MapType::Identical => PhysPageNum(vpn.0),
             MapType::Framed => {
@@ -68,8 +88,9 @@ impl MapArea {
         page_table.map(vpn, ppn, pte_flags);
     }
 
+    // Unmaps a single virtual page from the page table, freeing associated resources if framed.
     #[allow(unused)]
-    pub fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
+    fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         match self.map_type {
             MapType::Framed => {
                 page_table.remove(&vpn);
@@ -79,12 +100,14 @@ impl MapArea {
         page_table.unmap(vpn);
     }
 
+    /// Maps all pages within the VPN range of this [`MapArea`] to physical pages.
     pub fn map(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
             self.map_one(page_table, vpn);
         }
     }
 
+    /// Unmaps all pages within the VPN range of this [`MapArea`], potentially freeing resources.
     #[allow(unused)]
     pub fn unmap(&mut self, page_table: &mut PageTable) {
         for vpn in self.vpn_range {
@@ -92,6 +115,8 @@ impl MapArea {
         }
     }
 
+    /// Copies data into the virtual pages managed by this MapArea, assuming the area is framed.
+    /// data: start-aligned but maybe with shorter length, assume that all frames were cleared before.
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
 
@@ -111,22 +136,7 @@ impl MapArea {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub enum MapType {
-    Identical,
-    Framed,
-}
-
-bitflags! {
-    pub struct MapPermission: u8 {
-        const R = 1 << 1;
-        const W = 1 << 2;
-        const X = 1 << 3;
-        const U = 1 << 4;
-    }
-}
-
-/// memory set structure, controls virtual-memory space
+/// Memory set structure, controls virtual-memory space
 pub struct MemorySet {
     page_table: PageTable,
     areas: Vec<MapArea>,
@@ -140,6 +150,7 @@ impl MemorySet {
         }
     }
 
+    /// Activate SV39 paging mode
     pub fn activate(&self) {
         let satp = self.page_table.token();
         unsafe {
@@ -148,10 +159,12 @@ impl MemorySet {
         }
     }
 
+    /// Translates a [`VirtPageNum`] to a [`PageTableEntry`] if it exists.
     pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
         self.page_table.translate(vpn)
     }
 
+    /// Generates a token representing the physical address of the page table
     pub fn token(&self) -> usize {
         self.page_table.token()
     }
@@ -177,6 +190,7 @@ impl MemorySet {
         )
     }
 
+    /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
         self.page_table.map(
             VirtAddr::from(TRAMPOLINE).into(),
@@ -185,6 +199,7 @@ impl MemorySet {
         )
     }
 
+    /// Without kernel stacks.
     pub fn new_kernel() -> Self {
         let mut memory_set = Self::new_bare();
 
@@ -256,6 +271,8 @@ impl MemorySet {
         memory_set
     }
 
+    /// Include sections in elf and trampoline and TrapContext and user stack.
+    /// Returns user_sp and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
 
