@@ -3,16 +3,15 @@
 //! - Includes `entry.asm` for initial setup.
 //! - Includes `link_app.S` to link the application with the kernel.
 //! - Initializes `.bss` to zero.
-//! - Initializes logging.
-//! - Displays memory segment layouts (`.text`, `.rodata`, `.data`, `.bss`).
-//! - Initializes trap.
+//! - Initializes submodules.
 //! - call [`task::run_first_task`] and for the first time go to userspace.
 //!
 //! Submodules:
 //!
-//! - [`trap`]: Handles all cases of switching from userspace to the kernel.
+//! - [`mm`]: Memory management
 //! - [`syscall`]: System call handling and implementation.
 //! - [`task`]: Task management
+//! - [`trap`]: Handles all cases of switching from userspace to the kernel.
 
 #![deny(missing_docs)]
 #![deny(warnings)]

@@ -109,29 +109,29 @@ lazy_static! {
             .map(|i| TaskControlBlock::new(get_app_data(i), i))
             .collect();
 
-        let inner = unsafe {
+        let pool = unsafe {
             UPSafeCell::new(TaskPool {
                 tasks,
                 current_task: 0,
                 stop_watch: 0,
             })
         };
-        TaskManager { num_app, inner }
+        TaskManager { num_app, pool }
     };
 }
 
-/// run first task
+/// Run first task
 pub fn run_first_task() {
     TASK_MANAGER.run_first_task();
 }
 
-/// exit current task,  then run next task
+/// Exit current task,  then run next task
 pub fn exit_current_and_run_next() {
     TASK_MANAGER.mark_current_exited();
     TASK_MANAGER.run_next_task();
 }
 
-/// suspend current task, then run next task
+/// Suspend current task, then run next task
 pub fn suspend_current_and_run_next() {
     TASK_MANAGER.mark_current_suspended();
     TASK_MANAGER.run_next_task();
@@ -147,10 +147,12 @@ pub fn user_time_end() {
     TASK_MANAGER.user_time_end()
 }
 
+/// Get the current 'Running' task's token.
 pub fn current_user_token() -> usize {
     TASK_MANAGER.get_current_token()
 }
 
+/// Get the current 'Running' task's trap contexts.
 pub fn current_trap_cx() -> &'static mut TrapContext {
     TASK_MANAGER.get_current_trap_cx()
 }
