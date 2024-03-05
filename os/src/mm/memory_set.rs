@@ -120,17 +120,14 @@ impl MapArea {
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
 
+        let chunk_size = PAGE_SIZE.min(data.len());
         let mut current_vpn = self.vpn_range.get_start();
-        for src_chunk in data.chunks_exact(PAGE_SIZE.min(data.len())) {
-            let dst_bytes = &mut page_table
-                .translate(current_vpn)
-                .unwrap()
-                .ppn()
-                .get_bytes_array();
 
-            let len = src_chunk.len().min(dst_bytes.len());
-            dst_bytes[..len].copy_from_slice(&src_chunk[..len]);
-
+        for src_chunk in data.chunks(chunk_size) {
+            let ppn = page_table.translate(current_vpn).unwrap().ppn();
+            let dst_bytes = ppn.get_bytes_array();
+            let copy_len = src_chunk.len().min(dst_bytes.len());
+            dst_bytes[..copy_len].copy_from_slice(&src_chunk[..copy_len]);
             current_vpn.step();
         }
     }
