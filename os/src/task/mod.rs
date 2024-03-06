@@ -1,159 +1,57 @@
 //! # Task Management
-//!
-//! Use [`TaskManager`] to manage tasks, and use [`__switch`] to switch tasks.
 
 mod context;
+mod control_block;
 mod manager;
 mod pid;
+mod processor;
 mod switch;
 
-use crate::config::{kernel_stack_position, TRAP_CONTEXT};
-use crate::loader::{get_app_data, get_num_app};
-use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
-use crate::sync::UPSafeCell;
-use crate::timer::get_time_ms;
-use crate::trap::{trap_handler, TrapContext};
-use alloc::vec::Vec;
-use lazy_static::*;
-use log::*;
-use switch::__switch;
+use alloc::sync::Arc;
+use lazy_static::lazy_static;
+
+use crate::loader::get_app_data_by_name;
 
 use context::TaskContext;
-use manager::TaskManager;
+use control_block::TaskControlBlock;
+use manager::add_task;
+use processor::take_current_task;
 
-struct TaskPool {
-    tasks: Vec<TaskControlBlock>,
-    current_task: usize,
-    stop_watch: usize,
-}
-
-struct TaskControlBlock {
-    task_status: TaskStatus,
-    task_cx: TaskContext,
-    memory_set: MemorySet,
-    trap_cx_ppn: PhysPageNum,
-    #[allow(dead_code)]
-    base_size: usize,
-    user_time: usize,
-    kernel_time: usize,
-}
-
-impl TaskControlBlock {
-    pub fn new(elf_data: &[u8], app_id: usize) -> Self {
-        // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
-        let trap_cx_ppn = memory_set
-            .translate(VirtAddr::from(TRAP_CONTEXT).into())
-            .unwrap()
-            .ppn();
-        let task_status = TaskStatus::Ready;
-
-        // map a kernel-stack in kernel space
-        let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(app_id);
-        KERNEL_SPACE.exclusive_access().insert_framed_area(
-            kernel_stack_bottom.into(),
-            kernel_stack_top.into(),
-            MapPermission::R | MapPermission::W,
-        );
-        let task_control_block = Self {
-            task_status,
-            task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-            memory_set,
-            trap_cx_ppn,
-            base_size: user_sp,
-            kernel_time: 0,
-            user_time: 0,
-        };
-
-        // prepare TrapContext in user space
-        let trap_cx = task_control_block.get_trap_cx();
-        *trap_cx = TrapContext::app_init_context(
-            entry_point,
-            user_sp,
-            KERNEL_SPACE.exclusive_access().token(),
-            kernel_stack_top,
-            trap_handler as usize,
-        );
-        task_control_block
-    }
-
-    pub fn get_trap_cx(&self) -> &'static mut TrapContext {
-        self.trap_cx_ppn.get_mut()
-    }
-
-    pub fn get_user_token(&self) -> usize {
-        self.memory_set.token()
-    }
-}
+use self::processor::schedule;
 
 #[derive(Copy, Clone, PartialEq)]
 enum TaskStatus {
     Ready,
     Running,
-    Exited,
-}
-
-impl TaskPool {
-    fn refresh_stop_watch(&mut self) -> usize {
-        let start_time = self.stop_watch;
-        self.stop_watch = get_time_ms();
-        self.stop_watch - start_time
-    }
+    Zombie,
 }
 
 lazy_static! {
-    static ref TASK_MANAGER: TaskManager = {
-        let num_app = get_num_app();
-        debug!("num_app = {num_app}");
-
-        let tasks: Vec<TaskControlBlock> = (0..num_app)
-            .map(|i| TaskControlBlock::new(get_app_data(i), i))
-            .collect();
-
-        let pool = unsafe {
-            UPSafeCell::new(TaskPool {
-                tasks,
-                current_task: 0,
-                stop_watch: 0,
-            })
-        };
-        TaskManager { num_app, pool }
-    };
+    static ref INITPROC: Arc<TaskControlBlock> = Arc::new(TaskControlBlock::new(
+        get_app_data_by_name("initproc").unwrap()
+    ));
 }
 
-/// Run first task
-pub fn run_first_task() {
-    TASK_MANAGER.run_first_task();
+/// Add init process to the mannger
+pub fn add_initproc() {
+    add_task(INITPROC.clone())
 }
 
-/// Exit current task,  then run next task
-pub fn exit_current_and_run_next() {
-    TASK_MANAGER.mark_current_exited();
-    TASK_MANAGER.run_next_task();
-}
-
-/// Suspend current task, then run next task
+/// Suspend the current 'Running' task and run the next task in task list
 pub fn suspend_current_and_run_next() {
-    TASK_MANAGER.mark_current_suspended();
-    TASK_MANAGER.run_next_task();
-}
+    // There must be an application running.
+    let task = take_current_task().unwrap();
 
-// Counting kernel time, starting from now is user time.
-pub fn user_time_start() {
-    TASK_MANAGER.user_time_start()
-}
+    // --- access current TCB exclusively
+    let mut task_inner = task.inner_exclusive_access();
+    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    // change status to Ready
+    task_inner.task_status = TaskStatus::Ready;
+    drop(task_inner);
+    // --- release current TCB
 
-// Counting user time, starting from now is kernel time.
-pub fn user_time_end() {
-    TASK_MANAGER.user_time_end()
-}
-
-/// Get the current 'Running' task's token.
-pub fn current_user_token() -> usize {
-    TASK_MANAGER.get_current_token()
-}
-
-/// Get the current 'Running' task's trap contexts.
-pub fn current_trap_cx() -> &'static mut TrapContext {
-    TASK_MANAGER.get_current_trap_cx()
+    // push back to ready queue.
+    add_task(task);
+    // jump to scheduling cycle.
+    schedule(task_cx_ptr);
 }
