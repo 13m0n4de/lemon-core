@@ -7,24 +7,16 @@ mod manager;
 mod switch;
 
 use crate::config::{kernel_stack_position, TRAP_CONTEXT};
-use crate::loader::{get_app_data, get_num_app};
 use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
-use crate::sync::UPSafeCell;
-use crate::timer::get_time_ms;
 use crate::trap::{trap_handler, TrapContext};
-use alloc::vec::Vec;
-use lazy_static::*;
-use log::*;
-use switch::__switch;
 
 use context::TaskContext;
-use manager::TaskManager;
+use switch::__switch;
 
-struct TaskPool {
-    tasks: Vec<TaskControlBlock>,
-    current_task: usize,
-    stop_watch: usize,
-}
+pub use manager::{
+    current_trap_cx, current_user_token, exit_current_and_run_next, run_first_task,
+    suspend_current_and_run_next, user_time_end, user_time_start,
+};
 
 struct TaskControlBlock {
     task_status: TaskStatus,
@@ -90,69 +82,4 @@ enum TaskStatus {
     Ready,
     Running,
     Exited,
-}
-
-impl TaskPool {
-    fn refresh_stop_watch(&mut self) -> usize {
-        let start_time = self.stop_watch;
-        self.stop_watch = get_time_ms();
-        self.stop_watch - start_time
-    }
-}
-
-lazy_static! {
-    static ref TASK_MANAGER: TaskManager = {
-        let num_app = get_num_app();
-        debug!("num_app = {num_app}");
-
-        let tasks: Vec<TaskControlBlock> = (0..num_app)
-            .map(|i| TaskControlBlock::new(get_app_data(i), i))
-            .collect();
-
-        let pool = unsafe {
-            UPSafeCell::new(TaskPool {
-                tasks,
-                current_task: 0,
-                stop_watch: 0,
-            })
-        };
-        TaskManager { num_app, pool }
-    };
-}
-
-/// Run first task
-pub fn run_first_task() {
-    TASK_MANAGER.run_first_task();
-}
-
-/// Exit current task,  then run next task
-pub fn exit_current_and_run_next() {
-    TASK_MANAGER.mark_current_exited();
-    TASK_MANAGER.run_next_task();
-}
-
-/// Suspend current task, then run next task
-pub fn suspend_current_and_run_next() {
-    TASK_MANAGER.mark_current_suspended();
-    TASK_MANAGER.run_next_task();
-}
-
-// Counting kernel time, starting from now is user time.
-pub fn user_time_start() {
-    TASK_MANAGER.user_time_start()
-}
-
-// Counting user time, starting from now is kernel time.
-pub fn user_time_end() {
-    TASK_MANAGER.user_time_end()
-}
-
-/// Get the current 'Running' task's token.
-pub fn current_user_token() -> usize {
-    TASK_MANAGER.get_current_token()
-}
-
-/// Get the current 'Running' task's trap contexts.
-pub fn current_trap_cx() -> &'static mut TrapContext {
-    TASK_MANAGER.get_current_trap_cx()
 }
