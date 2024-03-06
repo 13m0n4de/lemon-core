@@ -4,6 +4,7 @@
 
 mod context;
 mod manager;
+mod pid;
 mod switch;
 
 use crate::config::{kernel_stack_position, TRAP_CONTEXT};
