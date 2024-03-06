@@ -72,17 +72,17 @@ impl TaskControlBlock {
 }
 
 struct TaskControlBlockInner {
-    trap_cx_ppn: PhysPageNum,
+    pub trap_cx_ppn: PhysPageNum,
 
-    base_size: usize,
+    pub base_size: usize,
 
-    task_status: TaskStatus,
-    task_cx: TaskContext,
-    memory_set: MemorySet,
+    pub task_status: TaskStatus,
+    pub task_cx: TaskContext,
+    pub memory_set: MemorySet,
 
-    parent: Option<Weak<TaskControlBlock>>,
-    children: Vec<Arc<TaskControlBlock>>,
-    exit_code: i32,
+    pub parent: Option<Weak<TaskControlBlock>>,
+    pub children: Vec<Arc<TaskControlBlock>>,
+    pub exit_code: i32,
 }
 
 impl TaskControlBlockInner {
