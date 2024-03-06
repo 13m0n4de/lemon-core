@@ -1,8 +1,7 @@
 //! File and filesystem-related syscalls
 
-use sbi_rt::legacy::console_getchar;
-
 use crate::mm::translated_byte_buffer;
+use crate::sbi::console_getchar;
 use crate::task::{current_user_token, suspend_current_and_run_next};
 
 const FD_STDIN: usize = 0;
