@@ -230,6 +230,11 @@ impl MemorySet {
         }
     }
 
+    /// Remove all [`MapArea`]
+    pub fn recycle_data_pages(&mut self) {
+        self.areas.clear();
+    }
+
     /// Mention that trampoline is not collected by areas.
     fn map_trampoline(&mut self) {
         self.page_table.map(
