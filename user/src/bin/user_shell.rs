@@ -16,8 +16,7 @@ use user_lib::console::getchar;
 use user_lib::{exec, fork, waitpid};
 
 #[no_mangle]
-pub fn main() -> i32 {
-    println!("user shell");
+fn main() -> i32 {
     let mut line: String = String::new();
     print!("~> ");
     loop {
