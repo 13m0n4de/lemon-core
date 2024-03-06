@@ -179,10 +179,12 @@ impl TaskControlBlockInner {
         self.get_status() == TaskStatus::Zombie
     }
 
+    #[allow(unused)]
     pub fn is_ready(&self) -> bool {
         self.get_status() == TaskStatus::Ready
     }
 
+    #[allow(unused)]
     pub fn is_running(&self) -> bool {
         self.get_status() == TaskStatus::Running
     }

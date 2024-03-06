@@ -87,6 +87,7 @@ impl KernelStack {
         kernel_stack_top
     }
 
+    #[allow(unused)]
     /// Push a value on top of kernel stack
     pub fn push_on_top<T>(&self, value: T) -> *mut T
     where
