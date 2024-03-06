@@ -17,10 +17,10 @@ use control_block::TaskControlBlock;
 use processor::{schedule, take_current_task};
 
 pub use manager::add_task;
-pub use processor::{current_task, current_trap_cx, current_user_token};
+pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
 
 #[derive(Copy, Clone, PartialEq)]
-enum TaskStatus {
+pub enum TaskStatus {
     Ready,
     Running,
     Zombie,
