@@ -42,6 +42,7 @@ pub enum MapType {
 
 bitflags! {
     /// Map permission corresponding to that in pte: `R W X U`
+    #[derive(Copy, Clone, PartialEq, Debug)]
     pub struct MapPermission: u8 {
         const R = 1 << 1;
         const W = 1 << 2;
@@ -70,6 +71,14 @@ impl MapArea {
             vpn_range: VPNRange::new(start_vpn, end_vpn),
             map_type,
             map_perm,
+        }
+    }
+
+    pub fn from_another(another: &Self) -> Self {
+        Self {
+            vpn_range: VPNRange::new(another.vpn_range.get_start(), another.vpn_range.get_end()),
+            map_type: another.map_type,
+            map_perm: another.map_perm,
         }
     }
 
@@ -145,6 +154,27 @@ impl MemorySet {
             page_table: PageTable::new(),
             areas: Vec::new(),
         }
+    }
+
+    /// Clone a same [`MemorySet`]
+    pub fn from_existed_user(user_space: &Self) -> Self {
+        let mut memory_set = Self::new_bare();
+        // map trampoline
+        memory_set.map_trampoline();
+        // copy data sections/trap_context/user_stack
+        for area in user_space.areas.iter() {
+            let new_area = MapArea::from_another(area);
+            memory_set.push(new_area, None);
+            // copy data from another space
+            for vpn in area.vpn_range {
+                let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
+                dst_ppn
+                    .get_bytes_array()
+                    .copy_from_slice(src_ppn.get_bytes_array());
+            }
+        }
+        memory_set
     }
 
     /// Activate SV39 paging mode
