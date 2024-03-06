@@ -1,7 +1,11 @@
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 
-use crate::sync::UPSafeCell;
+use crate::{
+    config::kernel_stack_position,
+    mm::{MapPermission, VirtAddr, KERNEL_SPACE},
+    sync::UPSafeCell,
+};
 
 /// Bind pid lifetime to [`PidHandle`]
 pub struct PidHandle(pub usize);
@@ -57,4 +61,52 @@ lazy_static! {
 
 pub fn pid_alloc() -> PidHandle {
     PID_ALLOCATOR.exclusive_access().alloc()
+}
+
+/// Kernel stack for app
+pub struct KernelStack {
+    pid: usize,
+}
+
+impl KernelStack {
+    /// Create a kernel stack from pid
+    pub fn new(pid_handle: &PidHandle) -> Self {
+        let pid = pid_handle.0;
+        let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(pid);
+        KERNEL_SPACE.exclusive_access().insert_framed_area(
+            kernel_stack_bottom.into(),
+            kernel_stack_top.into(),
+            MapPermission::R | MapPermission::W,
+        );
+        KernelStack { pid: pid_handle.0 }
+    }
+
+    // Get the value on the top of kernel stack
+    pub fn get_top(&self) -> usize {
+        let (_, kernel_stack_top) = kernel_stack_position(self.pid);
+        kernel_stack_top
+    }
+
+    /// Push a value on top of kernel stack
+    pub fn push_on_top<T>(&self, value: T) -> *mut T
+    where
+        T: Sized,
+    {
+        let kernel_stack_top = self.get_top();
+        let ptr_mut = (kernel_stack_top - core::mem::size_of::<T>()) as *mut T;
+        unsafe {
+            *ptr_mut = value;
+        }
+        ptr_mut
+    }
+}
+
+impl Drop for KernelStack {
+    fn drop(&mut self) {
+        let (kernel_stack_bottom, _) = kernel_stack_position(self.pid);
+        let kernel_stack_bottom_va: VirtAddr = kernel_stack_bottom.into();
+        KERNEL_SPACE
+            .exclusive_access()
+            .remove_area_with_start_vpn(kernel_stack_bottom_va.into());
+    }
 }
