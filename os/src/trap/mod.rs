@@ -14,7 +14,7 @@ use crate::{
     syscall::syscall,
     task::{
         current_trap_cx, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next, user_time_end, user_time_start,
+        suspend_current_and_run_next,
     },
     timer::set_next_trigger,
 };
@@ -43,16 +43,20 @@ pub fn enable_timer_interrupt() {
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
 pub fn trap_handler() -> ! {
-    user_time_end();
     set_kernel_trap_entry();
-    let cx = current_trap_cx();
+    let mut cx = current_trap_cx();
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
 
     match scause.cause() {
         Trap::Exception(Exception::UserEnvCall) => {
+            // jump to next instruction anyway
             cx.sepc += 4;
-            cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
+            // get system call return value
+            let result = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]);
+            // cx is changed during sys_exec, so we have to call it again
+            cx = current_trap_cx();
+            cx.x[10] = result as usize;
         }
         Trap::Exception(Exception::StoreFault)
         | Trap::Exception(Exception::StorePageFault)
@@ -77,7 +81,6 @@ pub fn trap_handler() -> ! {
             );
         }
     }
-    user_time_start();
     trap_return()
 }
 
