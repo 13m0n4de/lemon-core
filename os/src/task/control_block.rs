@@ -142,6 +142,10 @@ impl TaskControlBlock {
         );
         // **** release inner automatically
     }
+
+    pub fn getpid(&self) -> usize {
+        self.pid.0
+    }
 }
 
 pub struct TaskControlBlockInner {
