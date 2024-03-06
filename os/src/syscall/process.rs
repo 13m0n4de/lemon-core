@@ -15,7 +15,7 @@ use crate::{
 /// task exits and submit an exit code
 pub fn sys_exit(exit_code: i32) -> ! {
     info!("[kernel] Application exited with code {}", exit_code);
-    exit_current_and_run_next();
+    exit_current_and_run_next(exit_code);
     panic!("Unreachable in sys_exit!");
 }
 
