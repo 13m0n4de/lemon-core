@@ -14,10 +14,10 @@ use crate::loader::get_app_data_by_name;
 
 use context::TaskContext;
 use control_block::TaskControlBlock;
-use manager::add_task;
-use processor::take_current_task;
+use processor::{schedule, take_current_task};
 
-use self::processor::schedule;
+pub use manager::add_task;
+pub use processor::{current_task, current_trap_cx, current_user_token};
 
 #[derive(Copy, Clone, PartialEq)]
 enum TaskStatus {
@@ -54,4 +54,8 @@ pub fn suspend_current_and_run_next() {
     add_task(task);
     // jump to scheduling cycle.
     schedule(task_cx_ptr);
+}
+
+pub fn exit_current_and_run_next() {
+    todo!()
 }
