@@ -34,11 +34,11 @@ static USER_STACK: [UserStack; MAX_APP_NUM] = [UserStack {
 }; MAX_APP_NUM];
 
 impl KernelStack {
-    fn get_sp(&self) -> usize {
+    fn sp(&self) -> usize {
         self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
     pub fn push_context(&self, cx: TrapContext) -> usize {
-        let cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
+        let cx_ptr = (self.sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
         unsafe {
             *cx_ptr = cx;
         }
@@ -47,7 +47,7 @@ impl KernelStack {
 }
 
 impl UserStack {
-    fn get_sp(&self) -> usize {
+    fn sp(&self) -> usize {
         self.data.as_ptr() as usize + USER_STACK_SIZE
     }
 }
@@ -88,6 +88,6 @@ pub fn load_apps() {
 pub fn init_app_cx(app_id: usize) -> usize {
     KERNEL_STACK[app_id].push_context(TrapContext::app_init_context(
         APP_BASE_ADDRESS + app_id * APP_SIZE_LIMIT,
-        USER_STACK[app_id].get_sp(),
+        USER_STACK[app_id].sp(),
     ))
 }
