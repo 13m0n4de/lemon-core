@@ -1,6 +1,8 @@
-use alloc::sync::Arc;
+use alloc::{sync::Arc, vec::Vec};
+use lazy_static::lazy_static;
+use spin::Mutex;
 
-use crate::{block_dev::BlockDevice, BLOCK_SIZE};
+use crate::{block_dev::BlockDevice, BLOCK_CACHE_SIZE, BLOCK_SIZE};
 
 /// Cached block inside memory
 pub struct BlockCache {
@@ -73,4 +75,58 @@ impl Drop for BlockCache {
     fn drop(&mut self) {
         self.sync()
     }
+}
+
+pub struct BlockCacheManager {
+    queue: Vec<(usize, Arc<Mutex<BlockCache>>)>,
+}
+
+impl BlockCacheManager {
+    pub fn new() -> Self {
+        Self { queue: Vec::new() }
+    }
+
+    pub fn get_block_cache(
+        &mut self,
+        block_id: usize,
+        block_device: Arc<dyn BlockDevice>,
+    ) -> Arc<Mutex<BlockCache>> {
+        match self.queue.iter().find(|(id, _)| *id == block_id) {
+            Some((_, cache)) => cache.clone(),
+            None => {
+                // substitute
+                if self.queue.len() == BLOCK_CACHE_SIZE {
+                    if let Some((idx, _)) = self
+                        .queue
+                        .iter()
+                        .enumerate()
+                        .find(|(_, (_, cache))| Arc::strong_count(cache) == 1)
+                    {
+                        self.queue.swap_remove(idx);
+                    } else {
+                        panic!("Run out of BlockCache");
+                    }
+                }
+                // load block into mem and push back
+                let block_cache =
+                    Arc::new(Mutex::new(BlockCache::new(block_id, block_device.clone())));
+                self.queue.push((block_id, Arc::clone(&block_cache)));
+                block_cache
+            }
+        }
+    }
+}
+
+lazy_static! {
+    /// The global block cache manager
+    static ref BLOCK_CACHE_MANAGER: Mutex<BlockCacheManager> = Mutex::new(BlockCacheManager::new());
+}
+
+pub fn get_block_cache(
+    block_id: usize,
+    block_device: Arc<dyn BlockDevice>,
+) -> Arc<Mutex<BlockCache>> {
+    BLOCK_CACHE_MANAGER
+        .lock()
+        .get_block_cache(block_id, block_device)
 }
