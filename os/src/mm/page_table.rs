@@ -49,15 +49,15 @@ impl PageTableEntry {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
 
-    pub fn readable(&self) -> bool {
+    pub fn is_readable(&self) -> bool {
         (self.flags() & PTEFlags::R) != PTEFlags::empty()
     }
 
-    pub fn writable(&self) -> bool {
+    pub fn is_writable(&self) -> bool {
         (self.flags() & PTEFlags::W) != PTEFlags::empty()
     }
 
-    pub fn executable(&self) -> bool {
+    pub fn is_executable(&self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
     }
 }
@@ -213,7 +213,7 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
 }
 
 ///translate a generic through page table and return a mutable reference
-pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
+pub fn translated_mut_ref<T>(token: usize, ptr: *mut T) -> &'static mut T {
     //println!("into translated_refmut!");
     let page_table = PageTable::from_token(token);
     let va = ptr as usize;
