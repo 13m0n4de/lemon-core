@@ -164,7 +164,7 @@ pub struct TaskControlBlockInner {
 
 impl TaskControlBlockInner {
     pub fn get_trap_cx(&self) -> &'static mut TrapContext {
-        self.trap_cx_ppn.get_mut()
+        self.trap_cx_ppn.as_mut_ref()
     }
 
     pub fn get_user_token(&self) -> usize {

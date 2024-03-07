@@ -13,7 +13,7 @@ pub struct FrameTracker {
 
 impl FrameTracker {
     pub fn new(ppn: PhysPageNum) -> Self {
-        let bytes_array = ppn.get_bytes_array();
+        let bytes_array = ppn.as_mut_bytes_array();
         bytes_array.fill(0);
         Self { ppn }
     }
@@ -97,8 +97,8 @@ pub fn init_frame_allocator() {
     }
 
     FRAME_ALLOCATOR.exclusive_access().init(
-        PhysAddr::from(ekernel as usize).ceil_to_ppn(),
-        PhysAddr::from(MEMORY_END).floor_to_ppn(),
+        PhysAddr::from(ekernel as usize).to_ppn_by_ceil(),
+        PhysAddr::from(MEMORY_END).to_ppn_by_floor(),
     );
 }
 

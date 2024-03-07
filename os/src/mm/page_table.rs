@@ -96,7 +96,7 @@ impl PageTable {
         let mut ppn = self.root_ppn;
 
         for &idx in idxs[..2].iter() {
-            let pte = ppn.get_pte_array().get_mut(idx)?;
+            let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
@@ -104,7 +104,7 @@ impl PageTable {
             }
             ppn = pte.ppn();
         }
-        ppn.get_pte_array().get_mut(idxs[2])
+        ppn.as_mut_pte_array().get_mut(idxs[2])
     }
 
     fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
@@ -112,14 +112,14 @@ impl PageTable {
         let mut ppn = self.root_ppn;
 
         for &idx in idxs[..2].iter() {
-            let pte = ppn.get_pte_array().get_mut(idx)?;
+            let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 return None;
             }
             ppn = pte.ppn();
         }
 
-        ppn.get_pte_array().get_mut(idxs[2])
+        ppn.as_mut_pte_array().get_mut(idxs[2])
     }
 
     /// Insert a key-value pair into the multi-level page table
@@ -152,7 +152,7 @@ impl PageTable {
 
     /// Translates a [`VirtAddr`] to a [`PhysAddr`]
     pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
-        self.find_pte(va.clone().floor_to_vpn()).map(|pte| {
+        self.find_pte(va.clone().to_vpn_by_floor()).map(|pte| {
             let aligned_pa: PhysAddr = pte.ppn().into();
             let offset = va.page_offset();
             let aligned_pa_usize: usize = aligned_pa.into();
@@ -175,16 +175,16 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
 
     while start < end {
         let start_va = VirtAddr::from(start);
-        let mut vpn = start_va.floor_to_vpn();
+        let mut vpn = start_va.to_vpn_by_floor();
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();
         end_va = end_va.min(VirtAddr::from(end));
 
         if end_va.page_offset() == 0 {
-            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);
+            v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..]);
         } else {
-            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()])
+            v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..end_va.page_offset()])
         }
 
         start = end_va.into();
@@ -202,7 +202,7 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
         let ch: u8 = *(page_table
             .translate_va(VirtAddr::from(va))
             .unwrap()
-            .get_mut());
+            .as_mut_ref());
         if ch == 0 {
             break;
         }
@@ -221,5 +221,5 @@ pub fn translated_refmut<T>(token: usize, ptr: *mut T) -> &'static mut T {
     page_table
         .translate_va(VirtAddr::from(va))
         .unwrap()
-        .get_mut()
+        .as_mut_ref()
 }
