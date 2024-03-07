@@ -2,7 +2,10 @@ use alloc::{sync::Arc, vec::Vec};
 use lazy_static::lazy_static;
 use spin::Mutex;
 
-use crate::{block_dev::BlockDevice, BLOCK_CACHE_SIZE, BLOCK_SIZE};
+use crate::{
+    block_dev::BlockDevice,
+    config::{BLOCK_CACHE_SIZE, BLOCK_SIZE},
+};
 
 /// Cached block inside memory
 pub struct BlockCache {
