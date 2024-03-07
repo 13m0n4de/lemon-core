@@ -82,7 +82,7 @@ impl KernelStack {
     }
 
     // Get the value on the top of kernel stack
-    pub fn get_top(&self) -> usize {
+    pub fn top(&self) -> usize {
         let (_, kernel_stack_top) = kernel_stack_position(self.pid);
         kernel_stack_top
     }
@@ -93,7 +93,7 @@ impl KernelStack {
     where
         T: Sized,
     {
-        let kernel_stack_top = self.get_top();
+        let kernel_stack_top = self.top();
         let ptr_mut = (kernel_stack_top - core::mem::size_of::<T>()) as *mut T;
         unsafe {
             *ptr_mut = value;
