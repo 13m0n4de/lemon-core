@@ -35,7 +35,7 @@ impl Processor {
     }
 
     /// Get mutable reference to `idle_task_cx`
-    fn get_idle_task_cx_ptr(&mut self) -> *mut TaskContext {
+    fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
         &mut self.idle_task_cx as *mut _
     }
 }
@@ -54,15 +54,12 @@ pub fn current_task() -> Option<Arc<TaskControlBlock>> {
 
 pub fn current_user_token() -> usize {
     let task = current_task().unwrap();
-    let token = task.inner_exclusive_access().get_user_token();
+    let token = task.inner_exclusive_access().user_token();
     token
 }
 
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task()
-        .unwrap()
-        .inner_exclusive_access()
-        .get_trap_cx()
+    current_task().unwrap().inner_exclusive_access().trap_cx()
 }
 
 /// The main part of process execution and scheduling.
@@ -72,7 +69,7 @@ pub fn run_tasks() {
     loop {
         if let Some(task) = fetch_task() {
             let mut processor = PROCESSOR.exclusive_access();
-            let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
+            let idle_task_cx_ptr = processor.idle_task_cx_ptr();
 
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
@@ -93,7 +90,7 @@ pub fn run_tasks() {
 /// Return to idle control flow for new scheduling
 pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     let mut processor = PROCESSOR.exclusive_access();
-    let idle_task_cx_ptr = processor.get_idle_task_cx_ptr();
+    let idle_task_cx_ptr = processor.idle_task_cx_ptr();
     drop(processor);
     unsafe {
         __switch(switched_task_cx_ptr, idle_task_cx_ptr);
