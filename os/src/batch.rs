@@ -38,11 +38,11 @@ static USER_STACK: UserStack = UserStack {
 };
 
 impl KernelStack {
-    fn get_sp(&self) -> usize {
+    fn sp(&self) -> usize {
         self.data.as_ptr() as usize + KERNEL_STACK_SIZE
     }
     pub fn push_context(&self, cx: TrapContext) -> &'static mut TrapContext {
-        let cx_ptr = (self.get_sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
+        let cx_ptr = (self.sp() - core::mem::size_of::<TrapContext>()) as *mut TrapContext;
         unsafe {
             *cx_ptr = cx;
             &mut *cx_ptr
@@ -51,7 +51,7 @@ impl KernelStack {
 }
 
 impl UserStack {
-    fn get_sp(&self) -> usize {
+    fn sp(&self) -> usize {
         self.data.as_ptr() as usize + USER_STACK_SIZE
     }
 }
@@ -98,7 +98,7 @@ impl AppManager {
         asm!("fence.i");
     }
 
-    pub fn get_current_app(&self) -> usize {
+    pub fn current_app(&self) -> usize {
         self.current_app
     }
 
@@ -136,7 +136,7 @@ pub fn print_app_info() {
 /// run next app
 pub fn run_next_app() -> ! {
     let mut app_manager = APP_MANAGER.exclusive_access();
-    let current_app = app_manager.get_current_app();
+    let current_app = app_manager.current_app();
     unsafe {
         app_manager.load_app(current_app);
     }
@@ -150,7 +150,7 @@ pub fn run_next_app() -> ! {
     unsafe {
         __restore(KERNEL_STACK.push_context(TrapContext::app_init_context(
             APP_BASE_ADDRESS,
-            USER_STACK.get_sp(),
+            USER_STACK.sp(),
         )) as *const _ as usize);
     }
     panic!("Unreachable in batch::run_current_app!");
