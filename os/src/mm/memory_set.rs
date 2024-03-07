@@ -64,8 +64,8 @@ impl MapArea {
         map_type: MapType,
         map_perm: MapPermission,
     ) -> Self {
-        let start_vpn = start_va.floor_to_vpn();
-        let end_vpn = end_va.ceil_to_vpn();
+        let start_vpn = start_va.to_vpn_by_floor();
+        let end_vpn = end_va.to_vpn_by_ceil();
         Self {
             vpn_range: VPNRange::new(start_vpn, end_vpn),
             map_type,
@@ -121,11 +121,11 @@ impl MapArea {
         assert_eq!(self.map_type, MapType::Framed);
 
         let chunk_size = PAGE_SIZE.min(data.len());
-        let mut current_vpn = self.vpn_range.get_start();
+        let mut current_vpn = self.vpn_range.start();
 
         for src_chunk in data.chunks(chunk_size) {
             let ppn = page_table.translate(current_vpn).unwrap().ppn();
-            let dst_bytes = ppn.get_bytes_array();
+            let dst_bytes = ppn.as_mut_bytes_array();
             let copy_len = src_chunk.len().min(dst_bytes.len());
             dst_bytes[..copy_len].copy_from_slice(&src_chunk[..copy_len]);
             current_vpn.step();
@@ -303,7 +303,7 @@ impl MemorySet {
                 }
 
                 let map_area = MapArea::new(start_va, end_va, MapType::Framed, map_perm);
-                max_end_vpn = map_area.vpn_range.get_end();
+                max_end_vpn = map_area.vpn_range.end();
                 memory_set.push(
                     map_area,
                     Some(&elf.input[ph.offset() as usize..(ph.offset() + ph.file_size()) as usize]),
@@ -357,7 +357,7 @@ pub fn remap_test() {
     assert_eq!(
         kernel_space
             .page_table
-            .translate(mid_text.floor_to_vpn())
+            .translate(mid_text.to_vpn_by_floor())
             .unwrap()
             .writable(),
         false
@@ -366,7 +366,7 @@ pub fn remap_test() {
     assert_eq!(
         kernel_space
             .page_table
-            .translate(mid_rodata.floor_to_vpn())
+            .translate(mid_rodata.to_vpn_by_floor())
             .unwrap()
             .writable(),
         false,
@@ -375,7 +375,7 @@ pub fn remap_test() {
     assert_eq!(
         kernel_space
             .page_table
-            .translate(mid_data.floor_to_vpn())
+            .translate(mid_data.to_vpn_by_floor())
             .unwrap()
             .executable(),
         false,

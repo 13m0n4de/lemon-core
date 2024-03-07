@@ -96,7 +96,7 @@ impl PageTable {
         let mut ppn = self.root_ppn;
 
         for &idx in idxs[..2].iter() {
-            let pte = ppn.get_pte_array().get_mut(idx)?;
+            let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
@@ -104,7 +104,7 @@ impl PageTable {
             }
             ppn = pte.ppn();
         }
-        ppn.get_pte_array().get_mut(idxs[2])
+        ppn.as_mut_pte_array().get_mut(idxs[2])
     }
 
     fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
@@ -112,14 +112,14 @@ impl PageTable {
         let mut ppn = self.root_ppn;
 
         for &idx in idxs[..2].iter() {
-            let pte = ppn.get_pte_array().get_mut(idx)?;
+            let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 return None;
             }
             ppn = pte.ppn();
         }
 
-        ppn.get_pte_array().get_mut(idxs[2])
+        ppn.as_mut_pte_array().get_mut(idxs[2])
     }
 
     /// Insert a key-value pair into the multi-level page table
@@ -165,16 +165,16 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
 
     while start < end {
         let start_va = VirtAddr::from(start);
-        let mut vpn = start_va.floor_to_vpn();
+        let mut vpn = start_va.to_vpn_by_floor();
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();
         end_va = end_va.min(VirtAddr::from(end));
 
         if end_va.page_offset() == 0 {
-            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..]);
+            v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..]);
         } else {
-            v.push(&mut ppn.get_bytes_array()[start_va.page_offset()..end_va.page_offset()])
+            v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..end_va.page_offset()])
         }
 
         start = end_va.into();

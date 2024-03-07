@@ -57,7 +57,7 @@ impl TaskControlBlock {
         };
 
         // prepare TrapContext in user space
-        let trap_cx = task_control_block.get_trap_cx();
+        let trap_cx = task_control_block.trap_cx();
         *trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,
@@ -68,11 +68,11 @@ impl TaskControlBlock {
         task_control_block
     }
 
-    pub fn get_trap_cx(&self) -> &'static mut TrapContext {
-        self.trap_cx_ppn.get_mut()
+    pub fn trap_cx(&self) -> &'static mut TrapContext {
+        self.trap_cx_ppn.as_mut_ref()
     }
 
-    pub fn get_user_token(&self) -> usize {
+    pub fn user_token(&self) -> usize {
         self.memory_set.token()
     }
 }

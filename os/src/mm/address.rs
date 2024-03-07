@@ -131,15 +131,15 @@ impl PhysAddr {
     }
 
     /// Checks if the address is page-aligned.
-    pub fn aligned(&self) -> bool {
+    pub fn is_aligned(&self) -> bool {
         self.page_offset() == 0
     }
 
-    pub fn floor_to_ppn(&self) -> PhysPageNum {
+    pub fn to_ppn_by_floor(&self) -> PhysPageNum {
         PhysPageNum(self.0 / PAGE_SIZE)
     }
 
-    pub fn ceil_to_ppn(&self) -> PhysPageNum {
+    pub fn to_ppn_by_ceil(&self) -> PhysPageNum {
         if self.0 == 0 {
             PhysPageNum(0)
         } else {
@@ -150,8 +150,8 @@ impl PhysAddr {
 
 impl From<PhysAddr> for PhysPageNum {
     fn from(value: PhysAddr) -> Self {
-        assert!(value.aligned());
-        value.floor_to_ppn()
+        assert!(value.is_aligned());
+        value.to_ppn_by_floor()
     }
 }
 
@@ -171,15 +171,15 @@ impl VirtAddr {
     }
 
     /// Checks if the address is page-aligned.
-    pub fn aligned(&self) -> bool {
+    pub fn is_aligned(&self) -> bool {
         self.page_offset() == 0
     }
 
-    pub fn floor_to_vpn(&self) -> VirtPageNum {
+    pub fn to_vpn_by_floor(&self) -> VirtPageNum {
         VirtPageNum(self.0 / PAGE_SIZE)
     }
 
-    pub fn ceil_to_vpn(&self) -> VirtPageNum {
+    pub fn to_vpn_by_ceil(&self) -> VirtPageNum {
         if self.0 == 0 {
             VirtPageNum(0)
         } else {
@@ -190,8 +190,8 @@ impl VirtAddr {
 
 impl From<VirtAddr> for VirtPageNum {
     fn from(value: VirtAddr) -> Self {
-        assert!(value.aligned());
-        value.floor_to_vpn()
+        assert!(value.is_aligned());
+        value.to_vpn_by_floor()
     }
 }
 
@@ -205,17 +205,17 @@ impl From<VirtPageNum> for VirtAddr {
 * PhysPageNum
 */
 impl PhysPageNum {
-    pub fn get_pte_array(&self) -> &'static mut [PageTableEntry] {
+    pub fn as_mut_pte_array(&self) -> &'static mut [PageTableEntry] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
     }
 
-    pub fn get_bytes_array(&self) -> &'static mut [u8] {
+    pub fn as_mut_bytes_array(&self) -> &'static mut [u8] {
         let pa: PhysAddr = (*self).into();
         unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut u8, 4096) }
     }
 
-    pub fn get_mut<T>(&self) -> &'static mut T {
+    pub fn as_mut_ref<T>(&self) -> &'static mut T {
         let pa: PhysAddr = (*self).into();
         unsafe { (pa.0 as *mut T).as_mut().unwrap() }
     }
@@ -267,11 +267,11 @@ where
         Self { start, end }
     }
 
-    pub fn get_start(&self) -> T {
+    pub fn start(&self) -> T {
         self.start
     }
 
-    pub fn get_end(&self) -> T {
+    pub fn end(&self) -> T {
         self.end
     }
 }

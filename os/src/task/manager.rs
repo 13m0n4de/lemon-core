@@ -123,15 +123,15 @@ impl TaskManager {
     }
 
     /// Get the current 'Running' task's token.
-    pub fn get_current_token(&self) -> usize {
+    pub fn current_token(&self) -> usize {
         let pool = self.inner.exclusive_access();
-        pool.tasks[pool.current_task].get_user_token()
+        pool.tasks[pool.current_task].user_token()
     }
 
     /// Get the current 'Running' task's trap contexts.
-    pub fn get_current_trap_cx(&self) -> &'static mut TrapContext {
+    pub fn current_trap_cx(&self) -> &'static mut TrapContext {
         let pool = self.inner.exclusive_access();
-        pool.tasks[pool.current_task].get_trap_cx()
+        pool.tasks[pool.current_task].trap_cx()
     }
 }
 
@@ -184,10 +184,10 @@ pub fn user_time_end() {
 
 /// Get the current 'Running' task's token.
 pub fn current_user_token() -> usize {
-    TASK_MANAGER.get_current_token()
+    TASK_MANAGER.current_token()
 }
 
 /// Get the current 'Running' task's trap contexts.
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    TASK_MANAGER.get_current_trap_cx()
+    TASK_MANAGER.current_trap_cx()
 }
