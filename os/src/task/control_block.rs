@@ -75,7 +75,7 @@ impl TaskControlBlock {
         let mut parent_inner = self.inner_exclusive_access();
 
         // copy user space (include trap context)
-        let memory_set = MemorySet::from_existed_user(&parent_inner.memory_set);
+        let memory_set = parent_inner.memory_set.clone();
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
