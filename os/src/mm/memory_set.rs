@@ -58,6 +58,16 @@ pub struct MapArea {
     map_perm: MapPermission,
 }
 
+impl Clone for MapArea {
+    fn clone(&self) -> Self {
+        Self {
+            vpn_range: VPNRange::new(self.vpn_range.start(), self.vpn_range.end()),
+            map_type: self.map_type,
+            map_perm: self.map_perm,
+        }
+    }
+}
+
 impl MapArea {
     pub fn new(
         start_va: VirtAddr,
@@ -71,14 +81,6 @@ impl MapArea {
             vpn_range: VPNRange::new(start_vpn, end_vpn),
             map_type,
             map_perm,
-        }
-    }
-
-    pub fn from_another(another: &Self) -> Self {
-        Self {
-            vpn_range: VPNRange::new(another.vpn_range.start(), another.vpn_range.end()),
-            map_type: another.map_type,
-            map_perm: another.map_perm,
         }
     }
 
@@ -148,26 +150,18 @@ pub struct MemorySet {
     areas: Vec<MapArea>,
 }
 
-impl MemorySet {
-    pub fn new_bare() -> Self {
-        Self {
-            page_table: PageTable::new(),
-            areas: Vec::new(),
-        }
-    }
-
-    /// Clone a same [`MemorySet`]
-    pub fn from_existed_user(user_space: &Self) -> Self {
+impl Clone for MemorySet {
+    fn clone(&self) -> Self {
         let mut memory_set = Self::new_bare();
         // map trampoline
         memory_set.map_trampoline();
         // copy data sections/trap_context/user_stack
-        for area in user_space.areas.iter() {
-            let new_area = MapArea::from_another(area);
+        for area in self.areas.iter() {
+            let new_area = area.clone();
             memory_set.push(new_area, None);
             // copy data from another space
             for vpn in area.vpn_range {
-                let src_ppn = user_space.translate(vpn).unwrap().ppn();
+                let src_ppn = self.translate(vpn).unwrap().ppn();
                 let dst_ppn = memory_set.translate(vpn).unwrap().ppn();
                 dst_ppn
                     .as_mut_bytes_array()
@@ -175,6 +169,15 @@ impl MemorySet {
             }
         }
         memory_set
+    }
+}
+
+impl MemorySet {
+    pub fn new_bare() -> Self {
+        Self {
+            page_table: PageTable::new(),
+            areas: Vec::new(),
+        }
     }
 
     /// Activate SV39 paging mode
@@ -407,7 +410,7 @@ pub fn remap_test() {
             .page_table
             .translate(mid_text.to_vpn_by_floor())
             .unwrap()
-            .writable(),
+            .is_writable(),
         false
     );
 
@@ -416,7 +419,7 @@ pub fn remap_test() {
             .page_table
             .translate(mid_rodata.to_vpn_by_floor())
             .unwrap()
-            .writable(),
+            .is_writable(),
         false,
     );
 
@@ -425,7 +428,7 @@ pub fn remap_test() {
             .page_table
             .translate(mid_data.to_vpn_by_floor())
             .unwrap()
-            .executable(),
+            .is_executable(),
         false,
     );
 
