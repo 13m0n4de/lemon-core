@@ -124,7 +124,7 @@ impl DiskInode {
     }
 
     /// Return number of blocks needed include indirect1/2.
-    fn total_blocks(size: u32) -> u32 {
+    pub fn total_blocks(size: u32) -> u32 {
         let mut total = Self::_data_blocks(size) as usize;
         // indirect1
         if total > DIRECT_BOUND {

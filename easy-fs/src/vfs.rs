@@ -168,4 +168,35 @@ impl Inode {
         )))
         // release efs lock automatically by compiler
     }
+
+    /// Clear the data in current inode
+    pub fn clear(&self) {
+        let mut fs = self.fs.lock();
+        self.modify_disk_inode(|disk_inode| {
+            let size = disk_inode.size;
+            let data_blocks_dealloc = disk_inode.clear_size(&self.block_device);
+            assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
+            for &data_block in data_blocks_dealloc.iter() {
+                fs.dealloc_data(data_block);
+            }
+        });
+        block_cache_sync_all();
+    }
+
+    /// Read data from current inode
+    pub fn read_at(&self, offset: usize, buf: &mut [u8]) -> usize {
+        let _fs = self.fs.lock();
+        self.read_disk_inode(|disk_inode| disk_inode.read_at(offset, buf, &self.block_device))
+    }
+
+    /// Write data to current inode
+    pub fn write_at(&self, offset: usize, buf: &[u8]) -> usize {
+        let mut fs = self.fs.lock();
+        let size = self.modify_disk_inode(|disk_inode| {
+            self.increase_size((offset + buf.len()) as u32, disk_inode, &mut fs);
+            disk_inode.write_at(offset, buf, &self.block_device)
+        });
+        block_cache_sync_all();
+        size
+    }
 }
