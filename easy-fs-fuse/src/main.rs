@@ -1,39 +1,80 @@
-use easy_fs::{BlockDevice, EasyFileSystem};
-use std::fs::{File, OpenOptions};
-use std::io::{Read, Seek, SeekFrom, Write};
+use block_file::BlockFile;
+use easy_fs::EasyFileSystem;
+
+use clap::Parser;
+use std::fs::{read_dir, File, OpenOptions};
+use std::io::Read;
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-const BLOCK_SIZE: usize = 512;
+mod block_file;
 
-struct BlockFile(Mutex<File>);
+#[derive(Parser)]
+#[command(version, about, long_about = None)]
+struct Cli {
+    #[arg(short, long)]
+    source: String,
 
-impl BlockDevice for BlockFile {
-    fn read_block(&self, block_id: usize, buf: &mut [u8]) {
-        let mut file = self.0.lock().unwrap();
-        file.seek(SeekFrom::Start((block_id * BLOCK_SIZE) as u64))
-            .expect("Error when seeking!");
-        assert_eq!(file.read(buf).unwrap(), BLOCK_SIZE, "Not a complete block!");
-    }
-
-    fn write_block(&self, block_id: usize, buf: &[u8]) {
-        let mut file = self.0.lock().unwrap();
-        file.seek(SeekFrom::Start((block_id * BLOCK_SIZE) as u64))
-            .expect("Error when seeking!");
-        assert_eq!(
-            file.write(buf).unwrap(),
-            BLOCK_SIZE,
-            "Not a complete block!"
-        );
-    }
+    #[arg(short, long)]
+    target: String,
 }
 
-fn main() {
-    println!("Hello, world!");
+fn main() -> std::io::Result<()> {
+    let cli = Cli::parse();
+    let source_path = Path::new(&cli.source);
+    let target_path = Path::new(&cli.target);
+    let image_path = target_path.join("fs.img");
+
+    println!("Initializing the easy-fs image...");
+    let block_file = Arc::new(BlockFile(Mutex::new({
+        let f = OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&image_path)?;
+        f.set_len(16 * 2048 * 512)?;
+        f
+    })));
+
+    // 16 MiB, at most 4095 files
+    let efs = EasyFileSystem::create(block_file, 16 * 2048, 1);
+    let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
+
+    println!(
+        "Packing files from {:?} into the easy-fs image...",
+        source_path
+    );
+    for entry in read_dir(source_path)? {
+        let path = entry?.path();
+        if path.is_file() {
+            let file_stem = path.file_stem().unwrap().to_str().unwrap();
+            let app_file_path = target_path.join(file_stem);
+            println!("Processing file: {}", app_file_path.display());
+
+            let mut app_file = File::open(app_file_path)?;
+            let mut app_data = Vec::new();
+            app_file.read_to_end(&mut app_data)?;
+
+            // create a file in easy-fs
+            let inode = root_inode.create(file_stem).unwrap();
+            // write data to easy-fs
+            inode.write_at(0, app_data.as_slice());
+        }
+    }
+
+    println!(
+        "The easy-fs image has been saved to: {}",
+        image_path.display()
+    );
+
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use easy_fs::BLOCK_SIZE;
 
     #[test]
     fn efs_test() -> std::io::Result<()> {
@@ -43,6 +84,7 @@ mod tests {
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(true)
                 .open("target/fs.img")?;
             f.set_len(8192 * 512)?;
             f
