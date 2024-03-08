@@ -9,9 +9,6 @@ use crate::{
     },
 };
 
-/// A indirect block
-type IndirectBlock = [u32; BLOCK_SIZE / 4];
-
 /// Super block of a filesystem
 #[repr(C)]
 pub struct SuperBlock {
@@ -55,6 +52,11 @@ pub enum DiskInodeType {
     File,
     Directory,
 }
+
+/// A indirect block
+type IndirectBlock = [u32; BLOCK_SIZE / 4];
+/// A data block
+type DataBlock = [u8; BLOCK_SIZE];
 
 /// A disk inode
 #[repr(C)]
@@ -294,5 +296,49 @@ impl DiskInode {
             });
         self.indirect2 = 0;
         v
+    }
+
+    /// Read data from current disk inode
+    pub fn read_at(
+        &self,
+        offset: usize,
+        buf: &mut [u8],
+        block_device: &Arc<dyn BlockDevice>,
+    ) -> usize {
+        let mut start = offset;
+        let end = (offset + buf.len()).min(self.size as usize);
+        if start >= end {
+            return 0;
+        }
+        let mut start_block = start / BLOCK_SIZE;
+        let mut read_size = 0usize;
+
+        loop {
+            // calculate end of current block
+            let mut end_current_block = (start / BLOCK_SIZE + 1) * BLOCK_SIZE;
+            end_current_block = end_current_block.min(end);
+
+            // read and update read size
+            let block_read_size = end_current_block - start;
+            let dst = &mut buf[read_size..read_size + block_read_size];
+            get_block_cache(
+                self.get_block_id(start_block as u32, block_device) as usize,
+                Arc::clone(block_device),
+            )
+            .lock()
+            .read(0, |data_block: &DataBlock| {
+                let src = &data_block[start % BLOCK_SIZE..start % BLOCK_SIZE + block_read_size];
+                dst.copy_from_slice(src);
+            });
+            read_size += block_read_size;
+
+            // move to next block
+            if end_current_block == end {
+                break;
+            }
+            start_block += 1;
+            start = end_current_block;
+        }
+        read_size
     }
 }
