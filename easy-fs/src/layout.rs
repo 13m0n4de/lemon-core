@@ -341,4 +341,48 @@ impl DiskInode {
         }
         read_size
     }
+
+    /// Write data into current disk inode
+    /// size must be adjusted properly beforehand
+    pub fn write_at(
+        &mut self,
+        offset: usize,
+        buf: &[u8],
+        block_device: &Arc<dyn BlockDevice>,
+    ) -> usize {
+        let mut start = offset;
+        let end = (offset + buf.len()).min(self.size as usize);
+        assert!(start <= end);
+        let mut start_block = start / BLOCK_SIZE;
+        let mut write_size = 0usize;
+
+        loop {
+            // calculate end of current block
+            let mut end_current_block = (start / BLOCK_SIZE + 1) * BLOCK_SIZE;
+            end_current_block = end_current_block.min(end);
+
+            // write and update write size
+            let block_write_size = end_current_block - start;
+            get_block_cache(
+                self.get_block_id(start_block as u32, block_device) as usize,
+                Arc::clone(block_device),
+            )
+            .lock()
+            .modify(0, |data_block: &mut DataBlock| {
+                let src = &buf[write_size..write_size + block_write_size];
+                let dst =
+                    &mut data_block[start % BLOCK_SIZE..start % BLOCK_SIZE + block_write_size];
+                dst.copy_from_slice(src);
+            });
+            write_size += block_write_size;
+
+            // move to next block
+            if end_current_block == end {
+                break;
+            }
+            start_block += 1;
+            start = end_current_block;
+        }
+        write_size
+    }
 }
