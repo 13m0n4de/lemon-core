@@ -3,7 +3,10 @@ use alloc::sync::Arc;
 use crate::{
     block_cache::get_block_cache,
     block_dev::BlockDevice,
-    config::{BLOCK_SIZE, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT, INODE_INDIRECT1_COUNT},
+    config::{
+        BLOCK_SIZE, DIRECT_BOUND, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
+        INODE_INDIRECT1_COUNT,
+    },
 };
 
 /// A indirect block
@@ -83,6 +86,7 @@ impl DiskInode {
         self._type == DiskInodeType::File
     }
 
+    /// Get id of block given inner id
     pub fn get_block_id(&self, inner_id: u32, block_device: &Arc<dyn BlockDevice>) -> u32 {
         let inner_id = inner_id as usize;
         if inner_id < INODE_DIRECT_COUNT {
@@ -106,5 +110,37 @@ impl DiskInode {
                     indirect1[last % INODE_INDIRECT1_COUNT]
                 })
         }
+    }
+
+    fn _data_blocks(size: u32) -> u32 {
+        (size + BLOCK_SIZE as u32 - 1) / BLOCK_SIZE as u32
+    }
+
+    /// Return block number correspond to size.
+    pub fn data_blocks(&self) -> u32 {
+        Self::_data_blocks(self.size)
+    }
+
+    /// Return number of blocks needed include indirect1/2.
+    fn total_blocks(size: u32) -> u32 {
+        let mut total = Self::_data_blocks(size) as usize;
+        // indirect1
+        if total > DIRECT_BOUND {
+            total += 1;
+        }
+        // indirect2
+        if total > INDIRECT1_BOUND {
+            total += 1;
+            let indirect1_needed =
+                (total - INDIRECT1_BOUND + INODE_INDIRECT1_COUNT - 1) / INODE_INDIRECT1_COUNT;
+            total += indirect1_needed;
+        }
+        total as u32
+    }
+
+    /// Get the number of data blocks that have to be allocated given the new size of data
+    pub fn blocks_num_needed(&self, new_size: u32) -> u32 {
+        assert!(new_size >= self.size);
+        Self::total_blocks(new_size) - Self::total_blocks(self.size)
     }
 }
