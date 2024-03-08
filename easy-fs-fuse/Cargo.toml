@@ -1,0 +1,8 @@
+[package]
+name = "easy-fs-fuse"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+easy-fs = { path = "../easy-fs" }
+rand = "0.8.5"
