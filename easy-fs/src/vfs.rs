@@ -1,4 +1,4 @@
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc, vec::Vec};
 use spin::Mutex;
 
 use crate::{
@@ -77,6 +77,24 @@ impl Inode {
                     self.block_device.clone(),
                 ))
             })
+        })
+    }
+
+    /// List inodes under current inode
+    pub fn ls(&self) -> Vec<String> {
+        let _fs = self.fs.lock();
+        self.read_disk_inode(|disk_inode| {
+            let file_count = (disk_inode.size as usize) / DIRENT_SIZE;
+            let mut v: Vec<String> = Vec::new();
+            for i in 0..file_count {
+                let mut dirent = DirEntry::empty();
+                assert_eq!(
+                    disk_inode.read_at(i * DIRENT_SIZE, dirent.as_mut_bytes(), &self.block_device,),
+                    DIRENT_SIZE,
+                );
+                v.push(String::from(dirent.name()));
+            }
+            v
         })
     }
 }
