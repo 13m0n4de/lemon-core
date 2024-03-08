@@ -54,6 +54,11 @@ impl Bitmap {
                 bitmap_block[bits64_id] &= !(1u64 << inner_id);
             });
     }
+
+    /// Get the max number of allocatable blocks
+    pub fn maximum(&self) -> usize {
+        self.blocks * BLOCK_BITS
+    }
 }
 
 /// Decompose bits into (block_id, bits64_id, inner_id)
