@@ -74,7 +74,7 @@ impl EasyFileSystem {
         // write back immediately
         // create a inode for root node "/"
         assert_eq!(efs.alloc_inode(), 0);
-        let (root_inode_block_id, root_inode_offset) = efs.disk_inode_pos(0);
+        let (root_inode_block_id, root_inode_offset) = efs.disk_inode_position(0);
         get_block_cache(root_inode_block_id as usize, Arc::clone(&block_device))
             .lock()
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
@@ -108,13 +108,40 @@ impl EasyFileSystem {
             })
     }
 
-    /// Allocate a data block
+    /// Get block_id and offset by inode_id
+    pub fn disk_inode_position(&self, inode_id: u32) -> (u32, usize) {
+        let inode_size = core::mem::size_of::<DiskInode>();
+        let inodes_per_block = (BLOCK_SIZE / inode_size) as u32;
+        let block_id = self.inode_area_start_block + inode_id / inodes_per_block;
+        let offset = (inode_id % inodes_per_block) as usize * inode_size;
+        (block_id, offset)
+    }
+
+    /// Allocate a new inode
     pub fn alloc_inode(&mut self) -> u32 {
+        self.inode_bitmap.alloc(&self.block_device).unwrap() as u32
+    }
+
+    /// Deallocate a inode
+    pub fn dealloc_inode(&mut self) {
         todo!()
     }
 
-    /// Get block_id and offset by inode_id
-    pub fn disk_inode_pos(&self, inode_id: u32) -> (u32, usize) {
-        todo!()
+    /// Allocate a data block
+    pub fn alloc_data(&mut self) -> u32 {
+        self.data_bitmap.alloc(&self.block_device).unwrap() as u32 + self.data_area_start_block
+    }
+
+    /// Deallocate a data block
+    pub fn dealloc_data(&mut self, block_id: u32) {
+        get_block_cache(block_id as usize, Arc::clone(&self.block_device))
+            .lock()
+            .modify(0, |data_block: &mut DataBlock| {
+                data_block.fill(0);
+            });
+        self.data_bitmap.dealloc(
+            &self.block_device,
+            (block_id - self.data_area_start_block) as usize,
+        )
     }
 }
