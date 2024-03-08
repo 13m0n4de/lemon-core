@@ -21,6 +21,7 @@ pub const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
 /// The max number of indirect2 inodes
 pub const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
 /// The upper bound of indirect2 inode indexs
+#[allow(unused)]
 pub const INDIRECT2_BOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
 
 /// Size of a directory entry

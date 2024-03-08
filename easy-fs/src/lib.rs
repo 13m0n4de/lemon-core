@@ -13,3 +13,6 @@ mod config;
 mod efs;
 mod layout;
 mod vfs;
+
+pub use block_dev::BlockDevice;
+pub use efs::EasyFileSystem;
