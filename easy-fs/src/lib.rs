@@ -10,4 +10,5 @@ mod bitmap;
 mod block_cache;
 mod block_dev;
 mod config;
+mod efs;
 mod layout;

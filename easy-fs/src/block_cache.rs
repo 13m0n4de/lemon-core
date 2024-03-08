@@ -133,3 +133,7 @@ pub fn get_block_cache(
         .lock()
         .get_block_cache(block_id, block_device)
 }
+
+pub fn block_cache_sync_all() {
+    todo!()
+}

@@ -56,7 +56,7 @@ pub enum DiskInodeType {
 /// A indirect block
 type IndirectBlock = [u32; BLOCK_SIZE / 4];
 /// A data block
-type DataBlock = [u8; BLOCK_SIZE];
+pub type DataBlock = [u8; BLOCK_SIZE];
 
 /// A disk inode
 #[repr(C)]
