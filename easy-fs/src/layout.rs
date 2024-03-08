@@ -4,7 +4,7 @@ use crate::{
     block_cache::get_block_cache,
     block_dev::BlockDevice,
     config::{
-        BLOCK_SIZE, DIRECT_BOUND, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
+        BLOCK_SIZE, DIRECT_BOUND, DIRENT_SIZE, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
         INODE_INDIRECT1_COUNT, INODE_INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
     },
 };
@@ -411,5 +411,30 @@ impl DirEntry {
             name: [0u8; NAME_LENGTH_LIMIT + 1],
             inode_number: 0,
         }
+    }
+
+    /// Serialize into bytes
+    pub fn as_bytes(&self) -> &[u8] {
+        unsafe { core::slice::from_raw_parts(self as *const _ as *const u8, DIRENT_SIZE) }
+    }
+
+    /// Serialize into mutable bytes
+    pub fn as_mut_bytes(&mut self) -> &mut [u8] {
+        unsafe { core::slice::from_raw_parts_mut(self as *mut _ as *mut u8, DIRENT_SIZE) }
+    }
+
+    /// Get name of the entry
+    pub fn name(&self) -> &str {
+        let len = self
+            .name
+            .iter()
+            .position(|&c| c == 0)
+            .unwrap_or(self.name.len());
+        core::str::from_utf8(&self.name[..len]).unwrap()
+    }
+
+    /// Get inode number of the entry
+    pub fn inode_number(&self) -> u32 {
+        self.inode_number
     }
 }
