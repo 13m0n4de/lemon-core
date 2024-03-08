@@ -5,7 +5,7 @@ use crate::{
     block_dev::BlockDevice,
     config::{
         BLOCK_SIZE, DIRECT_BOUND, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
-        INODE_INDIRECT1_COUNT, INODE_INDIRECT2_COUNT,
+        INODE_INDIRECT1_COUNT, INODE_INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
     },
 };
 
@@ -384,5 +384,32 @@ impl DiskInode {
             start = end_current_block;
         }
         write_size
+    }
+}
+
+/// A directory entry
+#[repr(C)]
+pub struct DirEntry {
+    name: [u8; NAME_LENGTH_LIMIT + 1],
+    inode_number: u32,
+}
+
+impl DirEntry {
+    /// Crate a directory entry from name and inode number
+    pub fn new(name: &str, inode_number: u32) -> Self {
+        let mut bytes = [0u8; NAME_LENGTH_LIMIT + 1];
+        bytes[..name.len()].copy_from_slice(name.as_bytes());
+        Self {
+            name: bytes,
+            inode_number,
+        }
+    }
+
+    /// Create an empty directory entry
+    pub fn empty() -> Self {
+        Self {
+            name: [0u8; NAME_LENGTH_LIMIT + 1],
+            inode_number: 0,
+        }
     }
 }
