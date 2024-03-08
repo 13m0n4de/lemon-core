@@ -135,11 +135,11 @@ impl PhysAddr {
         self.page_offset() == 0
     }
 
-    pub fn to_ppn_by_floor(&self) -> PhysPageNum {
+    pub fn as_ppn_by_floor(&self) -> PhysPageNum {
         PhysPageNum(self.0 / PAGE_SIZE)
     }
 
-    pub fn to_ppn_by_ceil(&self) -> PhysPageNum {
+    pub fn as_ppn_by_ceil(&self) -> PhysPageNum {
         if self.0 == 0 {
             PhysPageNum(0)
         } else {
@@ -151,7 +151,7 @@ impl PhysAddr {
 impl From<PhysAddr> for PhysPageNum {
     fn from(value: PhysAddr) -> Self {
         assert!(value.is_aligned());
-        value.to_ppn_by_floor()
+        value.as_ppn_by_floor()
     }
 }
 
@@ -175,11 +175,11 @@ impl VirtAddr {
         self.page_offset() == 0
     }
 
-    pub fn to_vpn_by_floor(&self) -> VirtPageNum {
+    pub fn as_vpn_by_floor(&self) -> VirtPageNum {
         VirtPageNum(self.0 / PAGE_SIZE)
     }
 
-    pub fn to_vpn_by_ceil(&self) -> VirtPageNum {
+    pub fn as_vpn_by_ceil(&self) -> VirtPageNum {
         if self.0 == 0 {
             VirtPageNum(0)
         } else {
@@ -191,7 +191,7 @@ impl VirtAddr {
 impl From<VirtAddr> for VirtPageNum {
     fn from(value: VirtAddr) -> Self {
         assert!(value.is_aligned());
-        value.to_vpn_by_floor()
+        value.as_vpn_by_floor()
     }
 }
 
