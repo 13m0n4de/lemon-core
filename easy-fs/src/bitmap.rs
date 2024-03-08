@@ -32,7 +32,7 @@ impl Bitmap {
                     {
                         Some((bit64_id, inner_id)) => {
                             bitmap_block[bit64_id] |= 1u64 << inner_id;
-                            Some(block_id * BLOCK_BITS + bit64_id * 64 + inner_id as usize)
+                            Some(block_id * BLOCK_BITS + bit64_id * 64 + inner_id)
                         }
                         None => None,
                     }
