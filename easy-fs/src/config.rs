@@ -1,5 +1,8 @@
 /// Use a block size of 512 bytes
 pub const BLOCK_SIZE: usize = 512;
+/// Number of bits in a block
+pub const BLOCK_BITS: usize = BLOCK_SIZE * 8;
+
 /// Use a block cache of 16 blocks
 pub const BLOCK_CACHE_SIZE: usize = 16;
 
