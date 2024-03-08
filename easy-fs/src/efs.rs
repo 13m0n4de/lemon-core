@@ -23,6 +23,7 @@ pub struct EasyFileSystem {
 }
 
 impl EasyFileSystem {
+    /// Create and initialize a new EasyFileSystem on a given block device.
     pub fn create(
         block_device: Arc<dyn BlockDevice>,
         total_blocks: u32,

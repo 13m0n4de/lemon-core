@@ -84,6 +84,7 @@ impl DiskInode {
     }
 
     /// Whether this inode is a file
+    #[allow(unused)]
     pub fn is_file(&self) -> bool {
         self._type == DiskInodeType::File
     }
