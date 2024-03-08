@@ -97,8 +97,8 @@ pub fn init_frame_allocator() {
     }
 
     FRAME_ALLOCATOR.exclusive_access().init(
-        PhysAddr::from(ekernel as usize).to_ppn_by_ceil(),
-        PhysAddr::from(MEMORY_END).to_ppn_by_floor(),
+        PhysAddr::from(ekernel as usize).as_ppn_by_ceil(),
+        PhysAddr::from(MEMORY_END).as_ppn_by_floor(),
     );
 }
 

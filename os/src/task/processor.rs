@@ -31,7 +31,7 @@ impl Processor {
 
     /// Get current task in cloning semanteme
     pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
-        self.current.as_ref().map(Arc::clone)
+        self.current.clone()
     }
 
     /// Get mutable reference to `idle_task_cx`

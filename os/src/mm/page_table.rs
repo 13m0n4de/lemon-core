@@ -152,7 +152,7 @@ impl PageTable {
 
     /// Translates a [`VirtAddr`] to a [`PhysAddr`]
     pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
-        self.find_pte(va.clone().to_vpn_by_floor()).map(|pte| {
+        self.find_pte(va.clone().as_vpn_by_floor()).map(|pte| {
             let aligned_pa: PhysAddr = pte.ppn().into();
             let offset = va.page_offset();
             let aligned_pa_usize: usize = aligned_pa.into();
@@ -175,7 +175,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
 
     while start < end {
         let start_va = VirtAddr::from(start);
-        let mut vpn = start_va.to_vpn_by_floor();
+        let mut vpn = start_va.as_vpn_by_floor();
         let ppn = page_table.translate(vpn).unwrap().ppn();
         vpn.step();
         let mut end_va: VirtAddr = vpn.into();

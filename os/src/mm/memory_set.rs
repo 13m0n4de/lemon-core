@@ -75,8 +75,8 @@ impl MapArea {
         map_type: MapType,
         map_perm: MapPermission,
     ) -> Self {
-        let start_vpn = start_va.to_vpn_by_floor();
-        let end_vpn = end_va.to_vpn_by_ceil();
+        let start_vpn = start_va.as_vpn_by_floor();
+        let end_vpn = end_va.as_vpn_by_ceil();
         Self {
             vpn_range: VPNRange::new(start_vpn, end_vpn),
             map_type,
@@ -102,11 +102,8 @@ impl MapArea {
     // Unmaps a single virtual page from the page table, freeing associated resources if framed.
     #[allow(unused)]
     fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
-        match self.map_type {
-            MapType::Framed => {
-                page_table.remove(&vpn);
-            }
-            _ => {}
+        if self.map_type == MapType::Framed {
+            page_table.remove(&vpn);
         }
         page_table.unmap(vpn);
     }
@@ -405,32 +402,23 @@ pub fn remap_test() {
     let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
     let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
 
-    assert_eq!(
-        kernel_space
-            .page_table
-            .translate(mid_text.to_vpn_by_floor())
-            .unwrap()
-            .is_writable(),
-        false
-    );
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_text.as_vpn_by_floor())
+        .unwrap()
+        .is_writable(),);
 
-    assert_eq!(
-        kernel_space
-            .page_table
-            .translate(mid_rodata.to_vpn_by_floor())
-            .unwrap()
-            .is_writable(),
-        false,
-    );
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_rodata.as_vpn_by_floor())
+        .unwrap()
+        .is_writable(),);
 
-    assert_eq!(
-        kernel_space
-            .page_table
-            .translate(mid_data.to_vpn_by_floor())
-            .unwrap()
-            .is_executable(),
-        false,
-    );
+    assert!(!kernel_space
+        .page_table
+        .translate(mid_data.as_vpn_by_floor())
+        .unwrap()
+        .is_executable(),);
 
     println!("remap_test passed!");
 }
