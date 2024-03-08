@@ -12,3 +12,4 @@ mod block_dev;
 mod config;
 mod efs;
 mod layout;
+mod vfs;
