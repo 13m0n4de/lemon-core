@@ -17,3 +17,8 @@ pub const DIRECT_BOUND: usize = INODE_DIRECT_COUNT;
 pub const INODE_INDIRECT1_COUNT: usize = BLOCK_SIZE / 4;
 /// The upper bound of indirect1 inode index
 pub const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
+
+/// The max number of indirect2 inodes
+pub const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
+/// The upper bound of indirect2 inode indexs
+pub const INDIRECT2_BOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
