@@ -22,3 +22,8 @@ pub const INDIRECT1_BOUND: usize = DIRECT_BOUND + INODE_INDIRECT1_COUNT;
 pub const INODE_INDIRECT2_COUNT: usize = INODE_INDIRECT1_COUNT * INODE_INDIRECT1_COUNT;
 /// The upper bound of indirect2 inode indexs
 pub const INDIRECT2_BOUND: usize = INDIRECT1_BOUND + INODE_INDIRECT2_COUNT;
+
+/// Size of a directory entry
+pub const DIRENT_SIZE: usize = 32;
+/// The max length of inode name
+pub const NAME_LENGTH_LIMIT: usize = 27;
