@@ -139,7 +139,7 @@ impl PageTable {
     /// Temporarily used to get arguments from user space.
     pub fn from_token(satp: usize) -> Self {
         Self {
-            root_ppn: PhysPageNum::from(satp & (1usize << 44) - 1),
+            root_ppn: PhysPageNum::from(satp & ((1usize << 44) - 1)),
             data_frames: BTreeMap::new(),
             metadata_frames: vec![],
         }
