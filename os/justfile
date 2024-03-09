@@ -1,54 +1,24 @@
-# Variables
-export LOG := "DEBUG"
-
+# Target architecture
 target := "riscv64gc-unknown-none-elf"
 mode := "release"
 
+# Paths for kernel binary and disassembly
 kernel_elf := "target" / target / mode / "os"
 kernel_bin := kernel_elf + ".bin"
 disasm_tmp := kernel_elf + ".asm"
 
-board := "qemu"
-sbi := "rustsbi"
-bootloader := "../bootloader" / sbi + "-" + board + ".bin"
-
-app_dir := "../user/src/bin"
-app_target_dir := "../user/target" / target / mode
-fs_img := app_target_dir / "fs.img"
-
-kernel_entry_pa := "0x80200000"
-
+# Tools for handling object files
 objdump := "rust-objdump --arch-name=riscv64"
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
-bootloader_option := "-bios " + bootloader
-display_option := "-nographic"
-machine_option := "-machine virt"
-loader_option := "-device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
-drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
-device_option := "-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"
-qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option + " " + drive_option + " " + device_option
-
-# Default
+# List available recipes
 default:
     just --list
 
-# Environment setup
-env:
-    rustup target add {{target}}
-    cargo install cargo-binutils
-    rustup component add rust-src
-    rustup component add llvm-tools-preview
-
-# Build the filesystem image
-build-fs:
-    @ cd ../user && just build
-    @ cd ../easy-fs-fuse && cargo run --release -- -s {{app_dir}} -t {{app_target_dir}} 
-
 # Build the kernel binary
-build: build-fs
+build board="qemu":
     @ cp "src/linker-{{board}}.ld" "src/linker.ld"
-    cargo build --{{mode}}
+    cargo build --{{mode}} --features "board_{{board}}"
     @ rm src/linker.ld
     {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
 
@@ -65,22 +35,3 @@ disasm-vim: build
     {{objdump}} -d {{kernel_elf}} > {{disasm_tmp}}
     lvim {{disasm_tmp}}
     rm {{disasm_tmp}}
-
-# Run the kernel in QEMU
-run: build
-    @ echo "Running QEMU"
-    qemu-system-riscv64 {{qemu_args}}
-
-# Debug the kernel in QEMU using tmux
-debug: build
-    tmux new-session -d "qemu-system-riscv64 {{qemu_args}} -s -S"
-    tmux split-window -h "gdb-multiarch -ex 'file {{kernel_elf}}' -ex 'target remote localhost:1234'"
-    tmux -2 attach-session -d
-
-# Start a GDB server for debugging
-gdbserver: build
-    qemu-system-riscv64 {{qemu_args}} -s -S
-
-# Connect to the GDB server
-gdbclient:
-    gdb-multiarch -ex "file {{kernel_elf}}" -ex "target remote localhost:1234"
