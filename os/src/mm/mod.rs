@@ -105,12 +105,14 @@ impl UserBuffer {
         self.buffers.iter().map(|b| b.len()).sum()
     }
 
+    #[allow(unused)]
     pub fn iter(&self) -> impl Iterator<Item = *const u8> + '_ {
         self.buffers
             .iter()
             .flat_map(|buffer| buffer.iter().map(|b| b as *const _))
     }
 
+    #[allow(unused)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = *mut u8> + '_ {
         self.buffers
             .iter_mut()

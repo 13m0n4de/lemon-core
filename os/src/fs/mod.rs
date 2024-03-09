@@ -1,7 +1,9 @@
 mod inode;
+mod stdio;
 
 use crate::mm::UserBuffer;
 pub use inode::{list_apps, open_file, OpenFlags};
+pub use stdio::{Stdin, Stdout};
 
 /// File trait
 pub trait File: Send + Sync {

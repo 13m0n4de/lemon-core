@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use core::cell::RefMut;
 
 use crate::config::TRAP_CONTEXT;
-use crate::fs::File;
+use crate::fs::{File, Stdin, Stdout};
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
@@ -48,7 +48,7 @@ impl TaskControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
-                    fd_table: vec![],
+                    fd_table: vec![Some(Arc::new(Stdin)), Some(Arc::new(Stdout))],
                 })
             },
         };
@@ -98,7 +98,7 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
-                    fd_table: vec![],
+                    fd_table: vec![Some(Arc::new(Stdin)), Some(Arc::new(Stdout))],
                 })
             },
         });
