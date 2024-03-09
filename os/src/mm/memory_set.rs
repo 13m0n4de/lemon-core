@@ -256,15 +256,15 @@ impl MemorySet {
 
         memory_set.map_trampoline();
 
-        debug!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
-        debug!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
-        debug!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
-        debug!(
+        info!(".text [{:#x}, {:#x})", stext as usize, etext as usize);
+        info!(".rodata [{:#x}, {:#x})", srodata as usize, erodata as usize);
+        info!(".data [{:#x}, {:#x})", sdata as usize, edata as usize);
+        info!(
             ".bss [{:#x}, {:#x})",
             sbss_with_stack as usize, ebss as usize
         );
 
-        debug!("mapping .text section");
+        trace!("mapping .text section");
         memory_set.push(
             MapArea::new(
                 (stext as usize).into(),
@@ -275,7 +275,7 @@ impl MemorySet {
             None,
         );
 
-        debug!("mapping .rodata section");
+        trace!("mapping .rodata section");
         memory_set.push(
             MapArea::new(
                 (srodata as usize).into(),
@@ -286,7 +286,7 @@ impl MemorySet {
             None,
         );
 
-        debug!("mapping .data section");
+        trace!("mapping .data section");
         memory_set.push(
             MapArea::new(
                 (sdata as usize).into(),
@@ -297,7 +297,7 @@ impl MemorySet {
             None,
         );
 
-        debug!("mapping .bss section");
+        trace!("mapping .bss section");
         memory_set.push(
             MapArea::new(
                 (sbss_with_stack as usize).into(),
@@ -308,7 +308,7 @@ impl MemorySet {
             None,
         );
 
-        debug!("mapping physical memory");
+        trace!("mapping physical memory");
         memory_set.push(
             MapArea::new(
                 (ekernel as usize).into(),
@@ -319,7 +319,7 @@ impl MemorySet {
             None,
         );
 
-        println!("mapping memory-mapped registers");
+        trace!("mapping memory-mapped registers");
         for &pair in MMIO {
             memory_set.push(
                 MapArea::new(
