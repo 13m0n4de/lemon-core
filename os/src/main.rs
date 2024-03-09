@@ -1,17 +1,15 @@
 //! # OS Kernel Entrypoint
 //!
-//! - Includes `entry.asm` for initial setup.
-//! - Includes `link_app.S` to link the application with the kernel.
-//! - Initializes `.bss` to zero.
-//! - Initializes submodules.
-//! - call [`task::run_first_task`] and for the first time go to userspace.
+//! ## Overview
 //!
-//! Submodules:
-//!
-//! - [`mm`]: Memory management
-//! - [`syscall`]: System call handling and implementation.
-//! - [`task`]: Task management
-//! - [`trap`]: Handles all cases of switching from userspace to the kernel.
+//! - Include `entry.asm` for initial setup.
+//! - Zero out the .bss section.
+//! - Initialize heap allocator, frame allocator, and kernel space.
+//! - Set CSR `stvec` to the entry point of `__alltraps`.
+//! - Enable the timer interrupt and set up the next timer interrupt
+//! - Lists applications.
+//! - Adds the init process to the process manager.
+//! - Begins process execution and scheduling.
 
 #![deny(missing_docs)]
 #![deny(warnings)]
