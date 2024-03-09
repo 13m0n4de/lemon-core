@@ -1,3 +1,5 @@
+//! File system
+
 mod inode;
 mod stdio;
 
