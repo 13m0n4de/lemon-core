@@ -9,15 +9,19 @@ mod switch;
 
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
+use log::*;
 
-use crate::loader::get_app_data_by_name;
-
+use crate::{
+    fs::{open_file, OpenFlags},
+    sbi::shutdown,
+};
 use context::TaskContext;
-use control_block::TaskControlBlock;
 use processor::{schedule, take_current_task};
 
 pub use manager::add_task;
 pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
+
+use self::control_block::TaskControlBlock;
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum TaskStatus {
@@ -27,15 +31,21 @@ pub enum TaskStatus {
 }
 
 lazy_static! {
-    static ref INITPROC: Arc<TaskControlBlock> = Arc::new(TaskControlBlock::new(
-        get_app_data_by_name("initproc").unwrap()
-    ));
+    /// Global process that init user shell
+    pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new({
+        let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
+        let v = inode.read_all();
+        TaskControlBlock::new(v.as_slice())
+    });
 }
 
-/// Add init process to the mannger
+/// Add init process to the manager
 pub fn add_initproc() {
-    add_task(INITPROC.clone())
+    add_task(INITPROC.clone());
 }
+
+/// pid of usertests app in make run TEST=1
+pub const IDLE_PID: usize = 0;
 
 /// Suspend the current 'Running' task and run the next task in task list
 pub fn suspend_current_and_run_next() {
@@ -60,6 +70,19 @@ pub fn suspend_current_and_run_next() {
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor
     let task = take_current_task().unwrap();
+
+    let pid = task.getpid();
+    if pid == IDLE_PID {
+        info!(
+            "[kernel] Idle process exit with exit_code {} ...",
+            exit_code
+        );
+        if exit_code != 0 {
+            shutdown(true)
+        } else {
+            shutdown(false)
+        }
+    }
 
     // **** access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
