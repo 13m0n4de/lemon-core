@@ -5,33 +5,21 @@ target_dir := "target" / target / mode
 
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
+# List available recipes
+default:
+    just --list
+
 build:
-    #!/usr/bin/env python3
-    import os
-    import subprocess
+    #!/usr/bin/env fish
+    cargo build --target {{target}} --release --bins
+    for app in (ls {{app_dir}})
+        set base (string replace -r '\..*$' '' $app)
+        set elf_target "{{target_dir}}/$base"
+        set bin_target "$elf_target.bin"
+        {{objcopy}} $elf_target --strip-all -O binary $bin_target
+        echo $bin_target
+    end
 
-    apps = os.listdir("{{app_dir}}")
-    apps.sort()
-    for app_id, app in enumerate(apps):
-        base = os.path.splitext(app)[0]
-        elf_target = os.path.join("{{target_dir}}", base)
-        bin_target = elf_target + ".bin"
-
-        print(f"Building {elf_target} from {{app_dir}}/{app}")
-        subprocess.run(
-            ["cargo", "build", "--target", "{{target}}", "--release", "--bin", base],
-            check=True,
-        )
-
-        subprocess.run(
-            [
-                "rust-objcopy",
-                "--binary-architecture=riscv64",
-                elf_target,
-                "--strip-all",
-                "-O",
-                "binary",
-                bin_target,
-            ],
-            check=True,
-        )
+# Clean build artifacts
+clean:
+    cargo clean
