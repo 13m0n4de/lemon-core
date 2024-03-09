@@ -1,3 +1,5 @@
+mod inode;
+
 use crate::mm::UserBuffer;
 
 /// File trait
