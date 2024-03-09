@@ -32,7 +32,6 @@ mod config;
 mod drivers;
 mod fs;
 mod lang_items;
-// mod loader;
 mod logging;
 mod mm;
 mod sbi;
@@ -45,7 +44,6 @@ mod trap;
 use core::arch::global_asm;
 
 global_asm!(include_str!("entry.asm"));
-global_asm!(include_str!("link_app.S"));
 
 /// the rust entrypoint of OS
 #[no_mangle]
