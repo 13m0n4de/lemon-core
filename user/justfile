@@ -53,3 +53,6 @@ build:
 
         with open("{{linker}}", "w") as f:
             f.write(raw_linker)
+
+clean:
+    cargo clean
