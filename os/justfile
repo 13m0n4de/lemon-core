@@ -12,13 +12,21 @@ disasm_tmp := kernel_elf + ".asm"
 board := "qemu"
 sbi := "rustsbi"
 bootloader := "../bootloader" / sbi + "-" + board + ".bin"
+fs_img := "../user/target" / target / mode / "fs.img"
 
 kernel_entry_pa := "0x80200000"
 
 objdump := "rust-objdump --arch-name=riscv64"
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
-qemu_args := "-machine virt -nographic -bios " + bootloader + " -device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
+bootloader_option := "-bios " + bootloader
+display_option := "-nographic"
+machine_option := "-machine virt"
+loader_option := "-device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
+drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
+device_option := "-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"
+qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option + " " + drive_option + " " + device_option
+
 
 app_dir := "../user/src/bin"
 app_target_path := "../user/target" / target / mode
