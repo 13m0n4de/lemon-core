@@ -1,6 +1,7 @@
 //! File system
 
 mod inode;
+mod pipe;
 mod stdio;
 
 use crate::mm::UserBuffer;
