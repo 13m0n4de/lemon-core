@@ -1,40 +1,44 @@
-# Variables
+# Log Level
 export LOG := "DEBUG"
 
+# Target architecture
 target := "riscv64gc-unknown-none-elf"
 mode := "release"
-mode_arg := "--" + mode
 
-kernel_elf := "target" / target / mode / "os"
-kernel_bin := kernel_elf + ".bin"
-disasm_tmp := kernel_elf + ".asm"
-
+# Board and bootloader
 board := "qemu"
 sbi := "rustsbi"
 bootloader := "../bootloader" / sbi + "-" + board + ".bin"
 
+# Paths for kernel binary and disassembly
 kernel_entry_pa := "0x80200000"
+kernel_elf := "target" / target / mode / "os"
+kernel_bin := kernel_elf + ".bin"
+disasm_tmp := kernel_elf + ".asm"
 
+# User applications and filesystem image paths
+user_dir := "../user"
+app_dir := user_dir / "src/bin"
+app_target_dir := user_dir / "target" / target / mode
+
+# Tools for handling object files
 objdump := "rust-objdump --arch-name=riscv64"
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
-qemu_args := "-machine virt -nographic -bios " + bootloader + " -device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
+# QEMU
+bootloader_option := "-bios " + bootloader
+display_option := "-nographic"
+machine_option := "-machine virt"
+loader_option := "-device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
+qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option
 
-app_dir := "../user/src/bin"
-app_target_path := "../user/target" / target / mode
 
-# Default
+# List available recipes
 default:
     just --list
 
-# Environment setup
-env:
-    rustup target add {{target}}
-    cargo install cargo-binutils
-    rustup component add rust-src
-    rustup component add llvm-tools-preview
-
-insert_app_data:
+# Generate link_app.S
+gen_app_link_asm:
     #!/usr/bin/env python3
     import os
 
@@ -64,7 +68,7 @@ insert_app_data:
         .global app_{app_id}_end
         .align 3
     app_{app_id}_start:
-        .incbin "{{app_target_path}}/{base}"
+        .incbin "{{app_target_dir}}/{base}"
     app_{app_id}_end:
     """
 
@@ -76,31 +80,16 @@ insert_app_data:
         f.write(app_data)
 
 # Build the kernel binary
-build: insert_app_data
-    @ cd ../user && just build
-    @ echo "Platform: {{board}}"
+build: gen_app_link_asm 
+    cd {{user_dir}} && just build
     @ cp "src/linker-{{board}}.ld" "src/linker.ld"
-    cargo build {{mode_arg}}
+    cargo build --{{mode}}
     @ rm src/linker.ld
+    @ rm src/link_app.S
     {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
 
-# Clean build artifacts
-clean:
-    cargo clean
-
-# Disassemble for inspection using bat
-disasm: build
-    {{objdump}} -d {{kernel_elf}} | bat -l asm
-
-# Disassemble for inspection using LunarVim
-disasm-vim: build
-    {{objdump}} -d {{kernel_elf}} > {{disasm_tmp}}
-    lvim {{disasm_tmp}}
-    rm {{disasm_tmp}}
-
-# Run the kernel in QEMU
+# Run in QEMU
 run: build
-    @ echo "Running QEMU"
     qemu-system-riscv64 {{qemu_args}}
 
 # Debug the kernel in QEMU using tmux
@@ -116,3 +105,17 @@ gdbserver: build
 # Connect to the GDB server
 gdbclient:
     gdb-multiarch -ex "file {{kernel_elf}}" -ex "target remote localhost:1234"
+
+# Clean build artifacts
+clean:
+    cargo clean
+
+# Disassemble for inspection using bat
+disasm: build
+    {{objdump}} -d {{kernel_elf}} | bat -l asm
+
+# Disassemble for inspection using LunarVim
+disasm-vim: build
+    {{objdump}} -d {{kernel_elf}} > {{disasm_tmp}}
+    lvim {{disasm_tmp}}
+    rm {{disasm_tmp}}

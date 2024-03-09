@@ -1,19 +1,12 @@
-target := "riscv64gc-unknown-none-elf"
 mode := "release"
-app_dir := "src/bin"
-target_dir := "target" / target / mode
 
-objcopy := "rust-objcopy --binary-architecture=riscv64"
+# List available recipes
+default:
+    just --list
 
 build:
-    #!/usr/bin/env fish
-    for app in (ls {{app_dir}})
-        set base (string replace -r '\..*$' '' $app)
-        set elf_target "{{target_dir}}/$base"
-        set bin_target "$elf_target.bin"
+    cargo build --{{mode}} --bins
 
-        echo "Building $elf_target from {{app_dir}}/$app"
-        cargo build --target {{target}} --release --bin $base
-        {{objcopy}} $elf_target --strip-all -O binary $bin_target
-    end
-
+# Clean build artifacts
+clean:
+    cargo clean
