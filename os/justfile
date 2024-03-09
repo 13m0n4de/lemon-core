@@ -3,7 +3,6 @@ export LOG := "DEBUG"
 
 target := "riscv64gc-unknown-none-elf"
 mode := "release"
-mode_arg := "--" + mode
 
 kernel_elf := "target" / target / mode / "os"
 kernel_bin := kernel_elf + ".bin"
@@ -12,7 +11,10 @@ disasm_tmp := kernel_elf + ".asm"
 board := "qemu"
 sbi := "rustsbi"
 bootloader := "../bootloader" / sbi + "-" + board + ".bin"
-fs_img := "../user/target" / target / mode / "fs.img"
+
+app_dir := "../user/src/bin"
+app_target_dir := "../user/target" / target / mode
+fs_img := app_target_dir / "fs.img"
 
 kernel_entry_pa := "0x80200000"
 
@@ -27,10 +29,6 @@ drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
 device_option := "-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"
 qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option + " " + drive_option + " " + device_option
 
-
-app_dir := "../user/src/bin"
-app_target_path := "../user/target" / target / mode
-
 # Default
 default:
     just --list
@@ -42,53 +40,15 @@ env:
     rustup component add rust-src
     rustup component add llvm-tools-preview
 
-insert_app_data:
-    #!/usr/bin/env python3
-    import os
-
-    apps = os.listdir("{{app_dir}}")
-    apps.sort()
-
-    app_num = f"""
-        .align 3
-        .section .data
-        .global _num_app
-    _num_app:
-        .quad {len(apps)}
-    """
-    app_names = f"""
-        .global _app_names
-    _app_names:
-    """
-    app_data = ""
-
-    for app_id, app in enumerate(apps):
-        base = os.path.splitext(app)[0]
-        app_num += f"    .quad app_{app_id}_start\n"
-        app_names += f'    .string "{base}"\n'
-        app_data += f"""
-        .section .data
-        .global app_{app_id}_start
-        .global app_{app_id}_end
-        .align 3
-    app_{app_id}_start:
-        .incbin "{{app_target_path}}/{base}"
-    app_{app_id}_end:
-    """
-
-    app_num += f"    .quad app_{len(apps) - 1}_end\n"
-
-    with open("src/link_app.S", "w") as f:
-        f.write(app_num)
-        f.write(app_names)
-        f.write(app_data)
+# Build the filesystem image
+build-fs:
+    @ cd ../user && just build
+    @ cd ../easy-fs-fuse && cargo run --release -- -s {{app_dir}} -t {{app_target_dir}} 
 
 # Build the kernel binary
-build: insert_app_data
-    @ cd ../user && just build
-    @ echo "Platform: {{board}}"
+build: build-fs
     @ cp "src/linker-{{board}}.ld" "src/linker.ld"
-    cargo build {{mode_arg}}
+    cargo build --{{mode}}
     @ rm src/linker.ld
     {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
 
