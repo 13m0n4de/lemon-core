@@ -8,4 +8,8 @@ pub trait File: Send + Sync {
     fn read(&self, buf: UserBuffer) -> usize;
     /// Write `UserBuffer` to file
     fn write(&self, buf: UserBuffer) -> usize;
+    /// If readable
+    fn is_readable(&self) -> bool;
+    /// If writable
+    fn is_writable(&self) -> bool;
 }
