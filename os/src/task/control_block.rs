@@ -1,8 +1,10 @@
 use alloc::sync::{Arc, Weak};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::cell::RefMut;
 
 use crate::config::TRAP_CONTEXT;
+use crate::fs::File;
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
@@ -39,16 +41,14 @@ impl TaskControlBlock {
             inner: unsafe {
                 UPSafeCell::new(TaskControlBlockInner {
                     trap_cx_ppn,
-
                     base_size: user_sp,
-
                     task_status,
                     task_cx: TaskContext::goto_trap_return(kernel_stack_top),
                     memory_set,
-
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: vec![],
                 })
             },
         };
@@ -98,6 +98,7 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
+                    fd_table: vec![],
                 })
             },
         });
@@ -160,6 +161,8 @@ pub struct TaskControlBlockInner {
     pub parent: Option<Weak<TaskControlBlock>>,
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
+
+    pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
 }
 
 impl TaskControlBlockInner {
@@ -187,5 +190,14 @@ impl TaskControlBlockInner {
     #[allow(unused)]
     pub fn is_running(&self) -> bool {
         self.status() == TaskStatus::Running
+    }
+
+    pub fn alloc_fd(&mut self) -> usize {
+        if let Some(idx) = self.fd_table.iter().position(|fd| fd.is_none()) {
+            idx
+        } else {
+            self.fd_table.push(None);
+            self.fd_table.len() - 1
+        }
     }
 }
