@@ -48,7 +48,14 @@ impl TaskControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
-                    fd_table: vec![Some(Arc::new(Stdin)), Some(Arc::new(Stdout))],
+                    fd_table: vec![
+                        // 0 -> stdin
+                        Some(Arc::new(Stdin)),
+                        // 1 -> stdout
+                        Some(Arc::new(Stdout)),
+                        // 2 -> stderr (stdout)
+                        Some(Arc::new(Stdout)),
+                    ],
                 })
             },
         };
@@ -98,7 +105,14 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
-                    fd_table: vec![Some(Arc::new(Stdin)), Some(Arc::new(Stdout))],
+                    fd_table: vec![
+                        // 0 -> stdin
+                        Some(Arc::new(Stdin)),
+                        // 1 -> stdout
+                        Some(Arc::new(Stdout)),
+                        // 2 -> stderr (stdout)
+                        Some(Arc::new(Stdout)),
+                    ],
                 })
             },
         });
