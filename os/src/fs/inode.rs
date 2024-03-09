@@ -1,5 +1,5 @@
 use alloc::sync::Arc;
-use bitflags::{bitflags, Flags};
+use bitflags::bitflags;
 use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::lazy_static;
 
