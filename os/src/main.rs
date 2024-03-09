@@ -14,7 +14,7 @@
 //! - [`trap`]: Handles all cases of switching from userspace to the kernel.
 
 #![deny(missing_docs)]
-// #![deny(warnings)]
+#![deny(warnings)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -32,7 +32,7 @@ mod config;
 mod drivers;
 mod fs;
 mod lang_items;
-mod loader;
+// mod loader;
 mod logging;
 mod mm;
 mod sbi;
@@ -53,11 +53,11 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();
-    task::add_initproc();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    loader::list_apps();
+    fs::list_apps();
+    task::add_initproc();
     task::run_tasks();
     panic!("unreachable in rust_main!");
 }
