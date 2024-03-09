@@ -1,0 +1,15 @@
+# List available recipes
+default:
+    just --list
+
+# Build
+build:
+    cargo build --release
+
+# Create a image
+run source target:
+    cargo run --release -- -s {{source}} -t {{target}}
+
+# Clean build artifacts
+clean:
+    cargo clean
