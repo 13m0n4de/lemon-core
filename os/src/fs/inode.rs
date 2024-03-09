@@ -1,5 +1,5 @@
 use alloc::sync::Arc;
-use bitflags::bitflags;
+use bitflags::{bitflags, Flags};
 use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::lazy_static;
 
@@ -45,7 +45,7 @@ impl File for OSInode {
         let mut inner = self.inner.exclusive_access();
         let mut total_read_size = 0usize;
         for slice in buf.buffers.iter_mut() {
-            let read_size = inner.inode.read_at(inner.offset, *slice);
+            let read_size = inner.inode.read_at(inner.offset, slice);
             if read_size == 0 {
                 break;
             }
@@ -59,11 +59,69 @@ impl File for OSInode {
         let mut inner = self.inner.exclusive_access();
         let mut total_write_size = 0usize;
         for slice in buf.buffers.iter() {
-            let write_size = inner.inode.write_at(inner.offset, *slice);
+            let write_size = inner.inode.write_at(inner.offset, slice);
             assert_eq!(write_size, slice.len());
             inner.offset += write_size;
             total_write_size += write_size;
         }
         total_write_size
+    }
+}
+
+lazy_static! {
+    pub static ref ROOT_INODE: Arc<Inode> = {
+        let efs = EasyFileSystem::open(BLOCK_DEVICE.clone());
+        Arc::new(EasyFileSystem::root_inode(&efs))
+    };
+}
+
+bitflags! {
+    /// Open file flags
+    pub struct OpenFlags: u32 {
+        /// Read only
+        const RDONLY = 0;
+        /// Write only
+        const WRONLY = 1;
+        /// Read & Write
+        const RDWR = 1 << 1;
+        /// Allow create
+        const CREATE = 1 << 9;
+        /// Clear file and return an empty one
+        const TRUNC = 1 << 10;
+    }
+}
+
+/// List all files in the filesystem
+pub fn list_apps() {
+    println!("/**** APPS ****");
+    for app in ROOT_INODE.ls() {
+        println!("{}", app);
+    }
+    println!("**************/");
+}
+
+/// Open file with flags
+pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+    let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
+    let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
+
+    if flags.contains(OpenFlags::CREATE) {
+        if let Some(inode) = ROOT_INODE.find(name) {
+            // clear size
+            inode.clear();
+            Some(Arc::new(OSInode::new(readable, writable, inode)))
+        } else {
+            // create file
+            ROOT_INODE
+                .create(name)
+                .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
+        }
+    } else {
+        ROOT_INODE.find(name).map(|inode| {
+            if flags.contains(OpenFlags::TRUNC) {
+                inode.clear();
+            }
+            Arc::new(OSInode::new(readable, writable, inode))
+        })
     }
 }
