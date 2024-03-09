@@ -14,13 +14,17 @@
 //! - [`trap`]: Handles all cases of switching from userspace to the kernel.
 
 #![deny(missing_docs)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 
 extern crate alloc;
+
+#[cfg(feature = "board_qemu")]
+#[path = "boards/qemu.rs"]
+mod board;
 
 #[macro_use]
 mod console;
