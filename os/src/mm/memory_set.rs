@@ -5,6 +5,7 @@ use super::StepByOne;
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum};
 use super::{VPNRange, VirtAddr, VirtPageNum};
+use crate::config::MMIO;
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE, TRAP_CONTEXT, USER_STACK_SIZE};
 use crate::sync::UPSafeCell;
 use alloc::{sync::Arc, vec::Vec};
@@ -31,6 +32,11 @@ lazy_static! {
     /// The memory set instance of kernel space
     pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
         Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
+}
+
+///Get kernelspace root ppn
+pub fn kernel_token() -> usize {
+    KERNEL_SPACE.exclusive_access().token()
 }
 
 /// Map type for memory set: `identical` or `framed`
@@ -312,6 +318,19 @@ impl MemorySet {
             ),
             None,
         );
+
+        println!("mapping memory-mapped registers");
+        for &pair in MMIO {
+            memory_set.push(
+                MapArea::new(
+                    pair.0.into(),
+                    (pair.0 + pair.1).into(),
+                    MapType::Identical,
+                    MapPermission::R | MapPermission::W,
+                ),
+                None,
+            );
+        }
 
         memory_set
     }

@@ -15,14 +15,13 @@ mod heap_allocator;
 mod memory_set;
 mod page_table;
 
-pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
-pub use frame_allocator::{frame_alloc, FrameTracker};
-pub use memory_set::{MapPermission, MemorySet, KERNEL_SPACE};
-pub use page_table::PageTableEntry;
+pub use address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
+pub use frame_allocator::{frame_alloc, frame_dealloc, FrameTracker};
+pub use memory_set::{kernel_token, MapPermission, MemorySet, KERNEL_SPACE};
+pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 
-use address::{StepByOne, VPNRange};
+use address::VPNRange;
 use alloc::{string::String, vec::Vec};
-use page_table::{PTEFlags, PageTable};
 
 /// Initiate heap allocator, fream allocator, kernel space.
 pub fn init() {
