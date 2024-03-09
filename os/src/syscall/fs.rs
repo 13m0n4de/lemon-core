@@ -1,7 +1,7 @@
 //! File and filesystem-related syscalls
 
-use crate::fs::{open_file, OpenFlags};
-use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
+use crate::fs::{make_pipe, open_file, OpenFlags};
+use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
 /// write buf of length `len`  to a file with `fd`
@@ -76,4 +76,18 @@ pub fn sys_close(fd: usize) -> isize {
         Some(_) => 0,
         None => -1,
     }
+}
+
+pub fn sys_pipe(pipe: *mut usize) -> isize {
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let mut inner = task.inner_exclusive_access();
+    let (pipe_read, pipe_write) = make_pipe();
+    let read_fd = inner.alloc_fd();
+    inner.fd_table[read_fd] = Some(pipe_read);
+    let write_fd = inner.alloc_fd();
+    inner.fd_table[write_fd] = Some(pipe_write);
+    *translated_mut_ref(token, pipe) = read_fd;
+    *translated_mut_ref(token, unsafe { pipe.add(1) }) = write_fd;
+    0
 }

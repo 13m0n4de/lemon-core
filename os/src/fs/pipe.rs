@@ -1,6 +1,7 @@
 use alloc::sync::{Arc, Weak};
 
-use crate::sync::UPSafeCell;
+use super::File;
+use crate::{mm::UserBuffer, sync::UPSafeCell};
 
 /// Represents a unidirectional communication pipe with separate read and write ends.
 pub struct Pipe {
@@ -26,6 +27,26 @@ impl Pipe {
             writable: true,
             buffer,
         }
+    }
+}
+
+impl File for Pipe {
+    fn is_readable(&self) -> bool {
+        self.readable
+    }
+
+    fn is_writable(&self) -> bool {
+        self.writable
+    }
+
+    fn read(&self, buf: UserBuffer) -> usize {
+        assert!(self.is_readable());
+        unimplemented!()
+    }
+
+    fn write(&self, buf: UserBuffer) -> usize {
+        assert!(self.is_writable());
+        unimplemented!()
     }
 }
 

@@ -6,6 +6,7 @@ mod stdio;
 
 use crate::mm::UserBuffer;
 pub use inode::{list_apps, open_file, OpenFlags};
+pub use pipe::make_pipe;
 pub use stdio::{Stdin, Stdout};
 
 /// File trait
