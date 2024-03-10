@@ -43,7 +43,8 @@ impl CommandArguments {
             }
         }
 
-        let args_ptrs: Vec<*const u8> = args_str.iter().map(|arg| arg.as_ptr()).collect();
+        let mut args_ptrs: Vec<*const u8> = args_str.iter().map(|arg| arg.as_ptr()).collect();
+        args_ptrs.push(core::ptr::null());
 
         Self {
             args_str,
