@@ -10,7 +10,7 @@ use user_lib::{close, open, read, OpenFlags};
 #[no_mangle]
 pub fn main(_argc: usize, argv: &[&str]) -> i32 {
     for filename in &argv[1..] {
-        let fd = open(argv[1], OpenFlags::RDONLY);
+        let fd = open(filename, OpenFlags::RDONLY);
         if fd == -1 {
             println!("{}: No such file or directory", filename);
             continue;
