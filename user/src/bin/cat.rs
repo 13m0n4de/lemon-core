@@ -26,7 +26,6 @@ pub fn main(_argc: usize, argv: &[&str]) -> i32 {
             }
             print!("{}", core::str::from_utf8(&buf[..size]).unwrap());
         }
-        print!("\n");
 
         close(fd);
     }
