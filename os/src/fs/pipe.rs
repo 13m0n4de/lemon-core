@@ -1,4 +1,7 @@
-use alloc::sync::{Arc, Weak};
+use alloc::{
+    collections::VecDeque,
+    sync::{Arc, Weak},
+};
 
 use super::File;
 use crate::{mm::UserBuffer, sync::UPSafeCell};
@@ -69,7 +72,6 @@ pub struct PipeRingBuffer {
 }
 
 impl PipeRingBuffer {
-    /// Initializes a new ring buffer.
     pub fn new() -> Self {
         Self {
             arr: [0; RING_BUFFER_SIZE],
@@ -80,9 +82,49 @@ impl PipeRingBuffer {
         }
     }
 
-    /// Sets a weak reference to the write end of the pipe.
     pub fn set_write_end(&mut self, write_end: &Arc<Pipe>) {
         self.write_end = Some(Arc::downgrade(write_end));
+    }
+
+    pub fn write_byte(&mut self, byte: u8) {
+        self.status = RingBufferStatus::Normal;
+        self.arr[self.tail] = byte;
+        self.tail = (self.tail + 1) % RING_BUFFER_SIZE;
+        if self.tail == self.head {
+            self.status = RingBufferStatus::Full;
+        }
+    }
+
+    pub fn read_byte(&mut self) -> u8 {
+        self.status = RingBufferStatus::Normal;
+        let c = self.arr[self.head];
+        self.head = (self.head + 1) % RING_BUFFER_SIZE;
+        if self.head == self.tail {
+            self.status = RingBufferStatus::Empty;
+        }
+        c
+    }
+
+    pub fn available_read(&self) -> usize {
+        if self.status == RingBufferStatus::Empty {
+            0
+        } else if self.tail > self.head {
+            self.tail - self.head
+        } else {
+            self.tail + RING_BUFFER_SIZE - self.head
+        }
+    }
+
+    pub fn available_write(&self) -> usize {
+        if self.status == RingBufferStatus::Full {
+            0
+        } else {
+            RING_BUFFER_SIZE - self.available_read()
+        }
+    }
+
+    pub fn all_write_ends_closed(&self) -> bool {
+        self.write_end.as_ref().unwrap().upgrade().is_none()
     }
 }
 
