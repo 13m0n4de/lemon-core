@@ -9,12 +9,15 @@ extern crate alloc;
 pub mod console;
 mod heap_allocator;
 mod lang_items;
+mod signal;
 mod syscall;
 
 use alloc::vec::Vec;
 use bitflags::bitflags;
 use heap_allocator::init_heap;
 use syscall::*;
+
+pub use signal::*;
 
 #[no_mangle]
 #[link_section = ".text.entry"]
@@ -83,6 +86,26 @@ pub fn exit(exit_code: i32) -> ! {
 
 pub fn yield_() -> isize {
     sys_yield()
+}
+
+pub fn sigaction(
+    signum: i32,
+    action: Option<&SignalAction>,
+    old_action: Option<&mut SignalAction>,
+) -> isize {
+    sys_sigaction(
+        signum,
+        action.map_or(core::ptr::null(), |a| a),
+        old_action.map_or(core::ptr::null_mut(), |a| a),
+    )
+}
+
+pub fn sigprocmask(mask: u32) -> isize {
+    sys_sigprocmask(mask)
+}
+
+pub fn sigreturn() -> isize {
+    sys_sigreturn()
 }
 
 pub fn get_time() -> isize {
