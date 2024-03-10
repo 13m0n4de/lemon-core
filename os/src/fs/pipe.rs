@@ -45,47 +45,48 @@ impl File for Pipe {
         let mut already_read = 0usize;
 
         for byte_ref in buf_iter {
-            let mut ring_buffer = self.buffer.exclusive_access();
-            let available_to_read = ring_buffer.available_to_read();
+            loop {
+                let mut ring_buffer = self.buffer.exclusive_access();
+                let available_to_read = ring_buffer.available_to_read();
 
-            if available_to_read == 0 {
-                if ring_buffer.all_write_ends_closed() {
+                if available_to_read > 0 {
+                    unsafe { *byte_ref = ring_buffer.read_byte() };
+                    already_read += 1;
                     break;
+                } else {
+                    if ring_buffer.all_write_ends_closed() {
+                        return already_read;
+                    }
+                    drop(ring_buffer);
+                    suspend_current_and_run_next();
                 }
-                drop(ring_buffer);
-                suspend_current_and_run_next();
-                continue;
             }
-
-            unsafe {
-                *byte_ref = ring_buffer.read_byte();
-            }
-
-            already_read += 1;
         }
         already_read
     }
 
-    fn write(&self, buf: UserBuffer) -> usize {
+    fn write(&self, mut buf: UserBuffer) -> usize {
         assert!(self.is_writable());
-        let buf_iter = buf.iter();
+        let buf_iter = buf.iter_mut();
         let mut already_write = 0usize;
 
         for byte_ref in buf_iter {
-            let mut ring_buffer = self.buffer.exclusive_access();
-            let available_to_write = ring_buffer.available_to_write();
+            loop {
+                let mut ring_buffer = self.buffer.exclusive_access();
+                let available_to_write = ring_buffer.available_to_write();
 
-            if available_to_write == 0 {
-                if ring_buffer.all_write_ends_closed() {
+                if available_to_write > 0 {
+                    ring_buffer.write_byte(unsafe { *byte_ref });
+                    already_write += 1;
                     break;
+                } else {
+                    if ring_buffer.all_write_ends_closed() {
+                        return already_write;
+                    }
+                    drop(ring_buffer);
+                    suspend_current_and_run_next();
                 }
-                drop(ring_buffer);
-                suspend_current_and_run_next();
-                continue;
             }
-
-            ring_buffer.write_byte(unsafe { *byte_ref });
-            already_write += 1;
         }
         already_write
     }
