@@ -76,6 +76,15 @@ pub fn translated_str(token: usize, ptr: *const u8) -> String {
     string
 }
 
+pub fn translated_ref<T>(token: usize, ptr: *const T) -> &'static T {
+    let page_table = PageTable::from_token(token);
+    let va = ptr as usize;
+    page_table
+        .translate_va(VirtAddr::from(va))
+        .unwrap()
+        .as_ref()
+}
+
 ///translate a generic through page table and return a mutable reference
 pub fn translated_mut_ref<T>(token: usize, ptr: *mut T) -> &'static mut T {
     //println!("into translated_refmut!");

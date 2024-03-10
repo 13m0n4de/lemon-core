@@ -1,3 +1,4 @@
+use alloc::string::String;
 use alloc::sync::{Arc, Weak};
 use alloc::vec;
 use alloc::vec::Vec;
@@ -5,7 +6,7 @@ use core::cell::RefMut;
 
 use crate::config::TRAP_CONTEXT;
 use crate::fs::{File, Stdin, Stdout};
-use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
+use crate::mm::{translated_mut_ref, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
 
@@ -126,13 +127,37 @@ impl TaskControlBlock {
         // **** release children PCB automatically
     }
 
-    pub fn exec(&self, elf_data: &[u8]) {
+    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) {
         // memory_set with elf program headers/trampoline/trap context/user stack
-        let (memory_set, user_sp, entry_point) = MemorySet::from_elf(elf_data);
+        let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
             .ppn();
+
+        // push arguments on user stack
+        let argc = args.len();
+        user_sp -= (argc + 1) * core::mem::size_of::<usize>();
+        let argv_base = user_sp;
+        let mut argv: Vec<_> = (0..=argc)
+            .map(|arg| {
+                translated_mut_ref(
+                    memory_set.token(),
+                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize,
+                )
+            })
+            .collect();
+        *argv[argc] = 0;
+        for i in 0..argc {
+            user_sp -= args[i].len() + 1;
+            *argv[i] = user_sp;
+            let mut p = user_sp;
+            for c in args[i].as_bytes() {
+                *translated_mut_ref(memory_set.token(), p as *mut u8) = *c;
+                p += 1;
+            }
+            *translated_mut_ref(memory_set.token(), p as *mut u8) = 0;
+        }
 
         // **** access inner exclusively
         let mut inner = self.inner_exclusive_access();
@@ -143,14 +168,17 @@ impl TaskControlBlock {
         // initialize base_size
         inner.base_size = user_sp;
         // initialize trap_cx
-        let trap_cx = inner.trap_cx();
-        *trap_cx = TrapContext::app_init_context(
+        let mut trap_cx = TrapContext::app_init_context(
             entry_point,
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             self.kernel_stack.top(),
             trap_handler as usize,
         );
+
+        trap_cx.x[10] = argc;
+        trap_cx.x[11] = argv_base;
+        *inner.trap_cx() = trap_cx;
         // **** release inner automatically
     }
 
