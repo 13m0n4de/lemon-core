@@ -5,6 +5,7 @@ mod control_block;
 mod manager;
 mod pid;
 mod processor;
+mod signal;
 mod switch;
 
 use alloc::sync::Arc;
@@ -20,6 +21,7 @@ use processor::{schedule, take_current_task};
 
 pub use manager::add_task;
 pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
+pub use signal::{SignalAction, SignalActions, SignalFlags, MAX_SIG};
 
 use self::control_block::TaskControlBlock;
 
@@ -112,4 +114,110 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // we do not have to save task context
     let mut _unused = TaskContext::zero_init();
     schedule(&mut _unused as *mut _);
+}
+
+pub fn add_signal_to_current(signal: SignalFlags) {
+    let task = current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.signals |= signal;
+}
+
+pub fn handle_signals() {
+    loop {
+        check_pending_signals();
+        let task = current_task().unwrap();
+        let task_inner = task.inner_exclusive_access();
+        if !task_inner.frozen || task_inner.killed {
+            break;
+        }
+        suspend_current_and_run_next();
+    }
+}
+
+fn check_pending_signals() {
+    for sig in 0..=MAX_SIG {
+        let task = current_task().unwrap();
+        let task_inner = task.inner_exclusive_access();
+        let signal = SignalFlags::from_bits(1 << sig).unwrap();
+        if task_inner.signals.contains(signal) && (!task_inner.signal_mask.contains(signal)) {
+            let masked = match task_inner.handling_sig {
+                Some(sig) if task_inner.signal_actions.table[sig].mask.contains(signal) => true,
+                _ => false,
+            };
+
+            if !masked {
+                drop(task_inner);
+                drop(task);
+                if matches!(
+                    signal,
+                    SignalFlags::SIGILL
+                        | SignalFlags::SIGSTOP
+                        | SignalFlags::SIGCONT
+                        | SignalFlags::SIGDEF
+                ) {
+                    // signal is a kernel signal
+                    call_kernel_signal_handler(signal);
+                } else {
+                    // signal is a user signal
+                    call_user_signal_handler(sig, signal);
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn call_kernel_signal_handler(signal: SignalFlags) {
+    let task = current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    match signal {
+        SignalFlags::SIGSTOP => {
+            task_inner.frozen = true;
+            task_inner.signals ^= SignalFlags::SIGSTOP;
+        }
+        SignalFlags::SIGCONT => {
+            if task_inner.signals.contains(SignalFlags::SIGCONT) {
+                task_inner.signals ^= SignalFlags::SIGCONT;
+                task_inner.frozen = false;
+            }
+        }
+        _ => {
+            task_inner.killed = true;
+        }
+    }
+}
+
+fn call_user_signal_handler(sig: usize, signal: SignalFlags) {
+    let task = current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+
+    let handler = task_inner.signal_actions.table[sig].handler;
+    if handler != 0 {
+        // user handler
+
+        // handle flag
+        task_inner.handling_sig = Some(sig);
+        task_inner.signals ^= signal;
+
+        // backup trapframe
+        let trap_ctx = task_inner.trap_cx();
+        task_inner.trap_ctx_backup = Some(*trap_ctx);
+
+        // modify trapframe
+        trap_ctx.sepc = handler;
+
+        // put args (a0)
+        trap_ctx.x[10] = sig;
+    } else {
+        // default action
+        debug!(
+            "[kernel] task::call_user_signal_handler: default action: ignore it or kill process"
+        );
+    }
+}
+
+pub fn check_signals_error_of_current() -> Option<(i32, &'static str)> {
+    let task = current_task().unwrap();
+    let task_inner = task.inner_exclusive_access();
+    task_inner.signals.check_error()
 }

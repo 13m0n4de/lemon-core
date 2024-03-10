@@ -12,7 +12,7 @@ use crate::trap::{trap_handler, TrapContext};
 
 use super::context::TaskContext;
 use super::pid::{pid_alloc, KernelStack, PidHandle};
-use super::TaskStatus;
+use super::{SignalActions, SignalFlags, TaskStatus};
 
 pub struct TaskControlBlock {
     pub pid: PidHandle,
@@ -57,6 +57,13 @@ impl TaskControlBlock {
                         // 2 -> stderr (stdout)
                         Some(Arc::new(Stdout)),
                     ],
+                    signals: SignalFlags::empty(),
+                    signal_mask: SignalFlags::empty(),
+                    signal_actions: SignalActions::default(),
+                    killed: false,
+                    frozen: false,
+                    handling_sig: None,
+                    trap_ctx_backup: None,
                 })
             },
         };
@@ -110,6 +117,13 @@ impl TaskControlBlock {
                     children: Vec::new(),
                     exit_code: 0,
                     fd_table: new_fd_table,
+                    signals: SignalFlags::empty(),
+                    signal_mask: parent_inner.signal_mask,
+                    signal_actions: parent_inner.signal_actions,
+                    killed: false,
+                    frozen: false,
+                    handling_sig: None,
+                    trap_ctx_backup: None,
                 })
             },
         });
@@ -201,6 +215,14 @@ pub struct TaskControlBlockInner {
     pub exit_code: i32,
 
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
+
+    pub signals: SignalFlags,
+    pub signal_mask: SignalFlags,
+    pub signal_actions: SignalActions,
+    pub killed: bool,
+    pub frozen: bool,
+    pub handling_sig: Option<usize>,
+    pub trap_ctx_backup: Option<TrapContext>,
 }
 
 impl TaskControlBlockInner {

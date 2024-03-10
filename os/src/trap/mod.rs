@@ -13,8 +13,8 @@ use crate::{
     config::{TRAMPOLINE, TRAP_CONTEXT},
     syscall::syscall,
     task::{
-        current_trap_cx, current_user_token, exit_current_and_run_next,
-        suspend_current_and_run_next,
+        add_signal_to_current, check_signals_error_of_current, current_trap_cx, current_user_token,
+        exit_current_and_run_next, handle_signals, suspend_current_and_run_next, SignalFlags,
     },
     timer::set_next_trigger,
 };
@@ -64,17 +64,17 @@ pub fn trap_handler() -> ! {
         | Trap::Exception(Exception::InstructionPageFault)
         | Trap::Exception(Exception::LoadFault)
         | Trap::Exception(Exception::LoadPageFault) => {
-            info!(
+            debug!(
                 "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
                 scause.cause(),
                 stval,
                 cx.sepc,
             );
-            exit_current_and_run_next(-2);
+            add_signal_to_current(SignalFlags::SIGSEGV);
         }
         Trap::Exception(Exception::IllegalInstruction) => {
-            info!("[kernel] IllegalInstruction in application, kernel killed it.");
-            exit_current_and_run_next(-3);
+            debug!("[kernel] IllegalInstruction in application, kernel killed it.");
+            add_signal_to_current(SignalFlags::SIGILL);
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             set_next_trigger();
@@ -88,6 +88,15 @@ pub fn trap_handler() -> ! {
             );
         }
     }
+
+    trace!("[kernel] trap_handler::handle_signals");
+    handle_signals();
+
+    if let Some((errno, msg)) = check_signals_error_of_current() {
+        debug!("[kernel] {}", msg);
+        exit_current_and_run_next(errno);
+    }
+
     trap_return()
 }
 
@@ -120,7 +129,9 @@ pub fn trap_return() -> ! {
 /// Unimplement: traps/interrupts/exceptions from kernel mode
 /// Todo: Chapter 9: I/O device
 pub fn trap_from_kernel() -> ! {
-    panic!("a trap from kernel!");
+    use riscv::register::sepc;
+    debug!("stval = {:#x}, sepc = {:#x}", stval::read(), sepc::read());
+    panic!("a trap {:?} from kernel!", scause::read().cause());
 }
 
 fn set_kernel_trap_entry() {
