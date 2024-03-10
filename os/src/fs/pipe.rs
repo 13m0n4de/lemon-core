@@ -1,10 +1,7 @@
-use alloc::{
-    collections::VecDeque,
-    sync::{Arc, Weak},
-};
+use alloc::sync::{Arc, Weak};
 
 use super::File;
-use crate::{mm::UserBuffer, sync::UPSafeCell};
+use crate::{mm::UserBuffer, sync::UPSafeCell, task::suspend_current_and_run_next};
 
 /// Represents a unidirectional communication pipe with separate read and write ends.
 pub struct Pipe {
@@ -42,14 +39,55 @@ impl File for Pipe {
         self.writable
     }
 
-    fn read(&self, buf: UserBuffer) -> usize {
+    fn read(&self, mut buf: UserBuffer) -> usize {
         assert!(self.is_readable());
-        unimplemented!()
+        let buf_iter = buf.iter_mut();
+        let mut already_read = 0usize;
+
+        for byte_ref in buf_iter {
+            let mut ring_buffer = self.buffer.exclusive_access();
+            let available_to_read = ring_buffer.available_to_read();
+
+            if available_to_read == 0 {
+                if ring_buffer.all_write_ends_closed() {
+                    break;
+                }
+                drop(ring_buffer);
+                suspend_current_and_run_next();
+                continue;
+            }
+
+            unsafe {
+                *byte_ref = ring_buffer.read_byte();
+            }
+
+            already_read += 1;
+        }
+        already_read
     }
 
     fn write(&self, buf: UserBuffer) -> usize {
         assert!(self.is_writable());
-        unimplemented!()
+        let buf_iter = buf.iter();
+        let mut already_write = 0usize;
+
+        for byte_ref in buf_iter {
+            let mut ring_buffer = self.buffer.exclusive_access();
+            let available_to_write = ring_buffer.available_to_write();
+
+            if available_to_write == 0 {
+                if ring_buffer.all_write_ends_closed() {
+                    break;
+                }
+                drop(ring_buffer);
+                suspend_current_and_run_next();
+                continue;
+            }
+
+            ring_buffer.write_byte(unsafe { *byte_ref });
+            already_write += 1;
+        }
+        already_write
     }
 }
 
@@ -105,7 +143,7 @@ impl PipeRingBuffer {
         c
     }
 
-    pub fn available_read(&self) -> usize {
+    pub fn available_to_read(&self) -> usize {
         if self.status == RingBufferStatus::Empty {
             0
         } else if self.tail > self.head {
@@ -115,11 +153,11 @@ impl PipeRingBuffer {
         }
     }
 
-    pub fn available_write(&self) -> usize {
+    pub fn available_to_write(&self) -> usize {
         if self.status == RingBufferStatus::Full {
             0
         } else {
-            RING_BUFFER_SIZE - self.available_read()
+            RING_BUFFER_SIZE - self.available_to_read()
         }
     }
 
