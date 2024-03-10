@@ -44,6 +44,10 @@ pub fn close(fd: usize) -> isize {
     sys_close(fd)
 }
 
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    sys_pipe(pipe_fd)
+}
+
 pub fn read(fd: usize, buf: &mut [u8]) -> isize {
     sys_read(fd, buf)
 }
