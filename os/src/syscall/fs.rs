@@ -4,6 +4,21 @@ use crate::fs::{make_pipe, open_file, OpenFlags};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
+pub fn sys_dup(fd: usize) -> isize {
+    let task = current_task().unwrap();
+    let mut inner = task.inner_exclusive_access();
+
+    match inner.fd_table.get(fd) {
+        Some(Some(file)) => {
+            let new_file = file.clone();
+            let new_fd = inner.alloc_fd();
+            inner.fd_table[new_fd] = Some(new_file);
+            new_fd as isize
+        }
+        _ => -1,
+    }
+}
+
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let task = current_task().unwrap();
