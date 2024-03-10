@@ -19,11 +19,11 @@ use crate::{
 use context::TaskContext;
 use processor::{schedule, take_current_task};
 
-pub use manager::add_task;
+pub use manager::{add_task, pid2task};
 pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
 pub use signal::{SignalAction, SignalActions, SignalFlags, MAX_SIG};
 
-use self::control_block::TaskControlBlock;
+use self::{control_block::TaskControlBlock, manager::remove_from_pid2task};
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum TaskStatus {
@@ -86,6 +86,8 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         }
     }
 
+    // remove from pid2task
+    remove_from_pid2task(task.getpid());
     // **** access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
     // Change status to Zombie

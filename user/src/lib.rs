@@ -88,6 +88,10 @@ pub fn yield_() -> isize {
     sys_yield()
 }
 
+pub fn kill(pid: usize, signum: i32) -> isize {
+    sys_kill(pid, signum)
+}
+
 pub fn sigaction(
     signum: i32,
     action: Option<&SignalAction>,
