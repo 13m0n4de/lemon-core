@@ -13,3 +13,6 @@ run source target:
 # Clean build artifacts
 clean:
     cargo clean
+
+clippy:
+    cargo clippy --release

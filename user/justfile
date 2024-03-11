@@ -10,3 +10,6 @@ build:
 # Clean build artifacts
 clean:
     cargo clean
+
+clippy:
+    cargo clippy --{{mode}}

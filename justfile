@@ -88,3 +88,8 @@ clean:
     cd {{user_dir}} && just clean
     cd {{efs_cli_dir}} && just clean
     cd {{kernel_dir}} && just clean
+
+clippy:
+    cd {{user_dir}} && just clippy
+    cd {{efs_cli_dir}} && just clippy
+    cd {{kernel_dir}} && just clippy

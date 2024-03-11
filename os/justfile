@@ -26,6 +26,9 @@ build board="qemu":
 clean:
     cargo clean
 
+clippy:
+    cargo clippy --{{mode}}
+
 # Disassemble for inspection using bat
 disasm: build
     {{objdump}} -d {{kernel_elf}} | bat -l asm
