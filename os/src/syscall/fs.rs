@@ -1,6 +1,6 @@
 //! File and filesystem-related syscalls
 
-use crate::fs::{make_pipe, open_file, OpenFlags};
+use crate::fs::{find_inode, make_pipe, open_file, OpenFlags};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
@@ -19,48 +19,20 @@ pub fn sys_dup(fd: usize) -> isize {
     }
 }
 
-/// write buf of length `len`  to a file with `fd`
-pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
-    let task = current_task().unwrap();
+pub fn sys_mkdir(path: *const u8, _flags: u32) -> isize {
     let token = current_user_token();
-    let inner = task.inner_exclusive_access();
+    let path = translated_str(token, path);
 
-    if fd >= inner.fd_table.len() {
-        return -1;
-    }
-
-    if let Some(file) = &inner.fd_table[fd] {
-        if !file.is_writable() {
-            return -1;
-        }
-        let file = file.clone();
-        // release current task TCB manually to avoid multi-borrow
-        drop(inner);
-        file.write(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
-    } else {
-        -1
-    }
-}
-
-pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
-    let task = current_task().unwrap();
-    let token = current_user_token();
-    let inner = task.inner_exclusive_access();
-
-    if fd >= inner.fd_table.len() {
-        return -1;
-    }
-
-    if let Some(file) = &inner.fd_table[fd] {
-        let file = file.clone();
-        if !file.is_readable() {
-            return -1;
-        }
-        // release current task TCB manually to avoid multi-borrow
-        drop(inner);
-        file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
-    } else {
-        -1
+    let (parent_path, target) = match path.rsplit_once('/') {
+        Some((parent_path, target)) => (parent_path, target),
+        None => ("", path.as_str()),
+    };
+    match find_inode(parent_path) {
+        Some(parent_inode) => match parent_inode.create_dir(target) {
+            Some(_cur_inode) => 0,
+            None => -2,
+        },
+        None => -1,
     }
 }
 
@@ -90,6 +62,51 @@ pub fn sys_close(fd: usize) -> isize {
     match inner.fd_table[fd].take() {
         Some(_) => 0,
         None => -1,
+    }
+}
+
+pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let inner = task.inner_exclusive_access();
+
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+
+    if let Some(file) = &inner.fd_table[fd] {
+        let file = file.clone();
+        if !file.is_readable() {
+            return -1;
+        }
+        // release current task TCB manually to avoid multi-borrow
+        drop(inner);
+        file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    } else {
+        -1
+    }
+}
+
+/// write buf of length `len`  to a file with `fd`
+pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
+    let task = current_task().unwrap();
+    let token = current_user_token();
+    let inner = task.inner_exclusive_access();
+
+    if fd >= inner.fd_table.len() {
+        return -1;
+    }
+
+    if let Some(file) = &inner.fd_table[fd] {
+        if !file.is_writable() {
+            return -1;
+        }
+        let file = file.clone();
+        // release current task TCB manually to avoid multi-borrow
+        drop(inner);
+        file.write(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
+    } else {
+        -1
     }
 }
 

@@ -1,6 +1,7 @@
 //! Implementation of syscalls
 
 const SYSCALL_DUP: usize = 24;
+const SYSCALL_MKDIR: usize = 34;
 const SYSCALL_OPEN: usize = 56;
 const SYSCALL_CLOSE: usize = 57;
 const SYSCALL_PIPE: usize = 59;
@@ -30,6 +31,7 @@ use crate::task::SignalAction;
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     match syscall_id {
         SYSCALL_DUP => sys_dup(args[0]),
+        SYSCALL_MKDIR => sys_mkdir(args[0] as *const u8, args[1] as u32),
         SYSCALL_OPEN => sys_open(args[0] as *const u8, args[1] as u32),
         SYSCALL_CLOSE => sys_close(args[0]),
         SYSCALL_PIPE => sys_pipe(args[0] as *mut usize),

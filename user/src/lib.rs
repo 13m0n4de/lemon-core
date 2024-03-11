@@ -60,6 +60,10 @@ pub fn dup(fd: usize) -> isize {
     sys_dup(fd)
 }
 
+pub fn mkdir(path: &str) -> isize {
+    sys_mkdir(path.as_ptr())
+}
+
 pub fn open(path: &str, flags: OpenFlags) -> isize {
     sys_open(path, flags.bits())
 }
