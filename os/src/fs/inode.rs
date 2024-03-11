@@ -87,7 +87,9 @@ impl File for OSInode {
 lazy_static! {
     pub static ref ROOT_INODE: Arc<Inode> = {
         let efs = EasyFileSystem::open(BLOCK_DEVICE.clone());
-        Arc::new(EasyFileSystem::root_inode(&efs))
+        let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
+        root_inode.set_default_dirent(root_inode.inode_id());
+        root_inode
     };
 }
 
@@ -117,27 +119,41 @@ pub fn list_apps() {
 }
 
 /// Open file with flags
-pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
     let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
 
     if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = ROOT_INODE.find(name) {
+        if let Some(inode) = find_inode(path) {
             // clear size
             inode.clear();
             Some(Arc::new(OSInode::new(readable, writable, inode)))
         } else {
-            // create file
-            ROOT_INODE
-                .create(name)
+            let (parent_path, target) = match path.rsplit_once('/') {
+                Some((parent_path, target)) => (parent_path, target),
+                None => ("", path),
+            };
+            let parent_inode = find_inode(parent_path)?;
+            parent_inode
+                .create(target)
                 .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
-        ROOT_INODE.find(name).map(|inode| {
+        find_inode(path).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }
             Arc::new(OSInode::new(readable, writable, inode))
         })
     }
+}
+
+pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
+    path.split('/').try_fold(ROOT_INODE.clone(), |node, name| {
+        if !name.is_empty() {
+            node.find(name)
+        } else {
+            Some(node)
+        }
+    })
 }

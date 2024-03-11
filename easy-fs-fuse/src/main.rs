@@ -40,6 +40,7 @@ fn main() -> std::io::Result<()> {
     // 16 MiB, at most 4095 files
     let efs = EasyFileSystem::create(block_file, 16 * 2048, 1);
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
+    root_inode.set_default_dirent(root_inode.inode_id());
 
     println!(
         "Packing files from {:?} into the easy-fs image...",
