@@ -54,7 +54,7 @@ pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
 
 pub fn pid2task(pid: usize) -> Option<Arc<TaskControlBlock>> {
     let map = PID2TCB.exclusive_access();
-    map.get(&pid).map(Arc::clone)
+    map.get(&pid).cloned()
 }
 
 pub fn remove_from_pid2task(pid: usize) {
