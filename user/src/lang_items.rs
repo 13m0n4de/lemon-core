@@ -1,5 +1,7 @@
 use core::panic::PanicInfo;
 
+use crate::{getpid, kill, SIGABRT};
+
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
     if let Some(location) = info.location() {
@@ -12,5 +14,6 @@ fn panic(info: &PanicInfo) -> ! {
     } else {
         println!("Panicked: {}", info.message().unwrap());
     }
-    loop {}
+    kill(getpid() as usize, SIGABRT);
+    unreachable!()
 }
