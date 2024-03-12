@@ -87,10 +87,7 @@ pub fn sys_mkdir(path: *const u8) -> isize {
     let path = translated_str(token, path);
     let path = get_full_path(&task_inner.cwd, &path);
 
-    let (parent_path, target) = match path.rsplit_once('/') {
-        Some((parent_path, target)) => (parent_path, target),
-        None => ("", path.as_str()),
-    };
+    let (parent_path, target) = path.rsplit_once('/').expect("path must contain a '/'");
     match find_inode(parent_path) {
         Some(parent_inode) => match parent_inode.create_dir(target) {
             Some(_cur_inode) => 0,
