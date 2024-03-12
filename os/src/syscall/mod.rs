@@ -1,7 +1,8 @@
 //! Implementation of syscalls
 
 const SYSCALL_GETCWD: usize = 17;
-const SYSCALL_DUP: usize = 24;
+const SYSCALL_DUP: usize = 23;
+const SYSCALL_DUP2: usize = 24;
 const SYSCALL_MKDIR: usize = 34;
 const SYSCALL_CHDIR: usize = 49;
 const SYSCALL_OPEN: usize = 56;
@@ -35,6 +36,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
     match syscall_id {
         SYSCALL_GETCWD => sys_getcwd(args[0] as *const u8, args[1]),
         SYSCALL_DUP => sys_dup(args[0]),
+        SYSCALL_DUP2 => sys_dup2(args[0], args[1]),
         SYSCALL_MKDIR => sys_mkdir(args[0] as *const u8),
         SYSCALL_CHDIR => sys_chdir(args[0] as *const u8),
         SYSCALL_OPEN => sys_open(args[0] as *const u8, args[1] as u32),

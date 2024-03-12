@@ -41,6 +41,22 @@ pub fn sys_dup(fd: usize) -> isize {
     }
 }
 
+pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
+    let task = current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+
+    let fd_table = &mut task_inner.fd_table;
+    if old_fd >= fd_table.len() {
+        return -1;
+    }
+    if new_fd >= fd_table.len() {
+        fd_table.resize(new_fd + 1, None);
+    }
+    fd_table[new_fd] = fd_table[old_fd].clone();
+
+    0
+}
+
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
     let task = current_task().unwrap();

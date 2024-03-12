@@ -64,6 +64,10 @@ pub fn dup(fd: usize) -> isize {
     sys_dup(fd)
 }
 
+pub fn dup2(old_fd: usize, new_fd: usize) -> isize {
+    sys_dup2(old_fd, new_fd)
+}
+
 pub fn chdir(path: &str) -> isize {
     sys_chdir(path.as_ptr())
 }

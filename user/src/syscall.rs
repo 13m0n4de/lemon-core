@@ -3,7 +3,8 @@ use core::{arch::asm, usize};
 use crate::signal::SignalAction;
 
 const SYSCALL_GETCWD: usize = 17;
-const SYSCALL_DUP: usize = 24;
+const SYSCALL_DUP: usize = 23;
+const SYSCALL_DUP2: usize = 24;
 const SYSCALL_MKDIR: usize = 34;
 const SYS_CALL_CHDIR: usize = 49;
 const SYSCALL_OPEN: usize = 56;
@@ -44,6 +45,10 @@ pub fn sys_getcwd(buf: &mut [u8]) -> isize {
 
 pub fn sys_dup(fd: usize) -> isize {
     syscall(SYSCALL_DUP, [fd, 0, 0])
+}
+
+pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
+    syscall(SYSCALL_DUP2, [old_fd, new_fd, 0])
 }
 
 pub fn sys_chdir(path: *const u8) -> isize {
