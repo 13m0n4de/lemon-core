@@ -19,7 +19,7 @@ pub fn sys_dup(fd: usize) -> isize {
     }
 }
 
-pub fn sys_mkdir(path: *const u8, _flags: u32) -> isize {
+pub fn sys_mkdir(path: *const u8) -> isize {
     let token = current_user_token();
     let path = translated_str(token, path);
 
