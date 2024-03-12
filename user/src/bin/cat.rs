@@ -4,6 +4,7 @@
 extern crate alloc;
 extern crate user_lib;
 
+use alloc::vec;
 use user_lib::fs::*;
 use user_lib::*;
 
@@ -16,15 +17,26 @@ pub fn main(_argc: usize, argv: &[&str]) -> i32 {
             continue;
         }
 
-        let mut buf = [0u8; 256];
-        let fd = fd as usize;
-
-        loop {
-            let size = read(fd, &mut buf) as usize;
-            if size == 0 {
-                break;
+        let mut stat = Stat::new();
+        match fstat(fd as usize, &mut stat) {
+            0 => {}
+            -1 => {
+                println!("{}: Bad file descriptor", fd);
+                continue;
             }
-            print!("{}", core::str::from_utf8(&buf[..size]).unwrap());
+            _ => panic!(),
+        }
+
+        let fd = fd as usize;
+        let size = stat.size as usize;
+
+        match stat.mode {
+            StatMode::REG => {
+                let mut buf = vec![0u8; size];
+                read(fd as usize, &mut buf);
+                print!("{}", core::str::from_utf8(&buf[..size]).unwrap());
+            }
+            _ => println!("{}: Is not a file", filename),
         }
 
         close(fd);
