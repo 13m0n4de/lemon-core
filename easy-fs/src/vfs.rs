@@ -4,9 +4,8 @@ use spin::{Mutex, MutexGuard};
 use crate::{
     block_cache::{block_cache_sync_all, get_block_cache},
     block_dev::BlockDevice,
-    config::DIRENT_SIZE,
     efs::EasyFileSystem,
-    layout::{DirEntry, DiskInode, DiskInodeType},
+    layout::{DirEntry, DiskInode, DiskInodeType, DIRENT_SIZE},
 };
 
 /// Virtual filesystem layer over easy-fs

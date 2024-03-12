@@ -4,7 +4,7 @@ use crate::{
     block_cache::get_block_cache,
     block_dev::BlockDevice,
     config::{
-        BLOCK_SIZE, DIRECT_BOUND, DIRENT_SIZE, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
+        BLOCK_SIZE, DIRECT_BOUND, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
         INODE_INDIRECT1_COUNT, INODE_INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
     },
 };
@@ -394,6 +394,9 @@ pub struct DirEntry {
     name: [u8; NAME_LENGTH_LIMIT + 1],
     inode_number: u32,
 }
+
+/// Size of a directory entry
+pub const DIRENT_SIZE: usize = core::mem::size_of::<DirEntry>();
 
 impl DirEntry {
     /// Crate a directory entry from name and inode number
