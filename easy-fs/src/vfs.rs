@@ -64,6 +64,22 @@ impl Inode {
         disk_inode.increase_size(new_size, v, &self.block_device);
     }
 
+    // Decrease the size of a disk inode
+    fn decrease_size(
+        &self,
+        new_size: u32,
+        disk_inode: &mut DiskInode,
+        fs: &mut MutexGuard<EasyFileSystem>,
+    ) {
+        if new_size >= disk_inode.size {
+            return;
+        }
+        disk_inode
+            .decrease_size(new_size, &self.block_device)
+            .into_iter()
+            .for_each(|block_id| fs.dealloc_data(block_id));
+    }
+
     /// Find inode under a disk inode by name
     fn find_inode_id(&self, name: &str, disk_inode: &DiskInode) -> Option<u32> {
         // assert it is a directory
@@ -193,6 +209,35 @@ impl Inode {
         });
         block_cache_sync_all();
         size
+    }
+
+    ///
+    pub fn delete(&self, name: &str) {
+        let mut fs = self.fs.lock();
+        self.modify_disk_inode(|dir_inode| {
+            assert!(dir_inode.is_dir());
+            self.find_inode_id(name, dir_inode);
+
+            let mut last_dirent = DirEntry::empty();
+            dir_inode.read_at(
+                dir_inode.size as usize - DIRENT_SIZE,
+                last_dirent.as_mut_bytes(),
+                &self.block_device,
+            );
+
+            let file_count = (dir_inode.size as usize) / DIRENT_SIZE;
+            for i in 0..file_count {
+                let mut dirent = DirEntry::empty();
+                dir_inode.read_at(i * DIRENT_SIZE, dirent.as_mut_bytes(), &self.block_device);
+                if dirent.name() == name {
+                    // delete
+                    fs.dealloc_inode(dirent.inode_number());
+                    dir_inode.write_at(i * DIRENT_SIZE, last_dirent.as_bytes(), &self.block_device);
+                    let new_size = (file_count - 1) * DIRENT_SIZE;
+                    self.decrease_size(new_size as u32, dir_inode, &mut fs);
+                }
+            }
+        })
     }
 
     /// Set the default [`DirEntry`] for the current file

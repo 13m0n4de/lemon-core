@@ -17,4 +17,5 @@ mod vfs;
 pub use block_dev::BlockDevice;
 pub use config::BLOCK_SIZE;
 pub use efs::EasyFileSystem;
+pub use layout::DIRENT_SIZE;
 pub use vfs::Inode;
