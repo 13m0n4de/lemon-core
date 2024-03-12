@@ -42,6 +42,10 @@ fn main() -> std::io::Result<()> {
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     root_inode.set_default_dirent(root_inode.inode_id());
 
+    // bin
+    let bin_inode = root_inode.create_dir("bin").unwrap();
+    bin_inode.set_default_dirent(root_inode.inode_id());
+
     println!(
         "Packing files from {:?} into the easy-fs image...",
         source_path
@@ -58,7 +62,7 @@ fn main() -> std::io::Result<()> {
             app_file.read_to_end(&mut app_data)?;
 
             // create a file in easy-fs
-            let inode = root_inode.create(file_stem).unwrap();
+            let inode = bin_inode.create(file_stem).unwrap();
             // write data to easy-fs
             inode.write_at(0, app_data.as_slice());
         }

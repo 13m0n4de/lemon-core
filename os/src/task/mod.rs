@@ -37,16 +37,16 @@ pub enum TaskStatus {
 
 lazy_static! {
     /// Global process that init user shell
-    pub static ref INITPROC: Arc<TaskControlBlock> = Arc::new({
-        let inode = open_file("initproc", OpenFlags::RDONLY).unwrap();
+    pub static ref DAEMON: Arc<TaskControlBlock> = Arc::new({
+        let inode = open_file("/bin/daemon", OpenFlags::RDONLY).expect("daemon not found!");
         let v = inode.read_all();
         TaskControlBlock::new(v.as_slice())
     });
 }
 
 /// Add init process to the manager
-pub fn add_initproc() {
-    add_task(INITPROC.clone());
+pub fn add_daemon() {
+    add_task(DAEMON.clone());
 }
 
 /// pid of usertests app in make run TEST=1
@@ -97,14 +97,14 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     inner.task_status = TaskStatus::Zombie;
     // Record exit code
     inner.exit_code = exit_code;
-    // do not move to its parent but under initproc
+    // do not move to its parent but under daemon proc
 
-    // ++++++ access initproc TCB exclusively
+    // ++++++ access daemon TCB exclusively
     {
-        let mut initproc_inner = INITPROC.inner_exclusive_access();
+        let mut daemon_inner = DAEMON.inner_exclusive_access();
         for child in inner.children.iter() {
-            child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC));
-            initproc_inner.children.push(child.clone());
+            child.inner_exclusive_access().parent = Some(Arc::downgrade(&DAEMON));
+            daemon_inner.children.push(child.clone());
         }
     }
     // ++++++ release parent PCB

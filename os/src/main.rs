@@ -53,7 +53,7 @@ pub fn rust_main() -> ! {
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     fs::list_apps();
-    task::add_initproc();
+    task::add_daemon();
     task::run_tasks();
     panic!("unreachable in rust_main!");
 }
