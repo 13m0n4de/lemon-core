@@ -239,4 +239,14 @@ impl Inode {
             .lock()
             .disk_inode_id(self.block_id as u32, self.block_offset)
     }
+
+    /// Whether this inode is a directory
+    pub fn is_dir(&self) -> bool {
+        self.read_disk_inode(|disk_inode| disk_inode.is_dir())
+    }
+
+    /// Whether this inode is a file
+    pub fn is_file(&self) -> bool {
+        self.read_disk_inode(|disk_inode| disk_inode.is_file())
+    }
 }

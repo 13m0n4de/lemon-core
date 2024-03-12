@@ -4,7 +4,7 @@ use alloc::{sync::Arc, vec::Vec};
 use log::*;
 
 use crate::{
-    fs::{open_file, OpenFlags},
+    fs::{get_full_path, open_file, OpenFlags},
     mm::{translated_mut_ref, translated_ref, translated_str},
     task::{
         add_task, current_task, current_user_token, exit_current_and_run_next, pid2task,
@@ -50,8 +50,12 @@ pub fn sys_fork() -> isize {
 }
 
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
-    let token = current_user_token();
+    let task = current_task().unwrap();
+    let task_inner = task.inner_exclusive_access();
+    let token = task_inner.user_token();
     let path = translated_str(token, path);
+    let path = get_full_path(&task_inner.cwd, &path);
+    drop(task_inner);
 
     let mut args_vec = Vec::new();
     loop {
@@ -68,7 +72,6 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let data = app_inode.read_all();
-        let task = current_task().unwrap();
         let argc = args_vec.len();
         task.exec(data.as_slice(), args_vec);
         // return argc because cx.x[10] will be covered with it later

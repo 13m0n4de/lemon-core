@@ -1,4 +1,4 @@
-use alloc::{sync::Arc, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::lazy_static;
@@ -156,4 +156,28 @@ pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
             Some(node)
         }
     })
+}
+
+pub fn get_full_path(cwd: &str, path: &str) -> String {
+    let resolved_path = if path.starts_with('/') {
+        String::from(path)
+    } else {
+        String::from(cwd) + "/" + path
+    };
+
+    let mut parts = Vec::new();
+
+    for part in resolved_path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            _ => {
+                parts.push(part);
+            }
+        }
+    }
+
+    String::from("/") + &parts.join("/")
 }

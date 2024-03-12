@@ -49,6 +49,7 @@ impl TaskControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
+                    cwd: String::from("/"),
                     fd_table: vec![
                         // 0 -> stdin
                         Some(Arc::new(Stdin)),
@@ -116,6 +117,7 @@ impl TaskControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
+                    cwd: parent_inner.cwd.clone(),
                     fd_table: new_fd_table,
                     signals: SignalFlags::empty(),
                     signal_mask: parent_inner.signal_mask,
@@ -214,6 +216,7 @@ pub struct TaskControlBlockInner {
     pub children: Vec<Arc<TaskControlBlock>>,
     pub exit_code: i32,
 
+    pub cwd: String,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
 
     pub signals: SignalFlags,

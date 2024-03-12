@@ -1,6 +1,6 @@
 //! File and filesystem-related syscalls
 
-use crate::fs::{find_inode, make_pipe, open_file, OpenFlags};
+use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
@@ -19,9 +19,32 @@ pub fn sys_dup(fd: usize) -> isize {
     }
 }
 
-pub fn sys_mkdir(path: *const u8) -> isize {
-    let token = current_user_token();
+pub fn sys_chdir(path: *const u8) -> isize {
+    let task = current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+
+    let token = task_inner.user_token();
     let path = translated_str(token, path);
+    let path = get_full_path(&task_inner.cwd, &path);
+
+    if let Some(inode) = find_inode(&path) {
+        if inode.is_dir() {
+            task_inner.cwd = path;
+            0
+        } else {
+            -2 // not dir
+        }
+    } else {
+        -1 // no such file
+    }
+}
+
+pub fn sys_mkdir(path: *const u8) -> isize {
+    let task = current_task().unwrap();
+    let task_inner = task.inner_exclusive_access();
+    let token = task_inner.user_token();
+    let path = translated_str(token, path);
+    let path = get_full_path(&task_inner.cwd, &path);
 
     let (parent_path, target) = match path.rsplit_once('/') {
         Some((parent_path, target)) => (parent_path, target),
@@ -38,13 +61,14 @@ pub fn sys_mkdir(path: *const u8) -> isize {
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let task = current_task().unwrap();
-    let token = current_user_token();
+    let mut task_inner = task.inner_exclusive_access();
+    let token = task_inner.user_token();
     let path = translated_str(token, path);
+    let path = get_full_path(&task_inner.cwd, &path);
 
     if let Some(inode) = open_file(path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
-        let mut inner = task.inner_exclusive_access();
-        let fd = inner.alloc_fd();
-        inner.fd_table[fd] = Some(inode);
+        let fd = task_inner.alloc_fd();
+        task_inner.fd_table[fd] = Some(inode);
         fd as isize
     } else {
         -1
