@@ -174,7 +174,9 @@ impl Inode {
 
     /// Create directory under current inode
     pub fn create_dir(&self, name: &str) -> Option<Arc<Inode>> {
-        self.create_inode(name, DiskInodeType::Directory)
+        let inode = self.create_inode(name, DiskInodeType::Directory)?;
+        inode.set_default_dirent(self.inode_id());
+        Some(inode)
     }
 
     /// Clear the data in current inode
