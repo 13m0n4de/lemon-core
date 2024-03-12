@@ -9,13 +9,13 @@ fn panic_handler(info: &PanicInfo) -> ! {
     let message = info.message().unwrap();
     if let Some(location) = info.location() {
         error!(
-            "Panicked at {}:{} {}",
+            "[kernel] Panicked at {}:{} {}",
             location.file(),
             location.line(),
             message
         );
     } else {
-        error!("Panicked: {}", message);
+        error!("[kernel] Panicked: {}", message);
     }
     shutdown(true)
 }
