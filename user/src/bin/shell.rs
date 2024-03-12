@@ -14,9 +14,11 @@ use alloc::format;
 use alloc::string::String;
 use alloc::vec::Vec;
 use user_lib::console::getchar;
+use user_lib::fs::*;
 use user_lib::*;
 
 struct CommandArguments {
+    argc: usize,
     args_str: Vec<String>,
     args_ptrs: Vec<*const u8>,
     input_file: Option<String>,
@@ -25,27 +27,33 @@ struct CommandArguments {
 
 impl CommandArguments {
     pub fn new(command: &str) -> Self {
+        let mut argc = 0;
         let mut args_str = Vec::new();
+        let mut args_ptrs = Vec::new();
         let mut input_file = None;
         let mut output_file = None;
 
-        let mut args_iter = command.split_whitespace().map(|arg| format!("{arg}\0"));
+        let mut args_iter = command.split_whitespace();
         while let Some(arg) = args_iter.next() {
-            match arg.as_str() {
-                ">\0" => {
-                    output_file = args_iter.next();
+            match arg {
+                ">" => {
+                    output_file = args_iter.next().map(String::from);
                 }
-                "<\0" => {
-                    input_file = args_iter.next();
+                "<" => {
+                    input_file = args_iter.next().map(String::from);
                 }
-                _ => args_str.push(arg),
+                _ => {
+                    argc += 1;
+                    let arg_str = format!("{arg}\0");
+                    args_ptrs.push(arg_str.as_ptr());
+                    args_str.push(arg_str);
+                }
             }
         }
-
-        let mut args_ptrs: Vec<*const u8> = args_str.iter().map(|arg| arg.as_ptr()).collect();
         args_ptrs.push(core::ptr::null());
 
         Self {
+            argc,
             args_str,
             args_ptrs,
             input_file,
@@ -67,26 +75,40 @@ fn main() -> i32 {
         let cmd_args = CommandArguments::new(&line);
 
         match cmd_args.args_str[0].as_str() {
-            "cd\0" => cd(&mut cwd, &cmd_args.args_str),
+            "cd\0" => match cmd_args.argc {
+                1 => {
+                    cd("/");
+                    getcwd(&mut cwd);
+                }
+                2 => {
+                    cd(&cmd_args.args_str[1]);
+                    getcwd(&mut cwd);
+                }
+                _ => {
+                    println!("Too many args for cd command");
+                }
+            },
             "exit\0" => break,
-            _ => {
-                let pid = fork();
-                if pid == 0 {
-                    if let Some(input) = cmd_args.input_file {
-                        redirect_io(input, 0, OpenFlags::RDONLY);
-                    }
-                    if let Some(output) = cmd_args.output_file {
-                        redirect_io(output, 1, OpenFlags::CREATE | OpenFlags::WRONLY);
-                    }
-                    exec(
-                        &format!("/bin/{}", &cmd_args.args_str[0]),
-                        cmd_args.args_ptrs.as_slice(),
-                    );
-                    println!("{}: command not found", cmd_args.args_str[0]);
+            path => {
+                if is_dir(path) && cmd_args.args_str.len() == 1 {
+                    cd(path);
+                    getcwd(&mut cwd);
                 } else {
-                    let mut exit_code: i32 = 0;
-                    let exit_pid = waitpid(pid as usize, &mut exit_code);
-                    assert_eq!(pid, exit_pid);
+                    let pid = fork();
+                    if pid == 0 {
+                        if let Some(input) = cmd_args.input_file {
+                            redirect_io(input, 0, OpenFlags::RDONLY);
+                        }
+                        if let Some(output) = cmd_args.output_file {
+                            redirect_io(output, 1, OpenFlags::CREATE | OpenFlags::WRONLY);
+                        }
+                        exec(&format!("/bin/{}", path), cmd_args.args_ptrs.as_slice());
+                        println!("{}: command not found", path);
+                    } else {
+                        let mut exit_code: i32 = 0;
+                        let exit_pid = waitpid(pid as usize, &mut exit_code);
+                        assert_eq!(pid, exit_pid);
+                    }
                 }
             }
         }
@@ -128,21 +150,27 @@ fn getline() -> String {
     }
 }
 
-fn cd(cwd: &mut String, args: &[String]) {
-    let path = match args.len() {
-        1 => String::from("/"),
-        2 => String::from(&args[1]),
-        _ => {
-            println!("Too many args for cd command");
-            return;
-        }
-    };
-
-    match chdir(&path) {
+fn cd(path: &str) {
+    match chdir(path) {
         0 => {}
-        -1 => println!("{}: No such file or directory", args[1]),
-        -2 => println!("{}: Not a directory", args[1]),
+        -1 => println!("{}: No such file or directory", path),
+        -2 => println!("{}: Not a directory", path),
         _ => panic!(),
     }
-    getcwd(cwd);
+}
+
+fn is_dir(path: &str) -> bool {
+    let fd = open(path, OpenFlags::RDONLY);
+    if fd == -1 {
+        return false;
+    }
+
+    let mut stat = Stat::default();
+    if fstat(fd as usize, &mut stat) == -1 {
+        close(fd as usize);
+        return false;
+    }
+    close(fd as usize);
+
+    matches!(stat.mode as usize, DIR)
 }
