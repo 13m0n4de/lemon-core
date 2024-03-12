@@ -1,11 +1,11 @@
 #![no_std]
 #![no_main]
 
-#[macro_use]
-extern crate user_lib;
 extern crate alloc;
+extern crate user_lib;
 
-use user_lib::{close, open, read, OpenFlags};
+use user_lib::fs::*;
+use user_lib::*;
 
 #[no_mangle]
 pub fn main(_argc: usize, argv: &[&str]) -> i32 {

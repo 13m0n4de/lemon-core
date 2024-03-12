@@ -19,7 +19,6 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use bitflags::bitflags;
 use fs::*;
 use heap_allocator::init_heap;
 use signal::*;
@@ -50,16 +49,6 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
 #[linkage = "weak"]
 fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
-}
-
-bitflags! {
-    pub struct OpenFlags: u32 {
-        const RDONLY = 0;
-        const WRONLY = 1 << 0;
-        const RDWR = 1 << 1;
-        const CREATE = 1 << 9;
-        const TRUNC = 1 << 10;
-    }
 }
 
 pub fn getcwd(s: &mut String) -> isize {

@@ -6,14 +6,10 @@ mod stdio;
 
 use crate::mm::UserBuffer;
 use alloc::sync::Arc;
+use bitflags::bitflags;
 pub use inode::{find_inode, get_full_path, open_file, OpenFlags};
 pub use pipe::make_pipe;
 pub use stdio::{Stdin, Stdout};
-
-const CHR: usize = 0;
-const REG: usize = 1;
-const DIR: usize = 2;
-const LNK: usize = 3;
 
 /// File trait
 pub trait File: Send + Sync {
@@ -30,31 +26,45 @@ pub trait File: Send + Sync {
     }
     #[allow(unused)]
     fn set_offset(&self, _offset: usize) {}
-    fn file_size(&self) -> usize {
+    fn file_size(&self) -> u32 {
         0
     }
-    fn inode_id(&self) -> usize {
+    fn inode_id(&self) -> u32 {
         0
     }
-    fn mode(&self) -> usize {
-        CHR
+    fn mode(&self) -> StatMode {
+        StatMode::NULL
     }
 }
 
+#[repr(C)]
+#[derive(Default)]
 pub struct Stat {
+    pub dev: u32,
     pub ino: u32,
-    pub mode: u32,
-    pub off: u32,
+    pub mode: StatMode,
+    pub off: usize,
     pub size: u32,
 }
 
 impl From<Arc<dyn File + Send + Sync>> for Stat {
     fn from(file: Arc<dyn File + Send + Sync>) -> Self {
         Self {
-            ino: file.inode_id() as u32,
-            mode: file.mode() as u32,
-            off: file.offset() as u32,
-            size: file.file_size() as u32,
+            dev: 0,
+            ino: file.inode_id(),
+            mode: file.mode(),
+            off: file.offset(),
+            size: file.file_size(),
         }
+    }
+}
+
+bitflags! {
+    #[derive(PartialEq, Eq, Default)]
+    pub struct StatMode: u32 {
+        const NULL = 0;
+        const DIR = 0o040000;
+        const REG = 0o100000;
+        const LNK = 0o120000;
     }
 }

@@ -19,7 +19,7 @@ fn main(argc: usize, argv: &[&str]) -> i32 {
 
 fn list(target: &str) {
     let fd = open(target, OpenFlags::RDONLY);
-    let mut stat = Stat::default();
+    let mut stat = Stat::new();
     if fd == -1 {
         println!("cannot access '{}': No such file or directory", target);
         return;
@@ -33,11 +33,11 @@ fn list(target: &str) {
         _ => panic!(),
     }
 
-    match stat.mode as usize {
-        REG => {
+    match stat.mode {
+        StatMode::REG => {
             println!("{}", target);
         }
-        DIR => {
+        StatMode::DIR => {
             let size = stat.size as usize;
             let mut buf = vec![0u8; size];
             read(fd as usize, &mut buf);
@@ -53,7 +53,7 @@ fn list(target: &str) {
                 print!("{}\n", name);
             }
         }
-        mode => panic!("Unknown mode: {mode}"),
+        _ => panic!("Unknown mode"),
     }
     close(fd as usize);
 }

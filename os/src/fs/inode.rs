@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 
 use crate::{drivers::BLOCK_DEVICE, mm::UserBuffer, sync::UPSafeCell};
 
-use super::{File, DIR, LNK, REG};
+use super::{File, StatMode};
 
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
@@ -91,22 +91,22 @@ impl File for OSInode {
         self.inner.exclusive_access().offset = offset
     }
 
-    fn file_size(&self) -> usize {
-        self.inner.exclusive_access().inode.file_size() as usize
+    fn file_size(&self) -> u32 {
+        self.inner.exclusive_access().inode.file_size()
     }
 
-    fn inode_id(&self) -> usize {
-        self.inner.exclusive_access().inode.inode_id() as usize
+    fn inode_id(&self) -> u32 {
+        self.inner.exclusive_access().inode.inode_id()
     }
 
-    fn mode(&self) -> usize {
+    fn mode(&self) -> StatMode {
         let inode = &self.inner.exclusive_access().inode;
         if inode.is_file() {
-            REG
+            StatMode::REG
         } else if inode.is_dir() {
-            DIR
+            StatMode::DIR
         } else {
-            LNK
+            StatMode::LNK
         }
     }
 }

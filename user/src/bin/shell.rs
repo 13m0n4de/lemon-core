@@ -165,12 +165,12 @@ fn is_dir(path: &str) -> bool {
         return false;
     }
 
-    let mut stat = Stat::default();
+    let mut stat = Stat::new();
     if fstat(fd as usize, &mut stat) == -1 {
         close(fd as usize);
         return false;
     }
     close(fd as usize);
 
-    matches!(stat.mode as usize, DIR)
+    matches!(stat.mode, StatMode::DIR)
 }

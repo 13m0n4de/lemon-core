@@ -1,16 +1,48 @@
-pub const NAME_LENGTH_LIMIT: usize = 27;
+use bitflags::bitflags;
 
-pub const CHR: usize = 0;
-pub const REG: usize = 1;
-pub const DIR: usize = 2;
+bitflags! {
+    pub struct OpenFlags: u32 {
+        const RDONLY = 0;
+        const WRONLY = 1 << 0;
+        const RDWR = 1 << 1;
+        const CREATE = 1 << 9;
+        const TRUNC = 1 << 10;
+    }
+}
 
+bitflags! {
+    #[derive(PartialEq, Eq, Default)]
+    pub struct StatMode: u32 {
+        const NULL = 0;
+        const DIR = 0o040000;
+        const REG = 0o100000;
+        const LNK = 0o120000;
+    }
+}
+
+#[repr(C)]
 #[derive(Default)]
 pub struct Stat {
+    pub dev: u32,
     pub ino: u32,
-    pub mode: u32,
-    pub off: u32,
+    pub mode: StatMode,
+    pub off: usize,
     pub size: u32,
 }
+
+impl Stat {
+    pub fn new() -> Self {
+        Self {
+            dev: 0,
+            ino: 0,
+            mode: StatMode::NULL,
+            off: 0,
+            size: 0,
+        }
+    }
+}
+
+pub const NAME_LENGTH_LIMIT: usize = 27;
 
 #[repr(C)]
 pub struct Dirent {
