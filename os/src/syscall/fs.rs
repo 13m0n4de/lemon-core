@@ -111,7 +111,7 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     match find_inode(parent_path) {
         Some(parent_inode) => match parent_inode.find(target) {
             Some(inode) => {
-                let remove_dir = flags & AT_REMOVEDIR == 1;
+                let remove_dir = flags & AT_REMOVEDIR == AT_REMOVEDIR;
                 if !remove_dir && !inode.is_dir() {
                     inode.clear();
                     parent_inode.delete(target);
