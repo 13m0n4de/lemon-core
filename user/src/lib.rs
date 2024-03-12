@@ -9,8 +9,10 @@ extern crate alloc;
 pub mod console;
 mod heap_allocator;
 mod lang_items;
-mod signal;
 mod syscall;
+
+pub mod fs;
+pub mod signal;
 
 use alloc::{
     string::{String, ToString},
@@ -18,10 +20,10 @@ use alloc::{
     vec::Vec,
 };
 use bitflags::bitflags;
+use fs::*;
 use heap_allocator::init_heap;
+use signal::*;
 use syscall::*;
-
-pub use signal::*;
 
 #[no_mangle]
 #[link_section = ".text.entry"]
@@ -99,6 +101,10 @@ pub fn read(fd: usize, buf: &mut [u8]) -> isize {
 
 pub fn write(fd: usize, buf: &[u8]) -> isize {
     sys_write(fd, buf)
+}
+
+pub fn fstat(fd: usize, stat: &mut Stat) -> isize {
+    sys_fstat(fd, stat as *mut _ as *mut _)
 }
 
 pub fn exit(exit_code: i32) -> ! {
