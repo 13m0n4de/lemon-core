@@ -4,6 +4,25 @@ use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
+pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
+    let task = current_task().unwrap();
+    let task_inner = task.inner_exclusive_access();
+    let mut user_buffer =
+        UserBuffer::new(translated_byte_buffer(task_inner.user_token(), buf, len));
+    let cwd = task_inner.cwd.as_bytes();
+
+    if cwd.len() > len {
+        return -1;
+    }
+
+    user_buffer
+        .iter_mut()
+        .zip(cwd)
+        .for_each(|(p, &c)| unsafe { *p = c });
+
+    cwd.len() as isize
+}
+
 pub fn sys_dup(fd: usize) -> isize {
     let task = current_task().unwrap();
     let mut inner = task.inner_exclusive_access();

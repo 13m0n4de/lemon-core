@@ -12,7 +12,11 @@ mod lang_items;
 mod signal;
 mod syscall;
 
-use alloc::vec::Vec;
+use alloc::{
+    string::{String, ToString},
+    vec,
+    vec::Vec,
+};
 use bitflags::bitflags;
 use heap_allocator::init_heap;
 use syscall::*;
@@ -54,6 +58,15 @@ bitflags! {
         const CREATE = 1 << 9;
         const TRUNC = 1 << 10;
     }
+}
+
+pub fn getcwd(s: &mut String) -> isize {
+    let mut buffer = vec![0u8; 128];
+    let len = sys_getcwd(&mut buffer);
+    *s = core::str::from_utf8(&buffer[0..len as usize])
+        .unwrap()
+        .to_string();
+    len
 }
 
 pub fn dup(fd: usize) -> isize {
