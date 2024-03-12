@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-
 extern crate alloc;
 
 extern crate user_lib;
@@ -123,8 +122,7 @@ fn redirect_io(file_name: String, fd: usize, flags: OpenFlags) {
         return;
     }
     let file_fd = file_fd as usize;
-    close(fd);
-    assert_eq!(dup(file_fd), fd as isize);
+    assert!(dup2(file_fd, fd) != -1);
     close(file_fd);
 }
 
