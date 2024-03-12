@@ -60,6 +60,10 @@ pub fn dup(fd: usize) -> isize {
     sys_dup(fd)
 }
 
+pub fn chdir(path: &str) -> isize {
+    sys_chdir(path.as_ptr())
+}
+
 pub fn mkdir(path: &str) -> isize {
     sys_mkdir(path.as_ptr())
 }
