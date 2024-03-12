@@ -3,6 +3,7 @@
 
 extern crate user_lib;
 
+use user_lib::signal::*;
 use user_lib::*;
 
 fn func() {
