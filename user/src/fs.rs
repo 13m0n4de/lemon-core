@@ -51,3 +51,5 @@ pub struct Dirent {
 }
 
 pub const DIRENT_SIZE: usize = core::mem::size_of::<Dirent>();
+
+pub const AT_REMOVEDIR: u32 = 1;
