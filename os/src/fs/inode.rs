@@ -143,8 +143,10 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
 
     if flags.contains(OpenFlags::CREATE) {
         if let Some(inode) = find_inode(path) {
-            // clear size
-            inode.clear();
+            if inode.is_file() {
+                // clear size
+                inode.clear();
+            }
             Some(Arc::new(OSInode::new(readable, writable, inode)))
         } else {
             let (parent_path, target) = match path.rsplit_once('/') {
