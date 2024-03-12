@@ -1,6 +1,8 @@
 //! File and filesystem-related syscalls
 
-use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags};
+use core::ptr::slice_from_raw_parts;
+
+use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
 
@@ -154,6 +156,34 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     } else {
         -1
     }
+}
+
+pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let task_inner = task.inner_exclusive_access();
+
+    let mut user_buffer = UserBuffer::new(translated_byte_buffer(
+        token,
+        stat,
+        core::mem::size_of::<Stat>(),
+    ));
+
+    let fd_table = &task_inner.fd_table;
+    if fd >= fd_table.len() || fd_table[fd].is_none() {
+        return -1;
+    }
+    let file = fd_table[fd].clone().unwrap();
+    let stat = Stat::from(file);
+    let stat_slice =
+        slice_from_raw_parts(&stat as *const _ as *const u8, core::mem::size_of::<Stat>());
+
+    for (i, p) in user_buffer.iter_mut().enumerate() {
+        unsafe {
+            *p = (*stat_slice)[i];
+        }
+    }
+    0
 }
 
 pub fn sys_pipe(pipe: *mut usize) -> isize {

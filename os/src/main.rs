@@ -7,7 +7,6 @@
 //! - Initialize heap allocator, frame allocator, and kernel space.
 //! - Set CSR `stvec` to the entry point of `__alltraps`.
 //! - Enable the timer interrupt and set up the next timer interrupt
-//! - Lists applications.
 //! - Adds the init process to the process manager.
 //! - Begins process execution and scheduling.
 
@@ -52,7 +51,6 @@ pub fn rust_main() -> ! {
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    fs::list_apps();
     task::add_daemon();
     task::run_tasks();
     panic!("unreachable in rust_main!");

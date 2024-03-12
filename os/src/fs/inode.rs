@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 
 use crate::{drivers::BLOCK_DEVICE, mm::UserBuffer, sync::UPSafeCell};
 
-use super::File;
+use super::{File, DIR, LNK, REG};
 
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
@@ -82,6 +82,33 @@ impl File for OSInode {
         }
         total_write_size
     }
+
+    fn offset(&self) -> usize {
+        self.inner.exclusive_access().offset
+    }
+
+    fn set_offset(&self, offset: usize) {
+        self.inner.exclusive_access().offset = offset
+    }
+
+    fn file_size(&self) -> usize {
+        self.inner.exclusive_access().inode.file_size() as usize
+    }
+
+    fn inode_id(&self) -> usize {
+        self.inner.exclusive_access().inode.inode_id() as usize
+    }
+
+    fn mode(&self) -> usize {
+        let inode = &self.inner.exclusive_access().inode;
+        if inode.is_file() {
+            REG
+        } else if inode.is_dir() {
+            DIR
+        } else {
+            LNK
+        }
+    }
 }
 
 lazy_static! {
@@ -107,15 +134,6 @@ bitflags! {
         /// Clear file and return an empty one
         const TRUNC = 1 << 10;
     }
-}
-
-/// List all files in the filesystem
-pub fn list_apps() {
-    println!("/**** APPS ****");
-    for app in ROOT_INODE.ls() {
-        println!("{}", app);
-    }
-    println!("**************/");
 }
 
 /// Open file with flags
