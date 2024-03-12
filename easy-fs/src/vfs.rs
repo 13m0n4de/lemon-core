@@ -211,7 +211,7 @@ impl Inode {
         size
     }
 
-    ///
+    /// Delete inode by name
     pub fn delete(&self, name: &str) {
         let mut fs = self.fs.lock();
         self.modify_disk_inode(|dir_inode| {
