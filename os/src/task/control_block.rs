@@ -1,11 +1,11 @@
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::sync::{Arc, Weak};
-use alloc::vec;
 use alloc::vec::Vec;
+use alloc::{format, vec};
 use core::cell::RefMut;
 
 use crate::config::TRAP_CONTEXT;
-use crate::fs::{File, Stdin, Stdout};
+use crate::fs::{find_inode, File, Stdin, Stdout};
 use crate::mm::{translated_mut_ref, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
 use crate::trap::{trap_handler, TrapContext};
@@ -102,6 +102,18 @@ impl TaskControlBlock {
         let kernel_stack = KernelStack::new(&pid_handle);
         let kernel_stack_top = kernel_stack.top();
 
+        // write proc info
+        let procs_inode = find_inode("/proc").expect("");
+        let proc_inode = procs_inode.create_dir(&pid_handle.0.to_string()).expect("");
+        proc_inode.set_default_dirent(procs_inode.inode_id());
+        let cmdline_inode = proc_inode.create("cmdline").expect("");
+
+        if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
+            let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
+            parent_cmdline_inode.read_at(0, &mut cmdline);
+            cmdline_inode.write_at(0, &cmdline);
+        }
+
         let new_fd_table = parent_inner.fd_table.clone();
 
         let task_control_block = Arc::new(TaskControlBlock {
@@ -143,9 +155,14 @@ impl TaskControlBlock {
         // **** release children PCB automatically
     }
 
-    pub fn exec(&self, elf_data: &[u8], args: Vec<String>) {
+    pub fn exec(&self, elf_data: &[u8], args: &[String]) {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
+
+        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0)).expect("");
+        cmdline_inode.clear();
+        cmdline_inode.write_at(0, args.join(" ").as_bytes());
+
         let trap_cx_ppn = memory_set
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
@@ -261,6 +278,16 @@ impl TaskControlBlockInner {
         } else {
             self.fd_table.push(None);
             self.fd_table.len() - 1
+        }
+    }
+}
+
+impl Drop for TaskControlBlock {
+    fn drop(&mut self) {
+        let procs_inode = find_inode("/proc").expect("");
+        if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {
+            proc_inode.delete("cmdline");
+            procs_inode.delete(&self.pid.0.to_string());
         }
     }
 }

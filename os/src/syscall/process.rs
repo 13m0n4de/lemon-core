@@ -74,7 +74,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let data = app_inode.read_all();
         let argc = args_vec.len();
-        task.exec(data.as_slice(), args_vec);
+        task.exec(data.as_slice(), &args_vec);
         // return argc because cx.x[10] will be covered with it later
         argc as isize
     } else {

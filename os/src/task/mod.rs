@@ -13,7 +13,7 @@ use lazy_static::lazy_static;
 use log::*;
 
 use crate::{
-    fs::{open_file, OpenFlags},
+    fs::{find_inode, open_file, OpenFlags},
     sbi::shutdown,
 };
 use context::TaskContext;
@@ -45,7 +45,10 @@ lazy_static! {
 }
 
 /// Add init process to the manager
-pub fn add_daemon() {
+pub fn init() {
+    let root_inode = find_inode("/").expect("");
+    let proc_inode = root_inode.create_dir("proc").expect("");
+    proc_inode.set_default_dirent(root_inode.inode_id());
     add_task(DAEMON.clone());
 }
 
