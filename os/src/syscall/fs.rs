@@ -2,6 +2,8 @@
 
 use core::ptr::slice_from_raw_parts;
 
+use easy_fs::DIRENT_SIZE;
+
 use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_task, current_user_token};
@@ -93,6 +95,43 @@ pub fn sys_mkdir(path: *const u8) -> isize {
         Some(parent_inode) => match parent_inode.create_dir(target) {
             Some(_cur_inode) => 0,
             None => -2,
+        },
+        None => -1,
+    }
+}
+
+const AT_REMOVEDIR: u32 = 1;
+
+pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
+    let token = current_user_token();
+    let task = current_task().unwrap();
+    let task_inner = task.inner_exclusive_access();
+
+    let path = translated_str(token, path);
+    let path = get_full_path(&task_inner.cwd, &path);
+
+    let (parent_path, target) = path.rsplit_once('/').expect("path must contain a '/'");
+    match find_inode(parent_path) {
+        Some(parent_inode) => match parent_inode.find(target) {
+            Some(inode) => {
+                let remove_dir = flags & AT_REMOVEDIR == 1;
+                if !remove_dir && !inode.is_dir() {
+                    inode.clear();
+                    parent_inode.delete(target);
+                    return 0;
+                }
+                if remove_dir && inode.is_dir() {
+                    if inode.file_size() as usize == DIRENT_SIZE * 2 {
+                        inode.clear();
+                        parent_inode.delete(target);
+                        return 0;
+                    } else {
+                        return -3; // not empty
+                    }
+                }
+                -2 // type not matched
+            }
+            None => -1,
         },
         None => -1,
     }

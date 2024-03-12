@@ -68,12 +68,16 @@ pub fn dup2(old_fd: usize, new_fd: usize) -> isize {
     sys_dup2(old_fd, new_fd)
 }
 
-pub fn chdir(path: &str) -> isize {
-    sys_chdir(path.as_ptr())
-}
-
 pub fn mkdir(path: &str) -> isize {
     sys_mkdir(path.as_ptr())
+}
+
+pub fn unlink(path: &str, flags: u32) -> isize {
+    sys_unlink(path.as_ptr(), flags)
+}
+
+pub fn chdir(path: &str) -> isize {
+    sys_chdir(path.as_ptr())
 }
 
 pub fn open(path: &str, flags: OpenFlags) -> isize {
