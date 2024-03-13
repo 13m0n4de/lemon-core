@@ -60,7 +60,7 @@ fn main() -> i32 {
     let mut cwd = String::new();
     getcwd(&mut cwd);
     loop {
-        print!("{cwd} ~> ");
+        print!("[root@lemon-core:{cwd}]$ ");
         let line = getline();
         if line.is_empty() {
             continue;
