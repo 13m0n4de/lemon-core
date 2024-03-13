@@ -85,7 +85,8 @@ pub fn chdir(path: &str) -> isize {
 }
 
 pub fn open(path: &str, flags: OpenFlags) -> isize {
-    sys_open(path, flags.bits())
+    let path = format!("{path}\0");
+    sys_open(&path, flags.bits())
 }
 
 pub fn close(fd: usize) -> isize {
