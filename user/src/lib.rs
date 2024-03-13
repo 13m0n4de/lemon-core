@@ -155,12 +155,13 @@ pub fn fork() -> isize {
 
 pub fn exec<T: AsRef<str>>(path: &str, args: &[T]) -> isize {
     let path = format!("{path}\0");
-    let mut args: Vec<*const u8> = args
+    let args: Vec<String> = args
         .iter()
-        .map(|arg| format!("{}\0", arg.as_ref()).as_ptr())
+        .map(|arg| format!("{}\0", arg.as_ref()))
         .collect();
-    args.push(core::ptr::null());
-    sys_exec(&path, &args)
+    let mut arg_ptrs: Vec<*const u8> = args.iter().map(|s| s.as_ptr()).collect();
+    arg_ptrs.push(core::ptr::null());
+    sys_exec(&path, &arg_ptrs)
 }
 
 pub fn wait(exit_code: &mut i32) -> isize {
