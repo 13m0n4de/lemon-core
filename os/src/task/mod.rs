@@ -38,7 +38,7 @@ pub enum TaskStatus {
 lazy_static! {
     /// Global process that init user shell
     pub static ref DAEMON: Arc<TaskControlBlock> = Arc::new({
-        let inode = open_file("/bin/daemon", OpenFlags::RDONLY).expect("daemon not found!");
+        let inode = open_file("/bin/daemon", OpenFlags::RDONLY).expect("Failed to open '/bin/daemon'.");
         let v = inode.read_all();
         TaskControlBlock::new(v.as_slice())
     });
@@ -46,9 +46,11 @@ lazy_static! {
 
 /// Add init process to the manager
 pub fn init() {
-    let root_inode = find_inode("/").expect("");
-    let proc_inode = root_inode.create_dir("proc").expect("");
-    proc_inode.set_default_dirent(root_inode.inode_id());
+    let root_inode = find_inode("/").expect("Failed to find inode for '/'.");
+    let procs_inode = root_inode
+        .create_dir("proc")
+        .expect("Failed to create inode for '/proc/'.");
+    procs_inode.set_default_dirent(root_inode.inode_id());
     add_task(DAEMON.clone());
 }
 

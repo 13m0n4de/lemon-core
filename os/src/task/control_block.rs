@@ -103,10 +103,18 @@ impl TaskControlBlock {
         let kernel_stack_top = kernel_stack.top();
 
         // write proc info
-        let procs_inode = find_inode("/proc").expect("");
-        let proc_inode = procs_inode.create_dir(&pid_handle.0.to_string()).expect("");
+        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
+        let proc_inode = procs_inode
+            .create_dir(&pid_handle.0.to_string())
+            .expect(&format!(
+                "Failed to create inode for '/proc/{}/'.",
+                pid_handle.0
+            ));
         proc_inode.set_default_dirent(procs_inode.inode_id());
-        let cmdline_inode = proc_inode.create("cmdline").expect("");
+        let cmdline_inode = proc_inode.create("cmdline").expect(&format!(
+            "Failed to find inode for '/proc/{}/cmdline'.",
+            pid_handle.0
+        ));
 
         if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
             let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
@@ -159,7 +167,10 @@ impl TaskControlBlock {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
 
-        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0)).expect("");
+        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0)).expect(&format!(
+            "Failed to find inode for '/proc/{}/cmdline'",
+            self.pid.0
+        ));
         cmdline_inode.clear();
         cmdline_inode.write_at(0, args.join(" ").as_bytes());
 
@@ -284,7 +295,7 @@ impl TaskControlBlockInner {
 
 impl Drop for TaskControlBlock {
     fn drop(&mut self) {
-        let procs_inode = find_inode("/proc").expect("");
+        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
         if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {
             proc_inode.delete("cmdline");
             procs_inode.delete(&self.pid.0.to_string());

@@ -87,7 +87,9 @@ pub fn sys_mkdir(path: *const u8) -> isize {
     let path = translated_str(token, path);
     let path = get_full_path(&task_inner.cwd, &path);
 
-    let (parent_path, target) = path.rsplit_once('/').expect("path must contain a '/'");
+    let (parent_path, target) = path
+        .rsplit_once('/')
+        .expect("Invalid path: the path must contain a '/'.");
     match find_inode(parent_path) {
         Some(parent_inode) => match parent_inode.create_dir(target) {
             Some(_cur_inode) => 0,
@@ -107,7 +109,9 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let path = translated_str(token, path);
     let path = get_full_path(&task_inner.cwd, &path);
 
-    let (parent_path, target) = path.rsplit_once('/').expect("path must contain a '/'");
+    let (parent_path, target) = path
+        .rsplit_once('/')
+        .expect("Invalid path: the path must contain a '/'.");
     match find_inode(parent_path) {
         Some(parent_inode) => match parent_inode.find(target) {
             Some(inode) => {
