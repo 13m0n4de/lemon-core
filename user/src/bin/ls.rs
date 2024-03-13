@@ -10,7 +10,7 @@ use user_lib::*;
 
 #[no_mangle]
 fn main(argc: usize, argv: &[&str]) -> i32 {
-    let targets = if argc > 1 { &argv[1..] } else { &[".\0"] };
+    let targets = if argc > 1 { &argv[1..] } else { &["."] };
     for target in targets {
         list(target);
     }

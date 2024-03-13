@@ -52,16 +52,16 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
     syscall(SYSCALL_DUP2, [old_fd, new_fd, 0])
 }
 
-pub fn sys_mkdir(path: *const u8) -> isize {
-    syscall(SYSCALL_MKDIR, [path as usize, 0, 0])
+pub fn sys_mkdir(path: &str) -> isize {
+    syscall(SYSCALL_MKDIR, [path.as_ptr() as usize, 0, 0])
 }
 
-pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
-    syscall(SYSCALL_UNLINK, [path as usize, flags as usize, 0])
+pub fn sys_unlink(path: &str, flags: u32) -> isize {
+    syscall(SYSCALL_UNLINK, [path.as_ptr() as usize, flags as usize, 0])
 }
 
-pub fn sys_chdir(path: *const u8) -> isize {
-    syscall(SYSCALL_CHDIR, [path as usize, 0, 0])
+pub fn sys_chdir(path: &str) -> isize {
+    syscall(SYSCALL_CHDIR, [path.as_ptr() as usize, 0, 0])
 }
 
 pub fn sys_open(path: &str, flags: u32) -> isize {

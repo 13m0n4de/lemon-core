@@ -15,6 +15,7 @@ pub mod fs;
 pub mod signal;
 
 use alloc::{
+    format,
     string::{String, ToString},
     vec,
     vec::Vec,
@@ -69,15 +70,18 @@ pub fn dup2(old_fd: usize, new_fd: usize) -> isize {
 }
 
 pub fn mkdir(path: &str) -> isize {
-    sys_mkdir(path.as_ptr())
+    let path = format!("{path}\0");
+    sys_mkdir(&path)
 }
 
 pub fn unlink(path: &str, flags: u32) -> isize {
-    sys_unlink(path.as_ptr(), flags)
+    let path = format!("{path}\0");
+    sys_unlink(&path, flags)
 }
 
 pub fn chdir(path: &str) -> isize {
-    sys_chdir(path.as_ptr())
+    let path = format!("{path}\0");
+    sys_chdir(&path)
 }
 
 pub fn open(path: &str, flags: OpenFlags) -> isize {
@@ -148,8 +152,14 @@ pub fn fork() -> isize {
     sys_fork()
 }
 
-pub fn exec(path: &str, args: &[*const u8]) -> isize {
-    sys_exec(path, args)
+pub fn exec<T: AsRef<str>>(path: &str, args: &[T]) -> isize {
+    let path = format!("{path}\0");
+    let mut args: Vec<*const u8> = args
+        .iter()
+        .map(|arg| format!("{}\0", arg.as_ref()).as_ptr())
+        .collect();
+    args.push(core::ptr::null());
+    sys_exec(&path, &args)
 }
 
 pub fn wait(exit_code: &mut i32) -> isize {
