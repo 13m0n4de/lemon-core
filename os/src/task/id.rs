@@ -10,7 +10,7 @@ use crate::{
     sync::UPSafeCell,
 };
 
-use super::process::ProcessControlBlock;
+use super::pcb::ProcessControlBlock;
 
 lazy_static! {
     static ref PID_ALLOCATOR: UPSafeCell<RecycleAllocator> =
