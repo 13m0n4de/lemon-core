@@ -3,6 +3,7 @@ use alloc::vec::Vec;
 use lazy_static::lazy_static;
 
 use crate::config::{KERNEL_STACK_SIZE, TRAMPOLINE};
+use crate::mm::PhysPageNum;
 use crate::{
     config::{PAGE_SIZE, TRAP_CONTEXT_BASE, USER_STACK_SIZE},
     mm::{MapPermission, VirtAddr, KERNEL_SPACE},
@@ -166,6 +167,17 @@ impl TaskUserRes {
         let process = self.process.upgrade().unwrap();
         let mut process_inner = process.inner_exclusive_access();
         process_inner.dealloc_tid(self.tid);
+    }
+
+    pub fn trap_cx_ppn(&self) -> PhysPageNum {
+        let process = self.process.upgrade().unwrap();
+        let process_inner = process.inner_exclusive_access();
+        let trap_cx_bottom_va: VirtAddr = trap_cx_bottom_from_tid(self.tid).into();
+        process_inner
+            .memory_set
+            .translate(trap_cx_bottom_va.into())
+            .unwrap()
+            .ppn()
     }
 }
 
