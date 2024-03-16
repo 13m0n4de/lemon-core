@@ -1,13 +1,13 @@
 //! # Task Management
 
 mod context;
-mod control_block;
 mod id;
 mod manager;
-mod process;
+mod pcb;
 mod processor;
 mod signal;
 mod switch;
+mod tcb;
 
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
@@ -27,7 +27,7 @@ pub use signal::{
     SignalActions, SignalFlags, MAX_SIG,
 };
 
-use self::{control_block::TaskControlBlock, manager::remove_from_pid2task};
+use self::{manager::remove_from_pid2task, tcb::TaskControlBlock};
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum TaskStatus {
