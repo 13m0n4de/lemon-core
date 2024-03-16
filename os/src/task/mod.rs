@@ -20,14 +20,16 @@ use crate::{
 
 pub use manager::{add_task, pid2process};
 pub use processor::{
-    current_process, current_trap_cx, current_trap_cx_user_va, current_user_token, run_tasks,
+    current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    run_tasks,
 };
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
+pub use tcb::TaskControlBlock;
 
 use context::TaskContext;
 use pcb::ProcessControlBlock;
 use processor::{schedule, take_current_task};
-use tcb::{TaskControlBlock, TaskStatus};
+use tcb::TaskStatus;
 
 use self::{
     id::TaskUserRes,
