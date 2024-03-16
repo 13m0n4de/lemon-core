@@ -46,7 +46,7 @@ impl PidAllocator {
             !self
                 .recycled
                 .iter()
-                .any(|recyvled_pid| *recyvled_pid == pid),
+                .any(|recycled_pid| *recycled_pid == pid),
             "pid {} has been deallocated!",
             pid
         );
