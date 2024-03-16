@@ -11,6 +11,13 @@ use crate::{
 
 use super::process::ProcessControlBlock;
 
+lazy_static! {
+    static ref PID_ALLOCATOR: UPSafeCell<RecycleAllocator> =
+        unsafe { UPSafeCell::new(RecycleAllocator::new()) };
+    static ref KSTACK_ALLOCATOR: UPSafeCell<RecycleAllocator> =
+        unsafe { UPSafeCell::new(RecycleAllocator::new()) };
+}
+
 /// Bind pid lifetime to [`PidHandle`]
 pub struct PidHandle(pub usize);
 
@@ -55,36 +62,13 @@ impl RecycleAllocator {
     }
 }
 
-lazy_static! {
-    static ref PID_ALLOCATOR: UPSafeCell<RecycleAllocator> =
-        unsafe { UPSafeCell::new(RecycleAllocator::new()) };
-}
-
-pub fn pid_alloc() -> PidHandle {
-    PidHandle(PID_ALLOCATOR.exclusive_access().alloc())
-}
-
 /// Kernel stack for app
-pub struct KernelStack {
-    pid: usize,
-}
+pub struct KernelStack(pub usize);
 
 impl KernelStack {
-    /// Create a kernel stack from pid
-    pub fn new(pid_handle: &PidHandle) -> Self {
-        let pid = pid_handle.0;
-        let (kernel_stack_bottom, kernel_stack_top) = kernel_stack_position(pid);
-        KERNEL_SPACE.exclusive_access().insert_framed_area(
-            kernel_stack_bottom.into(),
-            kernel_stack_top.into(),
-            MapPermission::R | MapPermission::W,
-        );
-        KernelStack { pid: pid_handle.0 }
-    }
-
     // Get the value on the top of kernel stack
     pub fn top(&self) -> usize {
-        let (_, kernel_stack_top) = kernel_stack_position(self.pid);
+        let (_, kernel_stack_top) = kernel_stack_position(self.0);
         kernel_stack_top
     }
 
@@ -105,27 +89,13 @@ impl KernelStack {
 
 impl Drop for KernelStack {
     fn drop(&mut self) {
-        let (kernel_stack_bottom, _) = kernel_stack_position(self.pid);
+        let (kernel_stack_bottom, _) = kernel_stack_position(self.0);
         let kernel_stack_bottom_va: VirtAddr = kernel_stack_bottom.into();
         KERNEL_SPACE
             .exclusive_access()
             .remove_area_with_start_vpn(kernel_stack_bottom_va.into());
+        KSTACK_ALLOCATOR.exclusive_access().dealloc(self.0);
     }
-}
-
-/// Return (bottom, top) of a kernel stack in kernel space.
-pub fn kernel_stack_position(kstack_id: usize) -> (usize, usize) {
-    let top = TRAMPOLINE - kstack_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
-    let bottom = top - KERNEL_STACK_SIZE;
-    (bottom, top)
-}
-
-fn trap_cx_bottom_from_tid(tid: usize) -> usize {
-    TRAP_CONTEXT_BASE - tid * PAGE_SIZE
-}
-
-fn ustack_bottom_from_tid(ustack_base: usize, tid: usize) -> usize {
-    ustack_base + tid * (PAGE_SIZE + USER_STACK_SIZE)
 }
 
 pub struct TaskUserRes {
@@ -204,4 +174,34 @@ impl Drop for TaskUserRes {
         self.dealloc_tid();
         self.dealloc_user_res();
     }
+}
+
+pub fn pid_alloc() -> PidHandle {
+    PidHandle(PID_ALLOCATOR.exclusive_access().alloc())
+}
+
+pub fn kstack_alloc() -> KernelStack {
+    let kstack_id = KSTACK_ALLOCATOR.exclusive_access().alloc();
+    let (kstack_bottom, kstack_top) = kernel_stack_position(kstack_id);
+    KERNEL_SPACE.exclusive_access().insert_framed_area(
+        kstack_bottom.into(),
+        kstack_top.into(),
+        MapPermission::R | MapPermission::W,
+    );
+    KernelStack(kstack_id)
+}
+
+/// Return (bottom, top) of a kernel stack in kernel space.
+pub fn kernel_stack_position(kstack_id: usize) -> (usize, usize) {
+    let top = TRAMPOLINE - kstack_id * (KERNEL_STACK_SIZE + PAGE_SIZE);
+    let bottom = top - KERNEL_STACK_SIZE;
+    (bottom, top)
+}
+
+fn trap_cx_bottom_from_tid(tid: usize) -> usize {
+    TRAP_CONTEXT_BASE - tid * PAGE_SIZE
+}
+
+fn ustack_bottom_from_tid(ustack_base: usize, tid: usize) -> usize {
+    ustack_base + tid * (PAGE_SIZE + USER_STACK_SIZE)
 }
