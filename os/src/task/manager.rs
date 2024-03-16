@@ -2,11 +2,12 @@
 
 use crate::sync::UPSafeCell;
 
-use super::control_block::TaskControlBlock;
-
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
+
+use super::pcb::ProcessControlBlock;
+use super::tcb::TaskControlBlock;
 
 /// A array of `TaskControlBlock` that is thread-safe
 pub struct TaskManager {
@@ -30,36 +31,55 @@ impl TaskManager {
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.ready_queue.pop_front()
     }
+
+    pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
+        if let Some(idx) = self
+            .ready_queue
+            .iter()
+            .position(|t| Arc::as_ptr(t) == Arc::as_ptr(&task))
+        {
+            self.ready_queue.remove(idx);
+        }
+    }
 }
 
 lazy_static! {
     static ref TASK_MANAGER: UPSafeCell<TaskManager> =
         unsafe { UPSafeCell::new(TaskManager::new()) };
-    static ref PID2TCB: UPSafeCell<BTreeMap<usize, Arc<TaskControlBlock>>> =
+    static ref PID2PCB: UPSafeCell<BTreeMap<usize, Arc<ProcessControlBlock>>> =
         unsafe { UPSafeCell::new(BTreeMap::new()) };
 }
 
-/// Interface offered to add task
+/// Add the thread to the ready queue
 pub fn add_task(task: Arc<TaskControlBlock>) {
-    PID2TCB
-        .exclusive_access()
-        .insert(task.getpid(), task.clone());
     TASK_MANAGER.exclusive_access().add(task);
 }
 
-/// Interface offered to pop the first task
+/// Pop a task from the ready queue
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
 
-pub fn pid2task(pid: usize) -> Option<Arc<TaskControlBlock>> {
-    let map = PID2TCB.exclusive_access();
+/// Remove the task from the ready queue
+pub fn remove_task(task: Arc<TaskControlBlock>) {
+    TASK_MANAGER.exclusive_access().remove(task);
+}
+
+/// Query the PCB based on PID
+pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
+    let map = PID2PCB.exclusive_access();
     map.get(&pid).cloned()
 }
 
-pub fn remove_from_pid2task(pid: usize) {
-    let mut map = PID2TCB.exclusive_access();
+/// Remove the PCB based on PID
+pub fn remove_from_pid2process(pid: usize) {
+    let mut map = PID2PCB.exclusive_access();
     if map.remove(&pid).is_none() {
         panic!("cannot find pid {} in pid2task!", pid);
     }
+}
+
+/// Add a pair of PID-PCB mappings
+pub fn insert_into_pid2process(pid: usize, process: Arc<ProcessControlBlock>) {
+    PID2PCB.exclusive_access().insert(pid, process);
 }

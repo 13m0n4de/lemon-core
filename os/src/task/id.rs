@@ -180,6 +180,10 @@ impl TaskUserRes {
             .ppn()
     }
 
+    pub fn trap_cx_user_va(&self) -> usize {
+        trap_cx_bottom_from_tid(self.tid)
+    }
+
     pub fn ustack_base(&self) -> usize {
         self.ustack_base
     }

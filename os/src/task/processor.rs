@@ -6,8 +6,8 @@ use lazy_static::lazy_static;
 use crate::{sync::UPSafeCell, trap::TrapContext};
 
 use super::{
-    context::TaskContext, control_block::TaskControlBlock, manager::fetch_task, switch::__switch,
-    TaskStatus,
+    context::TaskContext, manager::fetch_task, pcb::ProcessControlBlock, switch::__switch,
+    tcb::TaskStatus, TaskControlBlock,
 };
 
 /// Processor management structure
@@ -44,22 +44,46 @@ lazy_static! {
     static ref PROCESSOR: UPSafeCell<Processor> = unsafe { UPSafeCell::new(Processor::new()) };
 }
 
+/// take the thread that the current processor is executing
 pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
+/// Current TCB
 pub fn current_task() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
-pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
-    let token = task.inner_exclusive_access().user_token();
-    token
+/// Current PCB
+pub fn current_process() -> Arc<ProcessControlBlock> {
+    current_task().unwrap().process.upgrade().unwrap()
 }
 
+/// Current satp
+pub fn current_user_token() -> usize {
+    let task = current_task().unwrap();
+    task.user_token()
+}
+
+/// Current trap context
 pub fn current_trap_cx() -> &'static mut TrapContext {
     current_task().unwrap().inner_exclusive_access().trap_cx()
+}
+
+/// Virtual address of current trap context
+pub fn current_trap_cx_user_va() -> usize {
+    current_task()
+        .unwrap()
+        .inner_exclusive_access()
+        .res
+        .as_ref()
+        .unwrap()
+        .trap_cx_user_va()
+}
+
+/// Top address of current kernel stack
+pub fn current_kstack_top() -> usize {
+    current_task().unwrap().kstack.top()
 }
 
 /// The main part of process execution and scheduling.
