@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use lazy_static::lazy_static;
 
 use crate::{
-    config::kernel_stack_position,
+    config::{kernel_stack_position, PAGE_SIZE, TRAP_CONTEXT_BASE, USER_STACK_SIZE},
     mm::{MapPermission, VirtAddr, KERNEL_SPACE},
     sync::UPSafeCell,
 };
@@ -10,7 +10,7 @@ use crate::{
 /// Bind pid lifetime to [`PidHandle`]
 pub struct PidHandle(pub usize);
 
-pub struct PidAllocator {
+pub struct RecycleAllocator {
     current: usize,
     recycled: Vec<usize>,
 }
@@ -21,46 +21,43 @@ impl Drop for PidHandle {
     }
 }
 
-impl PidAllocator {
+impl RecycleAllocator {
     pub fn new() -> Self {
-        PidAllocator {
+        RecycleAllocator {
             current: 0,
             recycled: Vec::new(),
         }
     }
 
-    /// Allocate a pid
-    pub fn alloc(&mut self) -> PidHandle {
-        if let Some(pid) = self.recycled.pop() {
-            PidHandle(pid)
+    /// Allocate a id
+    pub fn alloc(&mut self) -> usize {
+        if let Some(id) = self.recycled.pop() {
+            id
         } else {
             self.current += 1;
-            PidHandle(self.current - 1)
+            self.current - 1
         }
     }
 
-    /// Recycle a pid
-    pub fn dealloc(&mut self, pid: usize) {
-        assert!(pid < self.current);
+    /// Recycle a id
+    pub fn dealloc(&mut self, id: usize) {
+        assert!(id < self.current);
         assert!(
-            !self
-                .recycled
-                .iter()
-                .any(|recycled_pid| *recycled_pid == pid),
-            "pid {} has been deallocated!",
-            pid
+            !self.recycled.iter().any(|recycled_id| *recycled_id == id),
+            "id {} has been deallocated!",
+            id
         );
-        self.recycled.push(pid);
+        self.recycled.push(id);
     }
 }
 
 lazy_static! {
-    static ref PID_ALLOCATOR: UPSafeCell<PidAllocator> =
-        unsafe { UPSafeCell::new(PidAllocator::new()) };
+    static ref PID_ALLOCATOR: UPSafeCell<RecycleAllocator> =
+        unsafe { UPSafeCell::new(RecycleAllocator::new()) };
 }
 
 pub fn pid_alloc() -> PidHandle {
-    PID_ALLOCATOR.exclusive_access().alloc()
+    PidHandle(PID_ALLOCATOR.exclusive_access().alloc())
 }
 
 /// Kernel stack for app
@@ -110,4 +107,12 @@ impl Drop for KernelStack {
             .exclusive_access()
             .remove_area_with_start_vpn(kernel_stack_bottom_va.into());
     }
+}
+
+fn trap_cx_bottom_from_tid(tid: usize) -> usize {
+    TRAP_CONTEXT_BASE - tid * PAGE_SIZE
+}
+
+fn ustack_bottom_from_tid(ustack_base: usize, tid: usize) -> usize {
+    ustack_base + tid * (PAGE_SIZE + USER_STACK_SIZE)
 }
