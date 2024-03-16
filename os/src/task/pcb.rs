@@ -1,6 +1,6 @@
 use alloc::{
     format,
-    string::String,
+    string::{String, ToString},
     sync::{Arc, Weak},
     vec,
     vec::Vec,
@@ -47,6 +47,7 @@ impl ProcessControlBlock {
                     parent: None,
                     children: Vec::new(),
                     exit_code: 0,
+                    cwd: String::from("/"),
                     fd_table: vec![
                         // 0 -> stdin
                         Some(Arc::new(Stdin)),
@@ -102,17 +103,14 @@ impl ProcessControlBlock {
         // only support processes with a single thread
         assert_eq!(self.inner_exclusive_access().thread_count(), 1);
 
-        // create file `/proc/{pid}/cmdline`
-        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid())).expect(&format!(
-            "Failed to find inode for '/proc/{}/cmdline'",
-            self.pid()
-        ));
-        cmdline_inode.clear();
-        cmdline_inode.write_at(0, args.join(" ").as_bytes());
-
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
+
+        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0))
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'", self.pid.0));
+        cmdline_inode.clear();
+        cmdline_inode.write_at(0, args.join(" ").as_bytes());
 
         // substitute memory_set
         self.inner_exclusive_access().memory_set = memory_set;
@@ -174,6 +172,21 @@ impl ProcessControlBlock {
         // copy fd table
         let new_fd_table = parent_inner.fd_table.clone();
 
+        // write proc info
+        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
+        let proc_inode = procs_inode
+            .create_dir(&pid.0.to_string())
+            .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid.0));
+        proc_inode.set_default_dirent(procs_inode.inode_id());
+        let cmdline_inode = proc_inode
+            .create("cmdline")
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid.0));
+        if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
+            let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
+            parent_cmdline_inode.read_at(0, &mut cmdline);
+            cmdline_inode.write_at(0, &cmdline);
+        }
+
         // create child process PCB
         let child = Arc::new(Self {
             pid,
@@ -184,6 +197,7 @@ impl ProcessControlBlock {
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
                     exit_code: 0,
+                    cwd: parent_inner.cwd.clone(),
                     fd_table: new_fd_table,
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
@@ -219,6 +233,7 @@ impl ProcessControlBlock {
         drop(task_inner);
 
         insert_into_pid2process(child.pid(), child.clone());
+
         // add this thread to scheduler
         add_task(task);
 
@@ -232,6 +247,7 @@ pub struct ProcessControlBlockInner {
     pub parent: Option<Weak<ProcessControlBlock>>,
     pub children: Vec<Arc<ProcessControlBlock>>,
     pub exit_code: i32,
+    pub cwd: String,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub signals: SignalFlags,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
@@ -262,5 +278,15 @@ impl ProcessControlBlockInner {
 
     pub fn task(&self, tid: usize) -> Arc<TaskControlBlock> {
         self.tasks[tid].as_ref().unwrap().clone()
+    }
+}
+
+impl Drop for ProcessControlBlock {
+    fn drop(&mut self) {
+        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
+        if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {
+            proc_inode.delete("cmdline");
+            procs_inode.delete(&self.pid.0.to_string());
+        }
     }
 }

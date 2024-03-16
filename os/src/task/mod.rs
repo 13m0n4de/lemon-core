@@ -18,9 +18,11 @@ use crate::{
     sbi::shutdown,
 };
 
-pub use manager::add_task;
-pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
-pub use signal::{SignalFlags, MAX_SIG};
+pub use manager::{add_task, pid2process};
+pub use processor::{
+    current_process, current_trap_cx, current_trap_cx_user_va, current_user_token, run_tasks,
+};
+pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
 
 use context::TaskContext;
 use pcb::ProcessControlBlock;

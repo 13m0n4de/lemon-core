@@ -6,15 +6,15 @@ use easy_fs::DIRENT_SIZE;
 
 use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
-use crate::task::{current_task, current_user_token};
+use crate::task::{current_process, current_user_token};
 
 pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
 
     let mut user_buffer = UserBuffer::new(translated_byte_buffer(token, buf, len));
-    let cwd = task_inner.cwd.as_bytes();
+    let cwd = process_inner.cwd.as_bytes();
 
     if cwd.len() > len {
         return -1;
@@ -29,14 +29,14 @@ pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
 }
 
 pub fn sys_dup(fd: usize) -> isize {
-    let task = current_task().unwrap();
-    let mut inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
 
-    match inner.fd_table.get(fd) {
+    match process_inner.fd_table.get(fd) {
         Some(Some(file)) => {
             let new_file = file.clone();
-            let new_fd = inner.alloc_fd();
-            inner.fd_table[new_fd] = Some(new_file);
+            let new_fd = process_inner.alloc_fd();
+            process_inner.fd_table[new_fd] = Some(new_file);
             new_fd as isize
         }
         _ => -1,
@@ -44,10 +44,10 @@ pub fn sys_dup(fd: usize) -> isize {
 }
 
 pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
-    let task = current_task().unwrap();
-    let mut task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
 
-    let fd_table = &mut task_inner.fd_table;
+    let fd_table = &mut process_inner.fd_table;
     if old_fd >= fd_table.len() {
         return -1;
     }
@@ -61,15 +61,15 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
 
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let mut task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
-    let path = get_full_path(&task_inner.cwd, &path);
+    let path = get_full_path(&process_inner.cwd, &path);
 
     if let Some(inode) = find_inode(&path) {
         if inode.is_dir() {
-            task_inner.cwd = path;
+            process_inner.cwd = path;
             0
         } else {
             -2 // not dir
@@ -81,11 +81,11 @@ pub fn sys_chdir(path: *const u8) -> isize {
 
 pub fn sys_mkdir(path: *const u8) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
-    let path = get_full_path(&task_inner.cwd, &path);
+    let path = get_full_path(&process_inner.cwd, &path);
 
     let (parent_path, target) = path
         .rsplit_once('/')
@@ -103,11 +103,11 @@ const AT_REMOVEDIR: u32 = 1;
 
 pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
-    let path = get_full_path(&task_inner.cwd, &path);
+    let path = get_full_path(&process_inner.cwd, &path);
 
     let (parent_path, target) = path
         .rsplit_once('/')
@@ -140,15 +140,15 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let mut task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
-    let path = get_full_path(&task_inner.cwd, &path);
+    let path = get_full_path(&process_inner.cwd, &path);
 
     if let Some(inode) = open_file(path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
-        let fd = task_inner.alloc_fd();
-        task_inner.fd_table[fd] = Some(inode);
+        let fd = process_inner.alloc_fd();
+        process_inner.fd_table[fd] = Some(inode);
         fd as isize
     } else {
         -1
@@ -156,14 +156,14 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
 }
 
 pub fn sys_close(fd: usize) -> isize {
-    let task = current_task().unwrap();
-    let mut inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
 
-    if fd >= inner.fd_table.len() {
+    if fd >= process_inner.fd_table.len() {
         return -1;
     }
 
-    match inner.fd_table[fd].take() {
+    match process_inner.fd_table[fd].take() {
         Some(_) => 0,
         None => -1,
     }
@@ -171,20 +171,20 @@ pub fn sys_close(fd: usize) -> isize {
 
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
 
-    if fd >= task_inner.fd_table.len() {
+    if fd >= process_inner.fd_table.len() {
         return -1;
     }
 
-    if let Some(file) = &task_inner.fd_table[fd] {
+    if let Some(file) = &process_inner.fd_table[fd] {
         let file = file.clone();
         if !file.is_readable() {
             return -1;
         }
         // release current task TCB manually to avoid multi-borrow
-        drop(task_inner);
+        drop(process_inner);
         file.read(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
     } else {
         -1
@@ -194,20 +194,20 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
 
-    if fd >= task_inner.fd_table.len() {
+    if fd >= process_inner.fd_table.len() {
         return -1;
     }
 
-    if let Some(file) = &task_inner.fd_table[fd] {
+    if let Some(file) = &process_inner.fd_table[fd] {
         if !file.is_writable() {
             return -1;
         }
         let file = file.clone();
         // release current task TCB manually to avoid multi-borrow
-        drop(task_inner);
+        drop(process_inner);
         file.write(UserBuffer::new(translated_byte_buffer(token, buf, len))) as isize
     } else {
         -1
@@ -216,8 +216,8 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let process_inner = process.inner_exclusive_access();
 
     let mut user_buffer = UserBuffer::new(translated_byte_buffer(
         token,
@@ -225,7 +225,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
         core::mem::size_of::<Stat>(),
     ));
 
-    let fd_table = &task_inner.fd_table;
+    let fd_table = &process_inner.fd_table;
     if fd >= fd_table.len() || fd_table[fd].is_none() {
         return -1;
     }
@@ -244,16 +244,16 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
 
 pub fn sys_pipe(pipe: *mut usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
-    let mut task_inner = task.inner_exclusive_access();
+    let process = current_process();
+    let mut process_inner = process.inner_exclusive_access();
 
     let (pipe_read, pipe_write) = make_pipe();
 
-    let read_fd = task_inner.alloc_fd();
-    task_inner.fd_table[read_fd] = Some(pipe_read);
+    let read_fd = process_inner.alloc_fd();
+    process_inner.fd_table[read_fd] = Some(pipe_read);
 
-    let write_fd = task_inner.alloc_fd();
-    task_inner.fd_table[write_fd] = Some(pipe_write);
+    let write_fd = process_inner.alloc_fd();
+    process_inner.fd_table[write_fd] = Some(pipe_write);
 
     *translated_mut_ref(token, pipe) = read_fd;
     *translated_mut_ref(token, unsafe { pipe.add(1) }) = write_fd;

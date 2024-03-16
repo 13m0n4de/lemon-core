@@ -81,11 +81,6 @@ pub fn current_trap_cx_user_va() -> usize {
         .trap_cx_user_va()
 }
 
-/// Top address of current kernel stack
-pub fn current_kstack_top() -> usize {
-    current_task().unwrap().kstack.top()
-}
-
 /// The main part of process execution and scheduling.
 /// Loop [`fetch_task`] to get the process that needs to run, and switch the process through
 /// `__switch`
