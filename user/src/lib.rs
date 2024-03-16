@@ -22,7 +22,6 @@ use alloc::{
 };
 use fs::*;
 use heap_allocator::init_heap;
-use signal::*;
 use syscall::*;
 
 #[no_mangle]
@@ -121,26 +120,6 @@ pub fn kill(pid: usize, signum: i32) -> isize {
     sys_kill(pid, signum)
 }
 
-pub fn sigaction(
-    signum: i32,
-    action: Option<&SignalAction>,
-    old_action: Option<&mut SignalAction>,
-) -> isize {
-    sys_sigaction(
-        signum,
-        action.map_or(core::ptr::null(), |a| a),
-        old_action.map_or(core::ptr::null_mut(), |a| a),
-    )
-}
-
-pub fn sigprocmask(mask: u32) -> isize {
-    sys_sigprocmask(mask)
-}
-
-pub fn sigreturn() -> isize {
-    sys_sigreturn()
-}
-
 pub fn get_time() -> isize {
     sys_get_time()
 }
@@ -192,5 +171,24 @@ pub fn sleep(period_ms: usize) {
     let start = sys_get_time();
     while sys_get_time() < start + period_ms as isize {
         sys_yield();
+    }
+}
+
+pub fn thread_create(entry: usize, arg: usize) -> isize {
+    sys_thread_create(entry, arg)
+}
+
+pub fn gettid() -> isize {
+    sys_gettid()
+}
+
+pub fn waittid(tid: usize) -> isize {
+    loop {
+        match sys_waittid(tid) {
+            -2 => {
+                yield_();
+            }
+            exit_code => return exit_code,
+        }
     }
 }
