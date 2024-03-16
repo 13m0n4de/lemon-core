@@ -69,5 +69,4 @@ impl TaskControlBlockInner {
 pub enum TaskStatus {
     Ready,
     Running,
-    Zombie,
 }
