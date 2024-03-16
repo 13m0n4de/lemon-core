@@ -1,4 +1,5 @@
 use alloc::{
+    format,
     string::String,
     sync::{Arc, Weak},
     vec,
@@ -7,8 +8,8 @@ use alloc::{
 use core::cell::RefMut;
 
 use crate::{
-    fs::{File, Stdin, Stdout},
-    mm::{MemorySet, KERNEL_SPACE},
+    fs::{find_inode, File, Stdin, Stdout},
+    mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::UPSafeCell,
     trap::{trap_handler, TrapContext},
 };
@@ -16,6 +17,7 @@ use crate::{
 use super::{
     add_task,
     id::{pid_alloc, PidHandle, RecycleAllocator},
+    manager::insert_into_pid2process,
     tcb::TaskControlBlock,
     SignalFlags,
 };
@@ -97,11 +99,130 @@ impl ProcessControlBlock {
     }
 
     pub fn exec(self: &Arc<Self>, elf_data: &[u8], args: &[String]) {
-        todo!()
+        // only support processes with a single thread
+        assert_eq!(self.inner_exclusive_access().thread_count(), 1);
+
+        // create file `/proc/{pid}/cmdline`
+        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid())).expect(&format!(
+            "Failed to find inode for '/proc/{}/cmdline'",
+            self.pid()
+        ));
+        cmdline_inode.clear();
+        cmdline_inode.write_at(0, args.join(" ").as_bytes());
+
+        // memory_set with elf program headers/trampoline/trap context/user stack
+        let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
+        let new_token = memory_set.token();
+
+        // substitute memory_set
+        self.inner_exclusive_access().memory_set = memory_set;
+        // then we alloc user resource for main thread again
+        // since memory_set has been changed
+        let task = self.inner_exclusive_access().task(0);
+        let mut task_inner = task.inner_exclusive_access();
+        task_inner.res.as_mut().unwrap().ustack_base = ustack_base;
+        task_inner.res.as_mut().unwrap().alloc_user_res();
+        task_inner.trap_cx_ppn = task_inner.res.as_mut().unwrap().trap_cx_ppn();
+
+        // push arguments on user stack
+        let argc = args.len();
+        let mut user_sp = task_inner.res.as_mut().unwrap().ustack_top();
+        user_sp -= (argc + 1) * core::mem::size_of::<usize>();
+        let argv_base = user_sp;
+        let mut argv: Vec<_> = (0..=argc)
+            .map(|arg| {
+                translated_mut_ref(
+                    new_token,
+                    (argv_base + arg * core::mem::size_of::<usize>()) as *mut usize,
+                )
+            })
+            .collect();
+        *argv[argc] = 0;
+        for i in 0..argc {
+            user_sp -= args[i].len() + 1;
+            *argv[i] = user_sp;
+            let mut p = user_sp;
+            for c in args[i].as_bytes() {
+                *translated_mut_ref(new_token, p as *mut u8) = *c;
+                p += 1;
+            }
+            *translated_mut_ref(new_token, p as *mut u8) = 0;
+        }
+
+        // initialize trap_cx
+        let mut trap_cx = TrapContext::app_init_context(
+            entry_point,
+            user_sp,
+            KERNEL_SPACE.exclusive_access().token(),
+            task.kstack.top(),
+            trap_handler as usize,
+        );
+        trap_cx.x[10] = argc;
+        trap_cx.x[11] = argv_base;
+        *task_inner.trap_cx() = trap_cx;
     }
 
     pub fn fork(self: &Arc<Self>) -> Arc<Self> {
-        todo!()
+        let mut parent_inner = self.inner_exclusive_access();
+        // only support processes with a single thread
+        assert_eq!(parent_inner.thread_count(), 1);
+
+        // clone parent's memory_set completely including trampoline/ustacks/trap_cxs
+        let memory_set = parent_inner.memory_set.clone();
+        // alloc a pid
+        let pid = pid_alloc();
+        // copy fd table
+        let new_fd_table = parent_inner.fd_table.clone();
+
+        // create child process PCB
+        let child = Arc::new(Self {
+            pid,
+            inner: unsafe {
+                UPSafeCell::new(ProcessControlBlockInner {
+                    is_zombie: false,
+                    memory_set,
+                    parent: Some(Arc::downgrade(self)),
+                    children: Vec::new(),
+                    exit_code: 0,
+                    fd_table: new_fd_table,
+                    signals: SignalFlags::empty(),
+                    tasks: Vec::new(),
+                    task_res_allocator: RecycleAllocator::new(),
+                })
+            },
+        });
+        // add child
+        parent_inner.children.push(child.clone());
+
+        // create main thread of child process
+        let task = Arc::new(TaskControlBlock::new(
+            child.clone(),
+            parent_inner
+                .task(0)
+                .inner_exclusive_access()
+                .res
+                .as_ref()
+                .unwrap()
+                .ustack_base(),
+            false,
+        ));
+
+        // attach task to child process
+        let mut child_inner = child.inner_exclusive_access();
+        child_inner.tasks.push(Some(task.clone()));
+        drop(child_inner);
+
+        // modify kstack_top in trap_cx of this thread
+        let task_inner = task.inner_exclusive_access();
+        let trap_cx = task_inner.trap_cx();
+        trap_cx.kernel_sp = task.kstack.top();
+        drop(task_inner);
+
+        insert_into_pid2process(child.pid(), child.clone());
+        // add this thread to scheduler
+        add_task(task);
+
+        child
     }
 }
 
