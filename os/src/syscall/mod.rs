@@ -13,6 +13,7 @@ const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_FSTAT: usize = 80;
 const SYSCALL_EXIT: usize = 93;
+const SYSCALL_SLEEP: usize = 101;
 const SYSCALL_YIELD: usize = 124;
 const SYSCALL_KILL: usize = 129;
 const SYSCALL_GET_TIME: usize = 169;
@@ -26,10 +27,12 @@ const SYSCALL_WAITTID: usize = 1002;
 
 mod fs;
 mod process;
+mod sync;
 mod thread;
 
 use fs::*;
 use process::*;
+use sync::*;
 use thread::*;
 
 /// handle syscall exception with `syscall_id` and other arguments
@@ -48,6 +51,7 @@ pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {
         SYSCALL_WRITE => sys_write(args[0], args[1] as *const u8, args[2]),
         SYSCALL_FSTAT => sys_fstat(args[0], args[1] as *mut u8),
         SYSCALL_EXIT => sys_exit(args[0] as i32),
+        SYSCALL_SLEEP => sys_sleep(args[0]),
         SYSCALL_YIELD => sys_yield(),
         SYSCALL_KILL => sys_kill(args[0], args[1] as u32),
         SYSCALL_GET_TIME => sys_get_time(),

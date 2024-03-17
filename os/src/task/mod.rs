@@ -77,6 +77,15 @@ pub fn suspend_current_and_run_next() {
     schedule(task_cx_ptr);
 }
 
+pub fn block_current_and_run_next() {
+    let task = take_current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    task_inner.task_status = TaskStatus::Blocked;
+    drop(task_inner);
+    schedule(task_cx_ptr);
+}
+
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
     let task = take_current_task().unwrap();
