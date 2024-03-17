@@ -16,9 +16,10 @@ use log::*;
 use crate::{
     fs::{find_inode, open_file, OpenFlags},
     sbi::shutdown,
+    timer::remove_timer,
 };
 
-pub use manager::{add_task, pid2process};
+pub use manager::{add_task, pid2process, wakeup_task};
 pub use processor::{
     current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
     run_tasks,
@@ -74,6 +75,15 @@ pub fn suspend_current_and_run_next() {
     // push back to ready queue.
     add_task(task);
     // jump to scheduling cycle.
+    schedule(task_cx_ptr);
+}
+
+pub fn block_current_and_run_next() {
+    let task = take_current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    task_inner.task_status = TaskStatus::Blocked;
+    drop(task_inner);
     schedule(task_cx_ptr);
 }
 
@@ -172,4 +182,5 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
 pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
     remove_task(task.clone());
+    remove_timer(task.clone());
 }

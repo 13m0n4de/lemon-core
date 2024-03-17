@@ -5,6 +5,7 @@ extern crate alloc;
 extern crate user_lib;
 
 use core::str;
+use user_lib::fs::*;
 use user_lib::*;
 
 #[no_mangle]

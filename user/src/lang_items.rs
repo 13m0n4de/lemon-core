@@ -1,6 +1,8 @@
 use core::panic::PanicInfo;
 
-use crate::{getpid, kill, signal::SignalFlags};
+use crate::println;
+use crate::process::getpid;
+use crate::signal::{kill, SignalFlags};
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {

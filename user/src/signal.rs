@@ -1,5 +1,7 @@
 use bitflags::bitflags;
 
+use crate::syscall::*;
+
 bitflags! {
     pub struct SignalFlags: i32 {
         const SIGINT    = 1 << 2;
@@ -8,4 +10,8 @@ bitflags! {
         const SIGFPE    = 1 << 8;
         const SIGSEGV   = 1 << 11;
     }
+}
+
+pub fn kill(pid: usize, signum: i32) -> isize {
+    sys_kill(pid, signum)
 }

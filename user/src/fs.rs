@@ -1,4 +1,11 @@
+use alloc::{
+    format,
+    string::{String, ToString},
+    vec,
+};
 use bitflags::bitflags;
+
+use crate::syscall::*;
 
 bitflags! {
     pub struct OpenFlags: u32 {
@@ -53,3 +60,60 @@ pub struct Dirent {
 pub const DIRENT_SIZE: usize = core::mem::size_of::<Dirent>();
 
 pub const AT_REMOVEDIR: u32 = 1;
+
+pub fn getcwd(s: &mut String) -> isize {
+    let mut buffer = vec![0u8; 128];
+    let len = sys_getcwd(&mut buffer);
+    *s = core::str::from_utf8(&buffer[0..len as usize])
+        .unwrap()
+        .to_string();
+    len
+}
+
+pub fn dup(fd: usize) -> isize {
+    sys_dup(fd)
+}
+
+pub fn dup2(old_fd: usize, new_fd: usize) -> isize {
+    sys_dup2(old_fd, new_fd)
+}
+
+pub fn mkdir(path: &str) -> isize {
+    let path = format!("{path}\0");
+    sys_mkdir(&path)
+}
+
+pub fn unlink(path: &str, flags: u32) -> isize {
+    let path = format!("{path}\0");
+    sys_unlink(&path, flags)
+}
+
+pub fn chdir(path: &str) -> isize {
+    let path = format!("{path}\0");
+    sys_chdir(&path)
+}
+
+pub fn open(path: &str, flags: OpenFlags) -> isize {
+    let path = format!("{path}\0");
+    sys_open(&path, flags.bits())
+}
+
+pub fn close(fd: usize) -> isize {
+    sys_close(fd)
+}
+
+pub fn pipe(pipe_fd: &mut [usize]) -> isize {
+    sys_pipe(pipe_fd)
+}
+
+pub fn read(fd: usize, buf: &mut [u8]) -> isize {
+    sys_read(fd, buf)
+}
+
+pub fn write(fd: usize, buf: &[u8]) -> isize {
+    sys_write(fd, buf)
+}
+
+pub fn fstat(fd: usize, stat: &mut Stat) -> isize {
+    sys_fstat(fd, stat as *mut _ as *mut _)
+}

@@ -7,7 +7,7 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
 use super::pcb::ProcessControlBlock;
-use super::tcb::TaskControlBlock;
+use super::tcb::{TaskControlBlock, TaskStatus};
 
 /// A array of `TaskControlBlock` that is thread-safe
 pub struct TaskManager {
@@ -53,6 +53,13 @@ lazy_static! {
 /// Add the thread to the ready queue
 pub fn add_task(task: Arc<TaskControlBlock>) {
     TASK_MANAGER.exclusive_access().add(task);
+}
+
+pub fn wakeup_task(task: Arc<TaskControlBlock>) {
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_status = TaskStatus::Ready;
+    drop(task_inner);
+    add_task(task);
 }
 
 /// Pop a task from the ready queue
