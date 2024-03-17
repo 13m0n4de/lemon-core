@@ -18,7 +18,7 @@ use crate::{
     sbi::shutdown,
 };
 
-pub use manager::{add_task, pid2process};
+pub use manager::{add_task, pid2process, wakeup_task};
 pub use processor::{
     current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
     run_tasks,
