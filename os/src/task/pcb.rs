@@ -10,7 +10,7 @@ use core::cell::RefMut;
 use crate::{
     fs::{find_inode, File, Stdin, Stdout},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
-    sync::UPSafeCell,
+    sync::{Mutex, UPSafeCell},
     trap::{trap_handler, TrapContext},
 };
 
@@ -59,6 +59,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    mutex_list: Vec::new(),
                 })
             },
         });
@@ -202,6 +203,7 @@ impl ProcessControlBlock {
                     signals: SignalFlags::empty(),
                     tasks: Vec::new(),
                     task_res_allocator: RecycleAllocator::new(),
+                    mutex_list: Vec::new(),
                 })
             },
         });
@@ -252,6 +254,7 @@ pub struct ProcessControlBlockInner {
     pub signals: SignalFlags,
     pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
+    pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
 }
 
 impl ProcessControlBlockInner {
