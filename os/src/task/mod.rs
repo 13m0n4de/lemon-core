@@ -16,6 +16,7 @@ use log::*;
 use crate::{
     fs::{find_inode, open_file, OpenFlags},
     sbi::shutdown,
+    timer::remove_timer,
 };
 
 pub use manager::{add_task, pid2process, wakeup_task};
@@ -181,4 +182,5 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
 pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
     remove_task(task.clone());
+    remove_timer(task.clone());
 }

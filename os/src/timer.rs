@@ -76,3 +76,12 @@ pub fn check_timer() {
         }
     }
 }
+
+pub fn remove_timer(task: Arc<TaskControlBlock>) {
+    let mut timers = TIMERS.exclusive_access();
+    let temp = timers
+        .drain()
+        .filter(|condvar| !Arc::ptr_eq(&task, &condvar.task))
+        .collect::<BinaryHeap<_>>();
+    *timers = temp;
+}
