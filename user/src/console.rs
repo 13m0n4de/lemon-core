@@ -1,5 +1,6 @@
-use super::{read, write};
 use core::fmt::{self, Arguments, Write};
+
+use crate::fs::{read, write};
 
 struct Stdout;
 

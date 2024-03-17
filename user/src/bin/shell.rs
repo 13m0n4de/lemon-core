@@ -1,20 +1,22 @@
 #![no_std]
 #![no_main]
-extern crate alloc;
 
+extern crate alloc;
 extern crate user_lib;
+
+use alloc::format;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+
+use user_lib::console::getchar;
+use user_lib::fs::*;
+use user_lib::process::*;
+use user_lib::*;
 
 const LF: u8 = 0x0au8;
 const CR: u8 = 0x0du8;
 const DL: u8 = 0x7fu8;
 const BS: u8 = 0x08u8;
-
-use alloc::format;
-use alloc::string::{String, ToString};
-use alloc::vec::Vec;
-use user_lib::console::getchar;
-use user_lib::fs::*;
-use user_lib::*;
 
 struct CommandArguments {
     argc: usize,
