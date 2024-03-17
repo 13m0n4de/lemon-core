@@ -13,6 +13,7 @@ const SYSCALL_READ: usize = 63;
 const SYSCALL_WRITE: usize = 64;
 const SYSCALL_FSTAT: usize = 80;
 const SYSCALL_EXIT: usize = 93;
+const SYSCALL_SLEEP: usize = 101;
 const SYSCALL_YIELD: usize = 124;
 const SYSCALL_KILL: usize = 129;
 const SYSCALL_GET_TIME: usize = 169;
@@ -92,6 +93,10 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
 pub fn sys_exit(exit_code: i32) -> ! {
     syscall(SYSCALL_EXIT, [exit_code as usize, 0, 0]);
     panic!("sys_exit never returns!");
+}
+
+pub fn sys_sleep(sleep_ms: usize) -> isize {
+    syscall(SYSCALL_SLEEP, [sleep_ms, 0, 0])
 }
 
 pub fn sys_yield() -> isize {
