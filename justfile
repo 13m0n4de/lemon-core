@@ -10,20 +10,28 @@ board := "qemu"
 sbi := "rustsbi"
 bootloader := "bootloader" / sbi + "-" + board + ".bin"
 
-# Directories for kernel, user applications, and EasyFS-CLI
-kernel_dir := "os"
+# Directories for user applications, EasyFS-CLI, kernel, test cases and user lib
+apps_dir := "apps"
+efs_tool_dir := "easy-fs-tool"
+kernel_dir := "kernel"
+tests_dir := "tests"
 user_dir := "user"
-efs_cli_dir := "easy-fs-fuse"
 
 # Kernel binary and entry point 
 kernel_entry_pa := "0x80200000"
-kernel_elf := kernel_dir / "target" / target / mode / "os"
+kernel_elf := kernel_dir / "target" / target / mode / "kernel"
 kernel_bin := kernel_elf + ".bin"
 
-# User applications and filesystem image paths
-app_dir := user_dir / "src/bin"
-app_target_dir := user_dir / "target" / target / mode
-fs_img := app_target_dir / "fs.img"
+# User applications
+apps_source_dir := apps_dir / "src/bin"
+apps_target_dir := "apps" / "target" / target / mode
+
+# Test cases
+tests_source_dir := tests_dir / "src/bin"
+tests_target_dir := tests_dir / "target" / target / mode
+
+# File system image
+fs_img := apps_target_dir / "fs.img"
 
 # Tools for handling object files
 objdump := "rust-objdump --arch-name=riscv64"
@@ -52,21 +60,29 @@ env:
 
 # Build the user applications
 build-apps:
-    cd {{user_dir}} && just build
+    cd {{apps_dir}} && just build
 
 # Build the filesystem image
 build-efs: 
-    cd {{efs_cli_dir}} && just run ../{{app_dir}} ../{{app_target_dir}}
+    cd {{efs_tool_dir}} && just run ../{{apps_source_dir}} ../{{apps_target_dir}}
 
 # Build the kernel
 build-kernel:
     cd {{kernel_dir}} && just build {{board}}
+
+# Build the test cases
+build-tests:
+    cd {{tests_dir}} && just build
 
 # Build App, EFS and Kernel
 build: build-apps build-efs build-kernel
 
 # Run the kernel in QEMU
 run: build
+    qemu-system-riscv64 {{qemu_args}}
+
+run-with-tests: build-tests build-efs build-kernel
+    # todo!
     qemu-system-riscv64 {{qemu_args}}
 
 # Debug the kernel in QEMU using tmux
@@ -85,11 +101,16 @@ gdbclient:
 
 # Clean build artifacts
 clean:
-    cd {{user_dir}} && just clean
-    cd {{efs_cli_dir}} && just clean
+    cd {{apps_dir}} && just clean
+    cd {{efs_tool_dir}} && just clean
     cd {{kernel_dir}} && just clean
+    cd {{tests_dir}} && just clean
+    cd {{user_dir}} && just clean
 
+# Checks packages to catch common mistakes and improve code.
 clippy:
-    cd {{user_dir}} && just clippy
-    cd {{efs_cli_dir}} && just clippy
+    cd {{apps_dir}} && just clippy 
+    cd {{efs_tool_dir}} && just clippy
     cd {{kernel_dir}} && just clippy
+    cd {{tests_dir}} && just clippy
+    cd {{user_dir}} && just clippy
