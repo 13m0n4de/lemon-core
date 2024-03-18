@@ -4,6 +4,10 @@ mode := "release"
 default:
     just --list
 
+# Build binarys
+build:
+    cargo build --{{mode}} --bins
+
 # Clean build artifacts
 clean:
     cargo clean
