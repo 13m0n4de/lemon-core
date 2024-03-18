@@ -3,7 +3,7 @@ target := "riscv64gc-unknown-none-elf"
 mode := "release"
 
 # Paths for kernel binary and disassembly
-kernel_elf := "target" / target / mode / "os"
+kernel_elf := "target" / target / mode / "kernel"
 kernel_bin := kernel_elf + ".bin"
 disasm_tmp := kernel_elf + ".asm"
 
