@@ -97,7 +97,12 @@ fn main() -> i32 {
                         if let Some(output) = cmd_args.output_file {
                             redirect_io(output, 1, OpenFlags::CREATE | OpenFlags::WRONLY);
                         }
-                        exec(&format!("/bin/{}", path), &cmd_args.argv);
+                        let path = if path.contains("/") {
+                            path.to_string()
+                        } else {
+                            format!("/bin/{path}")
+                        };
+                        exec(&path, &cmd_args.argv);
                         println!("{}: command not found", path);
                     } else {
                         let mut exit_code: i32 = 0;
