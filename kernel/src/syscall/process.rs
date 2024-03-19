@@ -1,4 +1,4 @@
-//! Process management syscalls
+//! Process Management System Calls
 
 use alloc::{sync::Arc, vec::Vec};
 use log::*;
@@ -13,28 +13,56 @@ use crate::{
     timer::get_time_ms,
 };
 
-/// task exits and submit an exit code
+/// Exits the current task and submits an exit code.
+///
+/// # Arguments
+///
+/// - `exit_code`: The exit code to be submitted on task exit.
+///
+/// # Panics
+///
+/// Panics if somehow reached, as it should exit the current task and not return.
 pub fn sys_exit(exit_code: i32) -> ! {
     trace!("[kernel] Application exited with code {}", exit_code);
     exit_current_and_run_next(exit_code);
     panic!("Unreachable in sys_exit!");
 }
 
-/// current task gives up resources for other tasks
+/// Yields the current task's execution resources to other tasks.
+///
+/// # Returns
+///
+/// Always returns `0` to indicate successful yield.
 pub fn sys_yield() -> isize {
     suspend_current_and_run_next();
     0
 }
 
-/// get time in milliseconds
+/// Retrieves the current system time in milliseconds.
+///
+/// # Returns
+///
+/// The current system time, representing the time in milliseconds.
+/// For more details, see [`get_time_ms`].
 pub fn sys_get_time() -> isize {
     get_time_ms() as isize
 }
 
+/// Retrieves the Process ID (PID) of the current process.
+///
+/// # Returns
+///
+/// The PID of the current process.
 pub fn sys_getpid() -> isize {
     current_process().pid() as isize
 }
 
+/// Creates a duplicate of the current process.
+///
+/// # Returns
+///
+/// Returns the Process ID (PID) of the newly created process to the parent process,
+/// and `0` to the child process.
 pub fn sys_fork() -> isize {
     let current_process = current_process();
     let new_process = current_process.fork();
@@ -49,6 +77,20 @@ pub fn sys_fork() -> isize {
     new_pid as isize
 }
 
+/// Replaces the current process's image with a new process image.
+///
+/// This system call loads a new program into the current process's memory space
+/// and starts its execution. The current process is completely replaced by the new program.
+///
+/// # Arguments
+///
+/// - `path`: A pointer to the null-terminated string representing the file path of the new program.
+/// - `args`: A pointer to the array of arguments for the new program.
+///
+/// # Returns
+///
+/// - The number of arguments (`argc`) on success.
+/// - `-1` if the file cannot be opened.
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -82,8 +124,18 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     }
 }
 
-/// If there is not a child process whose pid is same as given, return -1.
-/// Else if there is a child process but it is still running, return -2.
+/// Waits for a child process to change state.
+///
+/// # Arguments
+///
+/// - `pid`: The PID of the child process. If `-1`, waits for any child process.
+/// - `exit_code_ptr`: A pointer to where the exit code of the child process will be stored.
+///
+/// # Returns
+///
+/// - The PID of the child process if it has exited.
+/// - `-1` if no matching child process exists.
+/// - `-2` if the child process is still running.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let process = current_process();
     // find a child process
@@ -119,6 +171,17 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     // ---- release current PCB lock automatically
 }
 
+/// Sends a signal to a process.
+///
+/// # Arguments
+///
+/// - `pid`: The PID of the process to signal.
+/// - `signal`: The signal to send.
+///
+/// # Returns
+///
+/// - `0` on successfully sending the signal.
+/// - `-1` if the specified process does not exist or the signal is invalid.
 pub fn sys_kill(pid: usize, signal: u32) -> isize {
     if let Some(process) = pid2process(pid) {
         if let Some(flag) = SignalFlags::from_bits(signal) {

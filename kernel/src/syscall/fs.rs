@@ -1,4 +1,4 @@
-//! File and filesystem-related syscalls
+//! File System System Calls
 
 use core::ptr::slice_from_raw_parts;
 
@@ -8,6 +8,19 @@ use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_process, current_user_token};
 
+/// Retrieves the current working directory of the calling process.
+///
+/// This function copies the current working directory into a user-provided buffer, up to the specified `len`.
+///
+/// # Arguments
+///
+/// - `buf`: A pointer to the buffer where the current working directory should be copied.
+/// - `len`: The maximum number of bytes to copy into the buffer.
+///
+/// # Returns
+///
+/// - The length of the directory path if successful.
+/// - `-1` if the buffer is too small.
 pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -28,6 +41,18 @@ pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
     cwd.len() as isize
 }
 
+/// Duplicates an open file descriptor.
+///
+/// Returns a new file descriptor that refers to the same file as the original file descriptor `fd`.
+///
+/// # Arguments
+///
+/// - `fd`: The file descriptor to duplicate.
+///
+/// # Returns
+///
+/// - The new file descriptor if successful.
+/// - `-1` if the original file descriptor is invalid.
 pub fn sys_dup(fd: usize) -> isize {
     let process = current_process();
     let mut process_inner = process.inner_exclusive_access();
@@ -43,6 +68,19 @@ pub fn sys_dup(fd: usize) -> isize {
     }
 }
 
+/// Duplicates an open file descriptor to a specified file descriptor number.
+///
+/// If the target file descriptor `new_fd` is already open, it is silently closed before being reused.
+///
+/// # Arguments
+///
+/// - `old_fd`: The original file descriptor to duplicate.
+/// - `new_fd`: The file descriptor number to duplicate to.
+///
+/// # Returns
+///
+/// - `0` if successful.
+/// - `-1` if either `old_fd` or `new_fd` is invalid.
 pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
     let process = current_process();
     let mut process_inner = process.inner_exclusive_access();
@@ -59,6 +97,17 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
     0
 }
 
+/// Changes the current working directory of the calling process.
+///
+/// # Arguments
+///
+/// - `path`: A pointer to the null-terminated string representing the path to the new directory.
+///
+/// # Returns
+///
+/// - `0` if successful.
+/// - `-1` if no such file.
+/// - `-2` if is not a directory.
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -79,6 +128,17 @@ pub fn sys_chdir(path: *const u8) -> isize {
     }
 }
 
+/// Creates a new directory at the specified path.
+///
+/// # Arguments
+///
+/// - `path`: A pointer to the path where the directory will be created.
+///
+/// # Returns
+///
+/// - `0` on successful creation.
+/// - `-1` if the parent directory does not exist or cannot be accessed.
+/// - `-2` if the directory cannot be created (e.g., due to permissions or if the directory already exists).
 pub fn sys_mkdir(path: *const u8) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -101,6 +161,19 @@ pub fn sys_mkdir(path: *const u8) -> isize {
 
 const AT_REMOVEDIR: u32 = 1;
 
+/// Deletes a file or directory specified by path, with behavior modified by flags.
+///
+/// # Arguments
+///
+/// - `path`: A pointer to the path of the file or directory to delete.
+/// - `flags`: Modification flags (e.g., `AT_REMOVEDIR` to specify directory removal).
+///
+/// # Returns
+///
+/// - `0` on successful deletion,
+/// - `-1` if the path does not exist.
+/// - `-2` if the type does not match (e.g., trying to delete a directory without `AT_REMOVEDIR`).
+/// - `-3` if the directory is not empty.
 pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -138,6 +211,17 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     }
 }
 
+/// Opens or creates a file or directory with specified flags.
+///
+/// # Arguments
+///
+/// - `path`: A pointer to the path of the file or directory.
+/// - `flags`: Operation flags.
+///
+/// # Returns
+///
+/// - A file descriptor on success.
+/// - `-1` on failure.
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -155,6 +239,16 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
     }
 }
 
+/// Closes an open file descriptor.
+///
+/// # Arguments
+///
+/// - `fd`: The file descriptor to close.
+///
+/// # Returns
+///
+/// - `0` on success.
+/// - `-1` if the file descriptor is invalid.
 pub fn sys_close(fd: usize) -> isize {
     let process = current_process();
     let mut process_inner = process.inner_exclusive_access();
@@ -169,6 +263,18 @@ pub fn sys_close(fd: usize) -> isize {
     }
 }
 
+/// Reads data from an open file descriptor into a buffer.
+///
+/// # Arguments
+///
+/// - `fd`: The file descriptor from which to read.
+/// - `buf`: A pointer to the buffer where data will be stored.
+/// - `len`: The maximum number of bytes to read.
+///
+/// # Returns
+///
+/// - The number of bytes read on success.
+/// - `-1` on failure or if the file descriptor is invalid.
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -191,7 +297,18 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     }
 }
 
-/// write buf of length `len`  to a file with `fd`
+/// Writes data to an open file descriptor from a buffer.
+///
+/// # Arguments
+///
+/// - `fd`: The file descriptor to write to.
+/// - `buf`: A pointer to the buffer containing the data to write.
+/// - `len`: The number of bytes to write.
+///
+/// # Returns
+///
+/// - The number of bytes written on success,
+/// - `-1` on failure or if the file descriptor is invalid.
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -214,6 +331,17 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     }
 }
 
+/// Retrieves file status information, writing it to a specified buffer.
+///
+/// # Arguments
+///
+/// - `fd`: The file descriptor of the file.
+/// - `stat`: A pointer to a buffer where file status information will be written.
+///
+/// # Returns
+///
+/// - `0` on success.
+/// - `-1` if the file descriptor is invalid.
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let token = current_user_token();
     let process = current_process();
@@ -242,6 +370,15 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     0
 }
 
+/// Creates a pipe, a unidirectional data channel, and returns file descriptors for the read and write ends.
+///
+/// # Arguments
+///
+/// - `pipe`: A pointer where the file descriptors for the read and write ends of the pipe will be stored.
+///
+/// # Returns
+///
+/// - `0` on success.
 pub fn sys_pipe(pipe: *mut usize) -> isize {
     let token = current_user_token();
     let process = current_process();
