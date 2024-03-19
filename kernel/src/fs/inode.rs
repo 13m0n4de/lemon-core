@@ -168,6 +168,7 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     }
 }
 
+/// Finding an inode using an absolute path
 pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
     path.split('/').try_fold(ROOT_INODE.clone(), |node, name| {
         if !name.is_empty() {
@@ -178,6 +179,7 @@ pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
     })
 }
 
+/// Calculate the absolute path of the input path
 pub fn get_full_path(cwd: &str, path: &str) -> String {
     let resolved_path = if path.starts_with('/') {
         String::from(path)

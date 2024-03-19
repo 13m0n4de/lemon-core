@@ -1,3 +1,5 @@
+//! Thread Management System Calls
+
 use alloc::sync::Arc;
 
 use crate::{
@@ -6,6 +8,20 @@ use crate::{
     trap::{trap_handler, TrapContext},
 };
 
+/// Creates a new thread within the current process.
+///
+/// This function creates a new thread with a specific entry point and an argument. The new thread shares
+/// the same address space as the calling thread but has its own stack and execution context. It is added
+/// to the scheduler for execution.
+///
+/// # Arguments
+///
+/// - `entry`: The entry point address where the new thread starts execution.
+/// - `arg`: An argument passed to the thread's entry point function.
+///
+/// # Returns
+///
+/// - The Thread ID (TID) of the newly created thread on success.
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_task().unwrap();
     let process = task.process.upgrade().unwrap();
@@ -45,6 +61,11 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     new_task_tid as isize
 }
 
+/// Retrieves the Thread ID (TID) of the current thread.
+///
+/// # Returns
+///
+/// The TID of the current thread.
 pub fn sys_gettid() -> isize {
     current_task()
         .unwrap()
@@ -55,6 +76,21 @@ pub fn sys_gettid() -> isize {
         .tid as isize
 }
 
+/// Waits for a thread within the same process to exit and retrieves its exit code.
+///
+/// This function blocks the calling thread until the specified thread exits. It is not possible
+/// for a thread to wait on itself. If the specified thread has already exited, its exit code
+/// is immediately returned and its resources are deallocated.
+///
+/// # Arguments
+///
+/// - `tid`: The TID of the thread to wait for.
+///
+/// # Returns
+///
+/// - The exit code of the waited thread on success.
+/// - `-1` if the thread attempts to wait on itself or if the specified thread does not exist.
+/// - `-2` if the specified thread has not yet exited.
 pub fn sys_waittid(tid: usize) -> i32 {
     let task = current_task().unwrap();
     let process = task.process.upgrade().unwrap();
