@@ -97,7 +97,7 @@ fn main() -> i32 {
                         if let Some(output) = cmd_args.output_file {
                             redirect_io(output, 1, OpenFlags::CREATE | OpenFlags::WRONLY);
                         }
-                        let path = if path.contains("/") {
+                        let path = if path.contains('/') {
                             path.to_string()
                         } else {
                             format!("/bin/{path}")
