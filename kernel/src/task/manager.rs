@@ -31,16 +31,6 @@ impl TaskManager {
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.ready_queue.pop_front()
     }
-
-    pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
-        if let Some(idx) = self
-            .ready_queue
-            .iter()
-            .position(|t| Arc::as_ptr(t) == Arc::as_ptr(&task))
-        {
-            self.ready_queue.remove(idx);
-        }
-    }
 }
 
 lazy_static! {
@@ -65,11 +55,6 @@ pub fn wakeup_task(task: Arc<TaskControlBlock>) {
 /// Pop a task from the ready queue
 pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
-}
-
-/// Remove the task from the ready queue
-pub fn remove_task(task: Arc<TaskControlBlock>) {
-    TASK_MANAGER.exclusive_access().remove(task);
 }
 
 /// Query the PCB based on PID

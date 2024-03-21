@@ -14,28 +14,21 @@ use lazy_static::lazy_static;
 use log::*;
 
 use crate::{
-    fs::{find_inode, open_file, OpenFlags},
+    fs::{open_file, OpenFlags},
     sbi::shutdown,
-    timer::remove_timer,
 };
 
 pub use context::TaskContext;
 pub use manager::{add_task, pid2process, wakeup_task};
+pub use pcb::ProcessControlBlock;
 pub use processor::{
     current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
-    run_tasks,
+    run_tasks, schedule, take_current_task,
 };
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
-pub use tcb::TaskControlBlock;
+pub use tcb::{TaskControlBlock, TaskStatus};
 
-use pcb::ProcessControlBlock;
-use processor::{schedule, take_current_task};
-use tcb::TaskStatus;
-
-use self::{
-    id::TaskUserRes,
-    manager::{remove_from_pid2process, remove_task},
-};
+use self::{id::TaskUserRes, manager::remove_from_pid2process};
 
 lazy_static! {
     /// Global process that init user shell
@@ -48,11 +41,6 @@ lazy_static! {
 
 /// Add init process to the manager
 pub fn init() {
-    let root_inode = find_inode("/").expect("Failed to find inode for '/'.");
-    let procs_inode = root_inode
-        .create_dir("proc")
-        .expect("Failed to create inode for '/proc/'.");
-    procs_inode.set_default_dirent(root_inode.inode_id());
     let _daemon = DAEMON.clone();
 }
 
@@ -86,11 +74,7 @@ pub fn block_current_task() -> *mut TaskContext {
 }
 
 pub fn block_current_and_run_next() {
-    let task = take_current_task().unwrap();
-    let mut task_inner = task.inner_exclusive_access();
-    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
-    task_inner.task_status = TaskStatus::Blocked;
-    drop(task_inner);
+    let task_cx_ptr = block_current_task();
     schedule(task_cx_ptr);
 }
 
@@ -156,7 +140,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
             // Mention that we do not need to consider Mutex/Semaphore since they
             // are limited in a single process. Therefore, the blocked tasks are
             // removed when the PCB is deallocated.
-            remove_inactive_task(task.clone());
             let mut task_inner = task.inner_exclusive_access();
             if let Some(res) = task_inner.res.take() {
                 recycle_res.push(res);
@@ -178,16 +161,10 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         // This is because we are still using the kstack under the TCB
         // of the main thread. This TCB, including its kstack, will be
         // deallocated when the process is reaped via waitpid.
-        process_inner.tasks.truncate(1);
     }
 
     drop(process);
     // we do not have to save task context
     let mut _unused = TaskContext::zero_init();
     schedule(&mut _unused as *mut _);
-}
-
-pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
-    remove_task(task.clone());
-    remove_timer(task.clone());
 }

@@ -1,12 +1,12 @@
 use crate::{
-    fs::{find_inode, File, Stdin, Stdout},
+    fs::{File, Stdin, Stdout},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPIntrFreeCell, UPIntrRefMut},
     trap::{trap_handler, TrapContext},
 };
+
 use alloc::{
-    format,
-    string::{String, ToString},
+    string::String,
     sync::{Arc, Weak},
     vec,
     vec::Vec,
@@ -35,9 +35,9 @@ impl ProcessControlBlock {
         let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
 
         // allocate a pid
-        let pid_handle = pid_alloc();
+        let pid = pid_alloc();
         let process = Arc::new(Self {
-            pid: pid_handle,
+            pid,
             inner: unsafe {
                 UPIntrFreeCell::new(ProcessControlBlockInner {
                     is_zombie: false,
@@ -108,11 +108,6 @@ impl ProcessControlBlock {
         let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
 
-        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0))
-            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'", self.pid.0));
-        cmdline_inode.clear();
-        cmdline_inode.write_at(0, args.join(" ").as_bytes());
-
         // substitute memory_set
         self.inner_exclusive_access().memory_set = memory_set;
         // then we alloc user resource for main thread again
@@ -172,21 +167,6 @@ impl ProcessControlBlock {
         let pid = pid_alloc();
         // copy fd table
         let new_fd_table = parent_inner.fd_table.clone();
-
-        // write proc info
-        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
-        let proc_inode = procs_inode
-            .create_dir(&pid.0.to_string())
-            .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid.0));
-        proc_inode.set_default_dirent(procs_inode.inode_id());
-        let cmdline_inode = proc_inode
-            .create("cmdline")
-            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid.0));
-        if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
-            let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
-            parent_cmdline_inode.read_at(0, &mut cmdline);
-            cmdline_inode.write_at(0, &cmdline);
-        }
 
         // create child process PCB
         let child = Arc::new(Self {
@@ -285,15 +265,5 @@ impl ProcessControlBlockInner {
 
     pub fn task(&self, tid: usize) -> Arc<TaskControlBlock> {
         self.tasks[tid].as_ref().unwrap().clone()
-    }
-}
-
-impl Drop for ProcessControlBlock {
-    fn drop(&mut self) {
-        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
-        if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {
-            proc_inode.delete("cmdline");
-            procs_inode.delete(&self.pid.0.to_string());
-        }
     }
 }
