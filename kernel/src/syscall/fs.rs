@@ -111,13 +111,16 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
     let process = current_process();
-    let mut process_inner = process.inner_exclusive_access();
+    let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
     let path = get_full_path(&process_inner.cwd, &path);
 
+    drop(process_inner);
+
     if let Some(inode) = find_inode(&path) {
         if inode.is_dir() {
+            let mut process_inner = process.inner_exclusive_access();
             process_inner.cwd = path;
             0
         } else {
@@ -146,6 +149,8 @@ pub fn sys_mkdir(path: *const u8) -> isize {
 
     let path = translated_str(token, path);
     let path = get_full_path(&process_inner.cwd, &path);
+
+    drop(process_inner);
 
     let (parent_path, target) = path
         .rsplit_once('/')
@@ -181,6 +186,8 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
 
     let path = translated_str(token, path);
     let path = get_full_path(&process_inner.cwd, &path);
+
+    drop(process_inner);
 
     let (parent_path, target) = path
         .rsplit_once('/')
@@ -225,12 +232,15 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
     let process = current_process();
-    let mut process_inner = process.inner_exclusive_access();
+    let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
     let path = get_full_path(&process_inner.cwd, &path);
 
+    drop(process_inner);
+
     if let Some(inode) = open_file(path.as_str(), OpenFlags::from_bits(flags).unwrap()) {
+        let mut process_inner = process.inner_exclusive_access();
         let fd = process_inner.alloc_fd();
         process_inner.fd_table[fd] = Some(inode);
         fd as isize
@@ -358,6 +368,8 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
         return -1;
     }
     let file = fd_table[fd].clone().unwrap();
+    drop(process_inner);
+
     let stat = Stat::from(file);
     let stat_slice =
         slice_from_raw_parts(&stat as *const _ as *const u8, core::mem::size_of::<Stat>());
