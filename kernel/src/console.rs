@@ -3,7 +3,7 @@
 //! Uses the SBI to send characters to the console.
 //! Implements macros `print!` and `println!` for formatted output.
 
-use crate::sbi::console_putchar;
+use crate::drivers::{chardev::CharDevice, UART};
 use core::fmt::{self, Arguments, Write};
 
 struct Stdout;
@@ -11,7 +11,7 @@ struct Stdout;
 impl Write for Stdout {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         for b in s.bytes() {
-            console_putchar(b as usize);
+            UART.write(b);
         }
         Ok(())
     }
