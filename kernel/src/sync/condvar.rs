@@ -1,6 +1,9 @@
 use alloc::{collections::VecDeque, sync::Arc};
 
-use crate::task::{block_current_and_run_next, current_task, wakeup_task, TaskControlBlock};
+use crate::task::{
+    block_current_and_run_next, block_current_task, current_task, wakeup_task, TaskContext,
+    TaskControlBlock,
+};
 
 use super::{up::UPIntrFreeCell, Mutex};
 
@@ -30,12 +33,19 @@ impl Condvar {
         }
     }
 
-    pub fn wait(&self, mutex: Arc<dyn Mutex>) {
+    pub fn wait_with_mutex(&self, mutex: Arc<dyn Mutex>) {
         mutex.unlock();
-        let mut inner = self.inner.exclusive_access();
-        inner.wait_queue.push_back(current_task().unwrap());
-        drop(inner);
+        self.inner.exclusive_session(|inner| {
+            inner.wait_queue.push_back(current_task().unwrap());
+        });
         block_current_and_run_next();
         mutex.lock();
+    }
+
+    pub fn wait_no_sched(&self) -> *mut TaskContext {
+        self.inner.exclusive_session(|inner| {
+            inner.wait_queue.push_back(current_task().unwrap());
+        });
+        block_current_task()
     }
 }

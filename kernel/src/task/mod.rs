@@ -19,6 +19,7 @@ use crate::{
     timer::remove_timer,
 };
 
+pub use context::TaskContext;
 pub use manager::{add_task, pid2process, wakeup_task};
 pub use processor::{
     current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
@@ -27,7 +28,6 @@ pub use processor::{
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
 pub use tcb::TaskControlBlock;
 
-use context::TaskContext;
 use pcb::ProcessControlBlock;
 use processor::{schedule, take_current_task};
 use tcb::TaskStatus;
@@ -76,6 +76,13 @@ pub fn suspend_current_and_run_next() {
     add_task(task);
     // jump to scheduling cycle.
     schedule(task_cx_ptr);
+}
+
+pub fn block_current_task() -> *mut TaskContext {
+    let task = take_current_task().unwrap();
+    let mut task_inner = task.inner_exclusive_access();
+    task_inner.task_status = TaskStatus::Blocked;
+    &mut task_inner.task_cx as *mut TaskContext
 }
 
 pub fn block_current_and_run_next() {
