@@ -56,6 +56,7 @@ pub fn rust_main() -> ! {
     timer::set_next_trigger();
     board::init();
     task::init();
+    drivers::init();
     task::run_tasks();
     panic!("unreachable in rust_main!");
 }

@@ -1,7 +1,7 @@
 use crate::drivers::{
     chardev::CharDevice,
     plic::{IntrTargetPriority, Plic},
-    UART,
+    BLOCK_DEVICE, UART,
 };
 
 pub const CLOCK_FREQ: usize = 10000000;
@@ -40,6 +40,7 @@ pub fn irq_handler() {
     let mut plic = unsafe { Plic::new(VIRT_PLIC) };
     let intr_src_id = plic.claim(0, IntrTargetPriority::Supervisor);
     match intr_src_id {
+        8 => BLOCK_DEVICE.handle_irq(),
         10 => UART.handle_irq(),
         _ => panic!("unsupported IRQ {}", intr_src_id),
     }

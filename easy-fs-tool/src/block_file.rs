@@ -23,4 +23,8 @@ impl BlockDevice for BlockFile {
             "Not a complete block!"
         );
     }
+
+    fn handle_irq(&self) {
+        unimplemented!()
+    }
 }
