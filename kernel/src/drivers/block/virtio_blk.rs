@@ -8,17 +8,17 @@ use crate::{
         frame_alloc, frame_dealloc, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum,
         StepByOne, VirtAddr,
     },
-    sync::UPSafeCell,
+    sync::UPIntrFreeCell,
 };
 
 const VIRTIO0: usize = 0x10001000;
 
-pub struct VirtIOBlock(UPSafeCell<VirtIOBlk<'static, VirtioHal>>);
+pub struct VirtIOBlock(UPIntrFreeCell<VirtIOBlk<'static, VirtioHal>>);
 
 impl VirtIOBlock {
     pub fn new() -> Self {
         unsafe {
-            Self(UPSafeCell::new(
+            Self(UPIntrFreeCell::new(
                 VirtIOBlk::<VirtioHal>::new(&mut *(VIRTIO0 as *mut VirtIOHeader)).unwrap(),
             ))
         }
@@ -41,7 +41,8 @@ impl BlockDevice for VirtIOBlock {
 }
 
 lazy_static! {
-    static ref QUEUE_FRAMES: UPSafeCell<Vec<FrameTracker>> = unsafe { UPSafeCell::new(Vec::new()) };
+    static ref QUEUE_FRAMES: UPIntrFreeCell<Vec<FrameTracker>> =
+        unsafe { UPIntrFreeCell::new(Vec::new()) };
 }
 
 pub struct VirtioHal;

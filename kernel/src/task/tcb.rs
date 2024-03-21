@@ -1,8 +1,7 @@
 use alloc::sync::{Arc, Weak};
-use core::cell::RefMut;
 
 use crate::mm::PhysPageNum;
-use crate::sync::UPSafeCell;
+use crate::sync::{UPIntrFreeCell, UPIntrRefMut};
 use crate::trap::TrapContext;
 
 use super::context::TaskContext;
@@ -12,7 +11,7 @@ use super::pcb::ProcessControlBlock;
 pub struct TaskControlBlock {
     pub process: Weak<ProcessControlBlock>,
     pub kstack: KernelStack,
-    inner: UPSafeCell<TaskControlBlockInner>,
+    inner: UPIntrFreeCell<TaskControlBlockInner>,
 }
 
 impl TaskControlBlock {
@@ -29,7 +28,7 @@ impl TaskControlBlock {
             process: Arc::downgrade(&process),
             kstack,
             inner: unsafe {
-                UPSafeCell::new(TaskControlBlockInner {
+                UPIntrFreeCell::new(TaskControlBlockInner {
                     res: Some(res),
                     trap_cx_ppn,
                     task_cx: TaskContext::goto_trap_return(kstack_top),
@@ -40,7 +39,7 @@ impl TaskControlBlock {
         }
     }
 
-    pub fn inner_exclusive_access(&self) -> RefMut<'_, TaskControlBlockInner> {
+    pub fn inner_exclusive_access(&self) -> UPIntrRefMut<'_, TaskControlBlockInner> {
         self.inner.exclusive_access()
     }
 

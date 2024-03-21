@@ -7,7 +7,7 @@ use super::{PhysAddr, PhysPageNum};
 use super::{VPNRange, VirtAddr, VirtPageNum};
 use crate::config::MMIO;
 use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE};
-use crate::sync::UPSafeCell;
+use crate::sync::UPIntrFreeCell;
 use alloc::{sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use core::arch::asm;
@@ -30,8 +30,8 @@ extern "C" {
 
 lazy_static! {
     /// The memory set instance of kernel space
-    pub static ref KERNEL_SPACE: Arc<UPSafeCell<MemorySet>> =
-        Arc::new(unsafe { UPSafeCell::new(MemorySet::new_kernel()) });
+    pub static ref KERNEL_SPACE: Arc<UPIntrFreeCell<MemorySet>> =
+        Arc::new(unsafe { UPIntrFreeCell::new(MemorySet::new_kernel()) });
 }
 
 ///Get kernelspace root ppn

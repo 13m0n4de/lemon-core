@@ -1,17 +1,15 @@
+use crate::{
+    fs::{find_inode, File, Stdin, Stdout},
+    mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
+    sync::{Condvar, Mutex, Semaphore, UPIntrFreeCell, UPIntrRefMut},
+    trap::{trap_handler, TrapContext},
+};
 use alloc::{
     format,
     string::{String, ToString},
     sync::{Arc, Weak},
     vec,
     vec::Vec,
-};
-use core::cell::RefMut;
-
-use crate::{
-    fs::{find_inode, File, Stdin, Stdout},
-    mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
-    sync::{Condvar, Mutex, Semaphore, UPSafeCell},
-    trap::{trap_handler, TrapContext},
 };
 
 use super::{
@@ -24,11 +22,11 @@ use super::{
 
 pub struct ProcessControlBlock {
     pub pid: PidHandle,
-    inner: UPSafeCell<ProcessControlBlockInner>,
+    inner: UPIntrFreeCell<ProcessControlBlockInner>,
 }
 
 impl ProcessControlBlock {
-    pub fn inner_exclusive_access(&self) -> RefMut<'_, ProcessControlBlockInner> {
+    pub fn inner_exclusive_access(&self) -> UPIntrRefMut<'_, ProcessControlBlockInner> {
         self.inner.exclusive_access()
     }
 
@@ -41,7 +39,7 @@ impl ProcessControlBlock {
         let process = Arc::new(Self {
             pid: pid_handle,
             inner: unsafe {
-                UPSafeCell::new(ProcessControlBlockInner {
+                UPIntrFreeCell::new(ProcessControlBlockInner {
                     is_zombie: false,
                     memory_set,
                     parent: None,
@@ -194,7 +192,7 @@ impl ProcessControlBlock {
         let child = Arc::new(Self {
             pid,
             inner: unsafe {
-                UPSafeCell::new(ProcessControlBlockInner {
+                UPIntrFreeCell::new(ProcessControlBlockInner {
                     is_zombie: false,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),

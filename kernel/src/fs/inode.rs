@@ -3,7 +3,7 @@ use bitflags::bitflags;
 use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::lazy_static;
 
-use crate::{drivers::BLOCK_DEVICE, mm::UserBuffer, sync::UPSafeCell};
+use crate::{drivers::BLOCK_DEVICE, mm::UserBuffer, sync::UPIntrFreeCell};
 
 use super::{File, StatMode};
 
@@ -12,10 +12,10 @@ use super::{File, StatMode};
 pub struct OSInode {
     readable: bool,
     writable: bool,
-    inner: UPSafeCell<OSInodeInner>,
+    inner: UPIntrFreeCell<OSInodeInner>,
 }
 
-/// The OS inode inner in 'UPSafeCell'
+/// The OS inode inner in 'UPIntrFreeCell'
 pub struct OSInodeInner {
     offset: usize,
     inode: Arc<Inode>,
@@ -27,7 +27,7 @@ impl OSInode {
         Self {
             readable,
             writable,
-            inner: unsafe { UPSafeCell::new(OSInodeInner { offset: 0, inode }) },
+            inner: unsafe { UPIntrFreeCell::new(OSInodeInner { offset: 0, inode }) },
         }
     }
 

@@ -1,7 +1,7 @@
 //! Implementation of [`FrameAllocator`]
 
 use super::{PhysAddr, PhysPageNum};
-use crate::{config::MEMORY_END, sync::UPSafeCell};
+use crate::{config::MEMORY_END, sync::UPIntrFreeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
 use lazy_static::*;
@@ -86,8 +86,8 @@ type FrameAllocatorImpl = StackFrameAllocator;
 
 lazy_static! {
     /// FrameAllocator global instance
-    pub static ref FRAME_ALLOCATOR: UPSafeCell<FrameAllocatorImpl> =
-        unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
+    pub static ref FRAME_ALLOCATOR: UPIntrFreeCell<FrameAllocatorImpl> =
+        unsafe { UPIntrFreeCell::new(FrameAllocatorImpl::new()) };
 }
 
 /// Initiate the frame allocator using `ekernel` and [`MEMORY_END`]

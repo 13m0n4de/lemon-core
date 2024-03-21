@@ -2,10 +2,10 @@ use alloc::{collections::VecDeque, sync::Arc};
 
 use crate::task::{block_current_and_run_next, current_task, wakeup_task, TaskControlBlock};
 
-use super::UPSafeCell;
+use super::UPIntrFreeCell;
 
 pub struct Semaphore {
-    pub inner: UPSafeCell<SemaphoreInner>,
+    pub inner: UPIntrFreeCell<SemaphoreInner>,
 }
 
 pub struct SemaphoreInner {
@@ -17,7 +17,7 @@ impl Semaphore {
     pub fn new(res_count: usize) -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(SemaphoreInner {
+                UPIntrFreeCell::new(SemaphoreInner {
                     count: res_count as isize,
                     wait_queue: VecDeque::new(),
                 })
