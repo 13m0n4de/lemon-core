@@ -43,7 +43,7 @@ display_option := "-nographic"
 machine_option := "-machine virt"
 loader_option := "-device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
 drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
-device_option := "-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"
+device_option := "-device virtio-blk-device,drive=x0"
 qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option + " " + drive_option + " " + device_option
 
 
