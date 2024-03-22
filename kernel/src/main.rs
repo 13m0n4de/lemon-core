@@ -40,8 +40,6 @@ mod trap;
 
 use core::arch::global_asm;
 
-use crate::drivers::{chardev::CharDevice, UART};
-
 global_asm!(include_str!("entry.asm"));
 
 /// the rust entrypoint of OS
@@ -50,7 +48,6 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();
-    UART.init();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();

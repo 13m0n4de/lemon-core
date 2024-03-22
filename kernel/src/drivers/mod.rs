@@ -10,6 +10,7 @@ pub use chardev::UART;
 
 use lazy_static::lazy_static;
 
+use self::chardev::CharDevice;
 use crate::sync::UPIntrFreeCell;
 
 lazy_static! {
@@ -19,4 +20,5 @@ lazy_static! {
 
 pub fn init() {
     *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
+    UART.init();
 }

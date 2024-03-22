@@ -6,7 +6,10 @@ use crate::sync::{Condvar, UPIntrFreeCell};
 use crate::task::schedule;
 use alloc::collections::VecDeque;
 use bitflags::*;
-use volatile::{ReadOnly, Volatile, WriteOnly};
+use core::ops::Add;
+use core::ptr::NonNull;
+use volatile::access::*;
+use volatile::VolatileRef;
 
 bitflags! {
     /// InterruptEnableRegister
@@ -34,60 +37,118 @@ bitflags! {
 }
 
 #[repr(C)]
-#[allow(dead_code)]
 struct ReadWithoutDLAB {
     /// receiver buffer register
-    pub rbr: ReadOnly<u8>,
+    pub rbr: VolatileRef<'static, u8, ReadOnly>,
     /// interrupt enable register
-    pub ier: Volatile<IER>,
+    pub ier: VolatileRef<'static, IER, ReadWrite>,
     /// interrupt identification register
-    pub iir: ReadOnly<u8>,
+    pub iir: VolatileRef<'static, u8, ReadOnly>,
     /// line control register
-    pub lcr: Volatile<u8>,
+    pub lcr: VolatileRef<'static, u8, ReadWrite>,
     /// model control register
-    pub mcr: Volatile<MCR>,
+    pub mcr: VolatileRef<'static, MCR, ReadWrite>,
     /// line status register
-    pub lsr: ReadOnly<LSR>,
+    pub lsr: VolatileRef<'static, LSR, ReadOnly>,
     /// ignore MSR
-    _padding1: ReadOnly<u8>,
+    _padding1: VolatileRef<'static, u8, ReadOnly>,
     /// ignore SCR
-    _padding2: ReadOnly<u8>,
+    _padding2: VolatileRef<'static, u8, ReadOnly>,
 }
 
 #[repr(C)]
-#[allow(dead_code)]
 struct WriteWithoutDLAB {
     /// transmitter holding register
-    pub thr: WriteOnly<u8>,
+    pub thr: VolatileRef<'static, u8, WriteOnly>,
     /// interrupt enable register
-    pub ier: Volatile<IER>,
+    pub ier: VolatileRef<'static, IER, ReadWrite>,
     /// ignore FCR
-    _padding0: ReadOnly<u8>,
+    _padding0: VolatileRef<'static, u8, ReadOnly>,
     /// line control register
-    pub lcr: Volatile<u8>,
+    pub lcr: VolatileRef<'static, u8, ReadWrite>,
     /// modem control register
-    pub mcr: Volatile<MCR>,
+    pub mcr: VolatileRef<'static, MCR, ReadWrite>,
     /// line status register
-    pub lsr: ReadOnly<LSR>,
+    pub lsr: VolatileRef<'static, LSR, ReadOnly>,
     /// ignore other registers
-    _padding1: ReadOnly<u16>,
+    _padding1: VolatileRef<'static, u16, ReadOnly>,
 }
 
 pub struct NS16550aRaw {
-    base_addr: usize,
+    read_end: ReadWithoutDLAB,
+    write_end: WriteWithoutDLAB,
 }
 
 impl NS16550aRaw {
+    pub fn new(base_addr: usize) -> Self {
+        let read_end = unsafe {
+            ReadWithoutDLAB {
+                rbr: VolatileRef::new_read_only(
+                    NonNull::new(base_addr as *mut u8).expect("Base address is null"),
+                ),
+                ier: VolatileRef::new(
+                    NonNull::new(base_addr.add(1) as *mut IER).expect("IER address is null"),
+                ),
+                iir: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(2) as *mut u8).expect("IIR address is null"),
+                ),
+                lcr: VolatileRef::new(
+                    NonNull::new(base_addr.add(3) as *mut u8).expect("LCR address is null"),
+                ),
+                mcr: VolatileRef::new(
+                    NonNull::new(base_addr.add(4) as *mut MCR).expect("MCR address is null"),
+                ),
+                lsr: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(5) as *mut LSR).expect("LSR address is null"),
+                ),
+                _padding1: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(6) as *mut u8).expect("Padding1 address is null"),
+                ),
+                _padding2: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(7) as *mut u8).expect("Padding2 address is null"),
+                ),
+            }
+        };
+
+        let write_end = unsafe {
+            WriteWithoutDLAB {
+                thr: VolatileRef::new_restricted(
+                    WriteOnly,
+                    NonNull::new(base_addr as *mut u8).expect("THR address is null"),
+                ),
+                ier: VolatileRef::new(
+                    NonNull::new(base_addr.add(1) as *mut IER).expect("IER address is null"),
+                ),
+                _padding0: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(2) as *mut u8).expect("Padding0 address is null"),
+                ),
+                lcr: VolatileRef::new(
+                    NonNull::new(base_addr.add(3) as *mut u8).expect("LCR address is null"),
+                ),
+                mcr: VolatileRef::new(
+                    NonNull::new(base_addr.add(4) as *mut MCR).expect("MCR address is null"),
+                ),
+                lsr: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(5) as *mut LSR).expect("LSR address is null"),
+                ),
+                _padding1: VolatileRef::new_read_only(
+                    NonNull::new(base_addr.add(6) as *mut u16).expect("Padding1 address is null"),
+                ),
+            }
+        };
+
+        Self {
+            read_end,
+            write_end,
+        }
+    }
+
     fn read_end(&mut self) -> &mut ReadWithoutDLAB {
-        unsafe { &mut *(self.base_addr as *mut ReadWithoutDLAB) }
+        &mut self.read_end
     }
 
     fn write_end(&mut self) -> &mut WriteWithoutDLAB {
-        unsafe { &mut *(self.base_addr as *mut WriteWithoutDLAB) }
-    }
-
-    pub fn new(base_addr: usize) -> Self {
-        Self { base_addr }
+        &mut self.write_end
     }
 
     pub fn init(&mut self) {
@@ -96,16 +157,16 @@ impl NS16550aRaw {
         mcr |= MCR::DATA_TERMINAL_READY;
         mcr |= MCR::REQUEST_TO_SEND;
         mcr |= MCR::AUX_OUTPUT2;
-        read_end.mcr.write(mcr);
+        read_end.mcr.as_mut_ptr().write(mcr);
         let ier = IER::RX_AVAILABLE;
-        read_end.ier.write(ier);
+        read_end.ier.as_mut_ptr().write(ier);
     }
 
     pub fn read(&mut self) -> Option<u8> {
         let read_end = self.read_end();
-        let lsr = read_end.lsr.read();
+        let lsr = read_end.lsr.as_ptr().read();
         if lsr.contains(LSR::DATA_AVAILABLE) {
-            Some(read_end.rbr.read())
+            Some(read_end.rbr.as_ptr().read())
         } else {
             None
         }
@@ -114,8 +175,8 @@ impl NS16550aRaw {
     pub fn write(&mut self, ch: u8) {
         let write_end = self.write_end();
         loop {
-            if write_end.lsr.read().contains(LSR::THR_EMPTY) {
-                write_end.thr.write(ch);
+            if write_end.lsr.as_ptr().read().contains(LSR::THR_EMPTY) {
+                write_end.thr.as_mut_ptr().write(ch);
                 break;
             }
         }
@@ -138,7 +199,6 @@ impl<const BASE_ADDR: usize> NS16550a<BASE_ADDR> {
             ns16550a: NS16550aRaw::new(BASE_ADDR),
             read_buffer: VecDeque::new(),
         };
-        // inner.ns16550a.init();
         Self {
             inner: unsafe { UPIntrFreeCell::new(inner) },
             condvar: Condvar::new(),

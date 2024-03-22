@@ -13,7 +13,7 @@ bitflags = "2.4.2"
 xmas-elf = "0.9.1"
 easy-fs = { path = "../easy-fs/" }
 virtio-drivers = { git = "https://github.com/rcore-os/virtio-drivers", branch = "rcore-tutorial" } 
-volatile = "0.3.0"
+volatile = "0.5.1"
 
 [features]
 default = ["board_qemu"]
