@@ -161,6 +161,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         // This is because we are still using the kstack under the TCB
         // of the main thread. This TCB, including its kstack, will be
         // deallocated when the process is reaped via waitpid.
+        process_inner.tasks.truncate(1);
     }
 
     drop(process);
