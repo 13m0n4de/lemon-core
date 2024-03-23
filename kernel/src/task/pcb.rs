@@ -1,12 +1,14 @@
 use crate::{
-    fs::{File, Stdin, Stdout},
+    fs::{find_inode, File, Stdin, Stdout, PROC_INODE},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPIntrFreeCell, UPIntrRefMut},
     trap::{trap_handler, TrapContext},
+    DEV_NON_BLOCKING_ACCESS,
 };
 
 use alloc::{
-    string::String,
+    format,
+    string::{String, ToString},
     sync::{Arc, Weak},
     vec,
     vec::Vec,
@@ -143,6 +145,18 @@ impl ProcessControlBlock {
             *translated_mut_ref(new_token, p as *mut u8) = 0;
         }
 
+        // write cmdline
+        *DEV_NON_BLOCKING_ACCESS.exclusive_access() = false;
+        let proc_inode = PROC_INODE
+            .find(&self.pid.0.to_string())
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/'", self.pid.0));
+        let cmdline_inode = proc_inode
+            .find("cmdline")
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'", self.pid.0));
+        cmdline_inode.clear();
+        cmdline_inode.write_at(0, args.join(" ").as_bytes());
+        *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
+
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
             entry_point,
@@ -165,6 +179,7 @@ impl ProcessControlBlock {
         let memory_set = parent_inner.memory_set.clone();
         // alloc a pid
         let pid = pid_alloc();
+        let pid_str = pid.0.to_string();
         // copy fd table
         let new_fd_table = parent_inner.fd_table.clone();
 
@@ -221,6 +236,22 @@ impl ProcessControlBlock {
         // add this thread to scheduler
         add_task(task);
 
+        // write proc info
+        *DEV_NON_BLOCKING_ACCESS.exclusive_access() = false;
+        let proc_inode = PROC_INODE
+            .create_dir(&pid_str)
+            .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid_str));
+        proc_inode.set_default_dirent(PROC_INODE.inode_id());
+        let cmdline_inode = proc_inode
+            .create("cmdline")
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid_str));
+        if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
+            let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
+            parent_cmdline_inode.read_at(0, &mut cmdline);
+            cmdline_inode.write_at(0, &cmdline);
+        }
+        *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
+
         child
     }
 }
@@ -265,5 +296,16 @@ impl ProcessControlBlockInner {
 
     pub fn task(&self, tid: usize) -> Arc<TaskControlBlock> {
         self.tasks[tid].as_ref().unwrap().clone()
+    }
+}
+
+impl Drop for ProcessControlBlock {
+    fn drop(&mut self) {
+        *DEV_NON_BLOCKING_ACCESS.exclusive_access() = false;
+        if let Some(proc_inode) = PROC_INODE.find(&self.pid.0.to_string()) {
+            proc_inode.delete("cmdline");
+            PROC_INODE.delete(&self.pid.0.to_string());
+        }
+        *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
     }
 }

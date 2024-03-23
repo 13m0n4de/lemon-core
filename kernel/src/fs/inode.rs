@@ -118,6 +118,13 @@ lazy_static! {
         root_inode.set_default_dirent(root_inode.inode_id());
         root_inode
     };
+    pub static ref PROC_INODE: Arc<Inode> = {
+        let proc_inode = ROOT_INODE
+            .create_dir("proc")
+            .expect("Failed to create inode for '/proc/'.");
+        proc_inode.set_default_dirent(ROOT_INODE.inode_id());
+        proc_inode
+    };
 }
 
 bitflags! {
