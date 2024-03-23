@@ -3,9 +3,10 @@ use easy_fs::BlockDevice;
 use virtio_drivers::{BlkResp, RespStatus, VirtIOBlk, VirtIOHeader};
 
 use crate::{
-    drivers::{bus::virtio::VirtioHal, DEV_NON_BLOCKING_ACCESS},
+    drivers::bus::virtio::VirtioHal,
     sync::{Condvar, UPIntrFreeCell},
     task::schedule,
+    DEV_NON_BLOCKING_ACCESS,
 };
 
 const VIRTIO0: usize = 0x10008000;

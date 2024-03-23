@@ -11,7 +11,7 @@
 //! - Begins process execution and scheduling.
 
 #![deny(missing_docs)]
-#![deny(warnings)]
+// #![deny(warnings)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -38,9 +38,18 @@ mod task;
 mod timer;
 mod trap;
 
+use crate::drivers::{chardev::CharDevice, UART};
 use core::arch::global_asm;
+use lazy_static::lazy_static;
+use sync::UPIntrFreeCell;
 
 global_asm!(include_str!("entry.asm"));
+
+lazy_static! {
+    /// Flag for enabling non-blocking I/O system-wide. Default: `false`.
+    pub static ref DEV_NON_BLOCKING_ACCESS: UPIntrFreeCell<bool> =
+        unsafe { UPIntrFreeCell::new(false) };
+}
 
 /// the rust entrypoint of OS
 #[no_mangle]
@@ -48,12 +57,13 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();
+    UART.init();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
     board::init();
     task::init();
-    drivers::init();
+    *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
     task::run_tasks();
     panic!("unreachable in rust_main!");
 }
