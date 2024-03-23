@@ -104,6 +104,7 @@ fn main() -> i32 {
                         };
                         exec(&path, &cmd_args.argv);
                         println!("{}: command not found", path);
+                        return -1;
                     } else {
                         let mut exit_code: i32 = 0;
                         let exit_pid = waitpid(pid as usize, &mut exit_code);
