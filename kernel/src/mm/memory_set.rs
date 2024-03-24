@@ -44,6 +44,8 @@ pub fn kernel_token() -> usize {
 pub enum MapType {
     Identical,
     Framed,
+    /// offset of page num
+    Linear(isize),
 }
 
 bitflags! {
@@ -99,6 +101,10 @@ impl MapArea {
                 let frame_ppn = frame.ppn;
                 page_table.insert(vpn, frame);
                 frame_ppn
+            }
+            MapType::Linear(pn_offset) => {
+                assert!(vpn.0 < (1usize << 27)); // check for sv39
+                PhysPageNum((vpn.0 as isize + pn_offset) as usize)
             }
         };
         let pte_flags = PTEFlags::from_bits(self.map_perm.bits()).unwrap();
@@ -202,7 +208,9 @@ impl MemorySet {
         self.page_table.token()
     }
 
-    fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
+    /// Add a new MapArea into this [`MemorySet`]
+    /// Assuming that there are no conflicts in the virtual address space.
+    pub fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
         if let Some(data) = data {
             map_area.copy_data(&mut self.page_table, data);
