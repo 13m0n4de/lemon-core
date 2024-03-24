@@ -11,7 +11,7 @@
 //! - Begins process execution and scheduling.
 
 #![deny(missing_docs)]
-// #![deny(warnings)]
+#![deny(warnings)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -38,7 +38,6 @@ mod task;
 mod timer;
 mod trap;
 
-use crate::drivers::{chardev::CharDevice, UART};
 use core::arch::global_asm;
 use lazy_static::lazy_static;
 use sync::UPIntrFreeCell;
@@ -57,7 +56,7 @@ pub fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();
-    UART.init();
+    drivers::init();
     trap::init();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();

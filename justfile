@@ -38,13 +38,21 @@ objdump := "rust-objdump --arch-name=riscv64"
 objcopy := "rust-objcopy --binary-architecture=riscv64"
 
 # QEMU
-bootloader_option := "-bios " + bootloader
-display_option := "-nographic"
 machine_option := "-machine virt"
+bootloader_option := "-bios " + bootloader
+serial_option := "-serial stdio"
 loader_option := "-device loader,file=" + kernel_bin + ",addr=" + kernel_entry_pa
 drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
-device_option := "-device virtio-blk-device,drive=x0"
-qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option + " " + drive_option + " " + device_option
+blk_device_option := "-device virtio-blk-device,drive=x0"
+gpu_device_option := "-device virtio-gpu-device"
+
+qemu_args := machine_option+ " " + \
+			 bootloader_option + " " + \
+			 serial_option + " " + \
+			 loader_option + " " + \
+			 drive_option + " " + \
+			 blk_device_option + " " + \
+			 gpu_device_option
 
 
 # List available recipes
@@ -78,8 +86,8 @@ build-tests:
 build: build-apps build-efs build-kernel
 
 # Run the kernel in QEMU
-run: build
-    qemu-system-riscv64 {{qemu_args}}
+run gpu="off": build
+	qemu-system-riscv64 {{qemu_args}} -display {{ if gpu == "on" { "sdl" } else { "off" } }}
 
 run-with-tests: build-tests build-efs build-kernel
     # todo!

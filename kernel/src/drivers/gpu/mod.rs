@@ -37,15 +37,16 @@ impl VirtIOGpuWarpper {
             let fb = core::slice::from_raw_parts_mut(frame_buffer.as_mut_ptr(), frame_buffer.len());
 
             let bmp = Bmp::<Rgb888>::from_slice(BMP_DATA).unwrap();
-            let cursor_data: Vec<_> = bmp
-                .as_raw()
-                .image_data()
-                .chunks(3)
-                .flat_map(|chunk| {
-                    let alpha = if chunk == [255, 255, 255] { 0x0 } else { 0xff };
-                    chunk.iter().cloned().chain(core::iter::once(alpha))
-                })
-                .collect();
+            let mut cursor_data = Vec::new();
+            for pixel in bmp.as_raw().image_data().chunks(3) {
+                let alpha = if pixel == [0xFF, 0xFF, 0xFF] {
+                    0x00
+                } else {
+                    0xFF
+                };
+                cursor_data.extend(pixel);
+                cursor_data.push(alpha)
+            }
             virtio
                 .setup_cursor(cursor_data.as_slice(), 50, 50, 50, 50)
                 .unwrap();
