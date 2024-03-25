@@ -11,6 +11,7 @@ mod lang_items;
 #[macro_use]
 pub mod console;
 pub mod fs;
+pub mod gui;
 pub mod process;
 pub mod signal;
 pub mod sync;

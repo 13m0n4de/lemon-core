@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 bitflags = "2.4.2"
 buddy_system_allocator = "0.9.1"
+embedded-graphics = "0.8.1"
 riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
