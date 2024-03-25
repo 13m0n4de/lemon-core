@@ -87,7 +87,7 @@ build: build-apps build-efs build-kernel
 
 # Run the kernel in QEMU
 run gpu="off": build
-	qemu-system-riscv64 {{qemu_args}} -display {{ if gpu == "on" { "sdl" } else { "off" } }}
+	qemu-system-riscv64 {{qemu_args}} -display {{ if gpu == "on" { "sdl" } else { "none" } }}
 
 run-with-tests: build-tests build-efs build-kernel
     # todo!
