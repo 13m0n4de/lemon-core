@@ -1,3 +1,5 @@
+//! Block drivers
+
 mod virtio_blk;
 
 use alloc::sync::Arc;

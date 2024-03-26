@@ -1,3 +1,5 @@
+//! Platform Level Interrupt Controller
+
 pub struct Plic {
     base_addr: usize,
 }

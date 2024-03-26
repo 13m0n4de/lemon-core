@@ -1,3 +1,5 @@
+//! VirtIOHal
+
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
 use virtio_drivers::Hal;
@@ -15,9 +17,9 @@ lazy_static! {
         unsafe { UPIntrFreeCell::new(Vec::new()) };
 }
 
-pub struct VirtioHal;
+pub struct VirtIOHal;
 
-impl Hal for VirtioHal {
+impl Hal for VirtIOHal {
     fn dma_alloc(pages: usize) -> usize {
         let frame = frame_alloc().unwrap();
         let ppn_base = frame.ppn;

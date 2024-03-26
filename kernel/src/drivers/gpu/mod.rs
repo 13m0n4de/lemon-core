@@ -1,4 +1,6 @@
-use super::bus::virtio::VirtioHal;
+//! Graphics Processing Unit (GPU) drivers
+
+use super::bus::virtio::VirtIOHal;
 use crate::sync::UPIntrFreeCell;
 use alloc::{sync::Arc, vec::Vec};
 use core::any::Any;
@@ -23,7 +25,7 @@ pub trait GpuDevice: Send + Sync + Any {
 }
 
 pub struct VirtIOGpuWarpper {
-    gpu: UPIntrFreeCell<VirtIOGpu<'static, VirtioHal>>,
+    gpu: UPIntrFreeCell<VirtIOGpu<'static, VirtIOHal>>,
     fb: &'static [u8],
 }
 
@@ -31,7 +33,7 @@ impl VirtIOGpuWarpper {
     pub fn new() -> Self {
         unsafe {
             let mut virtio =
-                VirtIOGpu::<VirtioHal>::new(&mut *(VIRTIO7 as *mut VirtIOHeader)).unwrap();
+                VirtIOGpu::<VirtIOHal>::new(&mut *(VIRTIO7 as *mut VirtIOHeader)).unwrap();
 
             let frame_buffer = virtio.setup_framebuffer().unwrap();
             let fb = core::slice::from_raw_parts_mut(frame_buffer.as_mut_ptr(), frame_buffer.len());

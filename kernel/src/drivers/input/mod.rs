@@ -1,4 +1,6 @@
-use super::bus::virtio::VirtioHal;
+//! Input device drivers
+
+use super::bus::virtio::VirtIOHal;
 use crate::{
     sync::{Condvar, UPIntrFreeCell},
     task::schedule,
@@ -18,7 +20,7 @@ lazy_static! {
 }
 
 struct VirtIOInputInner {
-    virtio_input: VirtIOInput<'static, VirtioHal>,
+    virtio_input: VirtIOInput<'static, VirtIOHal>,
     events: VecDeque<u64>,
 }
 
@@ -37,7 +39,7 @@ impl VirtIOInputWrapper {
     pub fn new(addr: usize) -> Self {
         let inner = VirtIOInputInner {
             virtio_input: unsafe {
-                VirtIOInput::<VirtioHal>::new(&mut *(addr as *mut VirtIOHeader)).unwrap()
+                VirtIOInput::<VirtIOHal>::new(&mut *(addr as *mut VirtIOHeader)).unwrap()
             },
             events: VecDeque::new(),
         };

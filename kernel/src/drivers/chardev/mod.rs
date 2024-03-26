@@ -1,3 +1,5 @@
+//! Character device drivers
+
 mod ns16550a;
 
 use crate::board::CharDeviceImpl;

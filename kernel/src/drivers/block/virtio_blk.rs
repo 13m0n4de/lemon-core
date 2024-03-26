@@ -1,9 +1,11 @@
+//! VirtIOBlock
+
 use alloc::collections::BTreeMap;
 use easy_fs::BlockDevice;
 use virtio_drivers::{BlkResp, RespStatus, VirtIOBlk, VirtIOHeader};
 
 use crate::{
-    drivers::bus::virtio::VirtioHal,
+    drivers::bus::virtio::VirtIOHal,
     sync::{Condvar, UPIntrFreeCell},
     task::schedule,
     DEV_NON_BLOCKING_ACCESS,
@@ -12,7 +14,7 @@ use crate::{
 const VIRTIO0: usize = 0x10008000;
 
 pub struct VirtIOBlock {
-    virtio_blk: UPIntrFreeCell<VirtIOBlk<'static, VirtioHal>>,
+    virtio_blk: UPIntrFreeCell<VirtIOBlk<'static, VirtIOHal>>,
     condvars: BTreeMap<u16, Condvar>,
 }
 
@@ -20,7 +22,7 @@ impl VirtIOBlock {
     pub fn new() -> Self {
         let virtio_blk = unsafe {
             UPIntrFreeCell::new(
-                VirtIOBlk::<VirtioHal>::new(&mut *(VIRTIO0 as *mut VirtIOHeader)).unwrap(),
+                VirtIOBlk::<VirtIOHal>::new(&mut *(VIRTIO0 as *mut VirtIOHeader)).unwrap(),
             )
         };
         let mut condvars = BTreeMap::new();

@@ -5,9 +5,11 @@
 //! - Include `entry.asm` for initial setup.
 //! - Zero out the .bss section.
 //! - Initialize heap allocator, frame allocator, and kernel space.
+//! - Initialize UART, GPU, KEYBOARD and MOUSE drivers.
 //! - Set CSR `stvec` to the entry point of `__alltraps`.
 //! - Enable the timer interrupt and set up the next timer interrupt
 //! - Adds the init process to the process manager.
+//! - Enable non-blocking I/O
 //! - Begins process execution and scheduling.
 
 #![deny(missing_docs)]
