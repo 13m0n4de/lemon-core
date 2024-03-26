@@ -45,6 +45,8 @@ loader_option := "-device loader,file=" + kernel_bin + ",addr=" + kernel_entry_p
 drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
 blk_device_option := "-device virtio-blk-device,drive=x0"
 gpu_device_option := "-device virtio-gpu-device"
+keyboard_device_option := "-device virtio-keyboard-device"
+mouse_device_option := "-device virtio-mouse-device"
 
 qemu_args := machine_option+ " " + \
 			 bootloader_option + " " + \
@@ -52,7 +54,9 @@ qemu_args := machine_option+ " " + \
 			 loader_option + " " + \
 			 drive_option + " " + \
 			 blk_device_option + " " + \
-			 gpu_device_option
+			 gpu_device_option + " " + \
+             keyboard_device_option + " " + \
+             mouse_device_option
 
 
 # List available recipes
