@@ -101,6 +101,11 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     syscall(SYSCALL_FSTAT, [fd, stat as usize, 0])
 }
 
+/// Terminates the current process with a given exit code.
+///
+/// # Panics
+///
+/// Panics if syscall [`SYSCALL_EXIT`] returns.
 pub fn sys_exit(exit_code: i32) -> ! {
     syscall(SYSCALL_EXIT, [exit_code as usize, 0, 0]);
     panic!("sys_exit never returns!");
@@ -154,7 +159,7 @@ pub fn sys_waittid(tid: usize) -> isize {
 }
 
 pub fn sys_mutex_create(blocking: bool) -> isize {
-    syscall(SYSCALL_MUTEX_CREATE, [blocking as usize, 0, 0])
+    syscall(SYSCALL_MUTEX_CREATE, [usize::from(blocking), 0, 0])
 }
 
 pub fn sys_mutex_lock(id: usize) -> isize {

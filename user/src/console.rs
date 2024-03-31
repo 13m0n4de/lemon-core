@@ -13,7 +13,11 @@ impl Write for Stdout {
         Ok(())
     }
 }
-
+/// Prints the given arguments to the standard output.
+///
+/// # Panics
+///
+/// Panics if writing to `std::io::Stdout` fails.
 pub fn print(args: Arguments) {
     Stdout.write_fmt(args).unwrap();
 }

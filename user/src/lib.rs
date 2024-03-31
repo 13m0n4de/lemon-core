@@ -2,6 +2,12 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
 
 extern crate alloc;
 
@@ -22,8 +28,14 @@ use alloc::vec::Vec;
 use heap_allocator::init_heap;
 use process::exit;
 
+/// Entry point for the application.
+///
+/// # Panics
+///
+/// Panics if it fails to find a null terminator indicating the end of a C-style string.
 #[no_mangle]
 #[link_section = ".text.entry"]
+#[allow(clippy::similar_names)]
 pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     init_heap();
     let args: Vec<&'static str> = (0..argc)
@@ -31,7 +43,7 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
             let str_start = unsafe {
                 ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile()
             };
-            let len = (0usize..)
+            let len = (0usize..usize::MAX)
                 .find(|i| unsafe { ((str_start + *i) as *const u8).read_volatile() == 0 })
                 .unwrap();
             core::str::from_utf8(unsafe {
@@ -45,6 +57,6 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
 
 #[no_mangle]
 #[linkage = "weak"]
-fn main(_argc: usize, _argv: &[&str]) -> i32 {
+extern "Rust" fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
 }

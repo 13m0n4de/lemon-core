@@ -1,6 +1,6 @@
 use bitflags::bitflags;
 
-use crate::syscall::*;
+use crate::syscall::sys_kill;
 
 bitflags! {
     pub struct SignalFlags: i32 {

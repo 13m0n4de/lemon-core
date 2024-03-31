@@ -5,7 +5,10 @@ use alloc::{
 };
 use bitflags::bitflags;
 
-use crate::syscall::*;
+use crate::syscall::{
+    sys_chdir, sys_close, sys_dup, sys_dup2, sys_fstat, sys_getcwd, sys_mkdir, sys_open, sys_pipe,
+    sys_read, sys_unlink, sys_write,
+};
 
 bitflags! {
     pub struct OpenFlags: u32 {
@@ -21,9 +24,9 @@ bitflags! {
     #[derive(PartialEq, Eq, Default)]
     pub struct StatMode: u32 {
         const NULL = 0;
-        const DIR = 0o040000;
-        const REG = 0o100000;
-        const LNK = 0o120000;
+        const DIR = 0o040_000;
+        const REG = 0o100_000;
+        const LNK = 0o120_000;
     }
 }
 
@@ -61,6 +64,11 @@ pub const DIRENT_SIZE: usize = core::mem::size_of::<Dirent>();
 
 pub const AT_REMOVEDIR: u32 = 1;
 
+/// Gets the current working directory and stores it in the provided string buffer.
+///
+/// # Panics
+///
+/// Panics if the current working directory contains invalid UTF-8 sequences.
 pub fn getcwd(s: &mut String) -> isize {
     let mut buffer = vec![0u8; 128];
     let len = sys_getcwd(&mut buffer);
@@ -93,6 +101,7 @@ pub fn chdir(path: &str) -> isize {
     sys_chdir(&path)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn open(path: &str, flags: OpenFlags) -> isize {
     let path = format!("{path}\0");
     sys_open(&path, flags.bits())
@@ -115,5 +124,5 @@ pub fn write(fd: usize, buf: &[u8]) -> isize {
 }
 
 pub fn fstat(fd: usize, stat: &mut Stat) -> isize {
-    sys_fstat(fd, stat as *mut _ as *mut _)
+    sys_fstat(fd, core::ptr::from_mut(stat).cast())
 }

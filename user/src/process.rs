@@ -1,6 +1,7 @@
+use crate::syscall::{
+    sys_exec, sys_exit, sys_fork, sys_get_time, sys_getpid, sys_waitpid, sys_yield,
+};
 use alloc::{format, string::String, vec::Vec};
-
-use crate::syscall::*;
 
 pub fn exit(exit_code: i32) -> ! {
     sys_exit(exit_code)
@@ -35,9 +36,9 @@ pub fn exec<T: AsRef<str>>(path: &str, args: &[T]) -> isize {
 
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(-1, exit_code as *mut _) {
+        match sys_waitpid(-1, core::ptr::from_mut(exit_code)) {
             -2 => {
-                yield_();
+                let _ = yield_();
             }
             // -1 or a real pid
             exit_pid => return exit_pid,
@@ -47,9 +48,9 @@ pub fn wait(exit_code: &mut i32) -> isize {
 
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(pid as isize, exit_code as *mut _) {
+        match sys_waitpid(pid as isize, core::ptr::from_mut(exit_code)) {
             -2 => {
-                yield_();
+                let _ = yield_();
             }
             // -1 or a real pid
             exit_pid => return exit_pid,
