@@ -12,6 +12,7 @@ bootloader := "bootloader" / sbi + "-" + board + ".bin"
 
 # Directories for user applications, EasyFS-CLI, kernel, test cases and user lib
 apps_dir := "apps"
+efs_dir := "easy-fs"
 efs_tool_dir := "easy-fs-tool"
 kernel_dir := "kernel"
 tests_dir := "tests"
@@ -122,6 +123,7 @@ clean:
 # Checks packages to catch common mistakes and improve code.
 clippy:
     cd {{apps_dir}} && just clippy 
+    cd {{efs_dir}} && just clippy
     cd {{efs_tool_dir}} && just clippy
     cd {{kernel_dir}} && just clippy
     cd {{tests_dir}} && just clippy
