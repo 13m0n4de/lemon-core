@@ -4,6 +4,7 @@ use crate::task::current_pcb;
 
 const FB_VADDR: usize = 0x1000_0000;
 
+#[allow(clippy::similar_names)]
 pub fn sys_framebuffer() -> isize {
     let fb = GPU_DEVICE.framebuffer();
 

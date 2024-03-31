@@ -3,7 +3,7 @@
 use alloc::sync::Arc;
 
 use crate::{
-    sync::{Blocking as MutexBlocking, Condvar, Mutex, Semaphore, Spin as MutexSpin},
+    sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore},
     task::{block_current_and_run_next, current_pcb, current_tcb},
     timer,
 };

@@ -95,6 +95,7 @@ impl ProcessControlBlock {
         self.pid.0
     }
 
+    #[allow(clippy::similar_names)]
     pub fn exec(self: &Arc<Self>, elf_data: &[u8], args: &[String]) {
         // only support processes with a single thread
         assert_eq!(self.inner_exclusive_access().thread_count(), 1);

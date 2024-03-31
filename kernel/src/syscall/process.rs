@@ -91,6 +91,7 @@ pub fn sys_fork() -> isize {
 ///
 /// - The number of arguments (`argc`) on success.
 /// - `-1` if the file cannot be opened.
+#[allow(clippy::similar_names)]
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
     let process = current_pcb();

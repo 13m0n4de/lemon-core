@@ -1,12 +1,11 @@
 //! Thread Management System Calls
 
-use alloc::sync::Arc;
-
 use crate::{
     mm::kernel_token,
     task,
     trap::{user_handler, Context},
 };
+use alloc::sync::Arc;
 
 /// Creates a new thread within the current process.
 ///

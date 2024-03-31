@@ -6,6 +6,6 @@ mod semaphore;
 mod up;
 
 pub use condvar::Condvar;
-pub use mutex::{Blocking, Mutex, Spin};
+pub use mutex::{Blocking as MutexBlocking, Mutex, Spin as MutexSpin};
 pub use semaphore::Semaphore;
 pub use up::{UPIntrFreeCell, UPIntrRefMut};
