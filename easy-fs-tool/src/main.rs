@@ -3,7 +3,7 @@
 
 use block_file::BlockFile;
 use clap::Parser;
-use easy_fs::EasyFileSystem;
+use easy_fs::{BlockDevice, EasyFileSystem};
 use std::fs::{read_dir, File, OpenOptions};
 use std::io::Read;
 use std::path::Path;
@@ -28,7 +28,7 @@ fn main() -> std::io::Result<()> {
     let image_path = target_path.join("fs.img");
 
     println!("Initializing the easy-fs image...");
-    let block_file = Arc::new(BlockFile(Mutex::new({
+    let block_file: Arc<dyn BlockDevice> = Arc::new(BlockFile(Mutex::new({
         let f = OpenOptions::new()
             .read(true)
             .write(true)
@@ -40,7 +40,7 @@ fn main() -> std::io::Result<()> {
     })));
 
     // 16 MiB, at most 4095 files
-    let efs = EasyFileSystem::create(block_file, 16 * 2048, 1);
+    let efs = EasyFileSystem::create(&block_file, 16 * 2048, 1);
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     root_inode.set_default_dirent(root_inode.inode_id());
 
