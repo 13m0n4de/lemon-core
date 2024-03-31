@@ -305,7 +305,7 @@ pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
                 let condvar = Arc::clone(condvar);
                 drop(process_inner);
                 drop(process);
-                condvar.wait_with_mutex(mutex);
+                condvar.wait_with_mutex(&mutex);
                 0
             }
             _ => -1,

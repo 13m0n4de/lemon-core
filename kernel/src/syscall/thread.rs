@@ -27,7 +27,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 
     // create a new thread
     let new_task = Arc::new(task::ControlBlock::new(
-        Arc::clone(&process),
+        &process,
         task.inner_exclusive_access()
             .res
             .as_ref()

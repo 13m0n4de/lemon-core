@@ -64,7 +64,7 @@ impl ProcessControlBlock {
         });
 
         // create a main thread, we should allocate ustack and trap_cx here
-        let task = Arc::new(ControlBlock::new(Arc::clone(&process), ustack_base, true));
+        let task = Arc::new(ControlBlock::new(&process, ustack_base, true));
 
         // prepare trap_cx of main thread
         let task_inner = task.inner_exclusive_access();
@@ -82,7 +82,7 @@ impl ProcessControlBlock {
 
         // add main thread to the process
         let mut process_inner = process.inner_exclusive_access();
-        process_inner.tasks.push(Some(Arc::clone(&task)));
+        process_inner.tasks.push(Some(task.clone()));
         drop(process_inner);
         insert_into_pid2process(process.pid(), Arc::clone(&process));
 
@@ -203,7 +203,7 @@ impl ProcessControlBlock {
 
         // create main thread of child process
         let task = Arc::new(ControlBlock::new(
-            child.clone(),
+            &child,
             parent_inner
                 .task(0)
                 .inner_exclusive_access()

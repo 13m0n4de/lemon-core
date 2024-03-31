@@ -28,6 +28,7 @@ pub struct PageTableEntry {
 }
 
 impl PageTableEntry {
+    #[allow(clippy::needless_pass_by_value)]
     pub fn new(ppn: PhysPageNum, flags: PTEFlags) -> Self {
         Self {
             bits: ppn.0 << 10 | flags.bits() as usize,
@@ -88,8 +89,8 @@ impl PageTable {
     }
 
     /// Removes and returns the frame mapping for a [`VirtPageNum`] if it exists.
-    pub fn remove(&mut self, vpn: &VirtPageNum) -> Option<FrameTracker> {
-        self.data_frames.remove(vpn)
+    pub fn remove(&mut self, vpn: VirtPageNum) -> Option<FrameTracker> {
+        self.data_frames.remove(&vpn)
     }
 
     fn find_pte_then_alloc(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {

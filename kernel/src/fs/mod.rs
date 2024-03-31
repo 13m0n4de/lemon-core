@@ -97,6 +97,7 @@ pub fn get_full_path(cwd: &str, path: &str) -> String {
 }
 
 /// Open file with flags
+#[allow(clippy::needless_pass_by_value)]
 pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
     let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);

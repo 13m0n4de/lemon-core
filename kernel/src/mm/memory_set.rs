@@ -116,7 +116,7 @@ impl MapArea {
     #[allow(unused)]
     fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         if self.map_type == MapType::Framed {
-            page_table.remove(&vpn);
+            page_table.remove(vpn);
         }
         page_table.unmap(vpn);
     }

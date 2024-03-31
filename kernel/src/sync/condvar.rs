@@ -31,7 +31,7 @@ impl Condvar {
         }
     }
 
-    pub fn wait_with_mutex(&self, mutex: Arc<dyn Mutex>) {
+    pub fn wait_with_mutex(&self, mutex: &Arc<dyn Mutex>) {
         mutex.unlock();
         self.inner.exclusive_session(|inner| {
             inner.wait_queue.push_back(current_tcb().unwrap());
