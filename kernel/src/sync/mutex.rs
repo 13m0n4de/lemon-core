@@ -1,11 +1,8 @@
-use alloc::{collections::VecDeque, sync::Arc};
-
-use crate::task::{
-    block_current_and_run_next, current_task, suspend_current_and_run_next, wakeup_task,
-    TaskControlBlock,
-};
-
 use super::UPIntrFreeCell;
+use crate::task::{
+    block_current_and_run_next, current_tcb, suspend_current_and_run_next, wakeup, ControlBlock,
+};
+use alloc::{collections::VecDeque, sync::Arc};
 
 /// A trait for Mutex mechanisms, ensuring thread safety.
 pub trait Mutex: Sync + Send {
@@ -58,7 +55,7 @@ pub struct MutexBlocking {
 
 pub struct MutexBlockingInner {
     locked: bool,
-    wait_queue: VecDeque<Arc<TaskControlBlock>>,
+    wait_queue: VecDeque<Arc<ControlBlock>>,
 }
 
 impl MutexBlocking {
@@ -80,7 +77,7 @@ impl Mutex for MutexBlocking {
     fn lock(&self) {
         let mut mutex_inner = self.inner.exclusive_access();
         if mutex_inner.locked {
-            mutex_inner.wait_queue.push_back(current_task().unwrap());
+            mutex_inner.wait_queue.push_back(current_tcb().unwrap());
             drop(mutex_inner);
             block_current_and_run_next();
         } else {
@@ -93,7 +90,7 @@ impl Mutex for MutexBlocking {
         let mut mutex_inner = self.inner.exclusive_access();
         assert!(mutex_inner.locked);
         if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
-            wakeup_task(waking_task);
+            wakeup(waking_task);
         } else {
             mutex_inner.locked = false;
         }

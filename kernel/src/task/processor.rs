@@ -1,41 +1,39 @@
 //! Implementation of [`Processor`]
 
+use super::{
+    context::Context, manager::fetch, pcb::ProcessControlBlock, switch::__switch, tcb::Status,
+    ControlBlock,
+};
+use crate::{sync::UPIntrFreeCell, trap::Context as TrapContext};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
-use crate::{sync::UPIntrFreeCell, trap::TrapContext};
-
-use super::{
-    context::TaskContext, manager::fetch_task, pcb::ProcessControlBlock, switch::__switch,
-    tcb::TaskStatus, TaskControlBlock,
-};
-
 /// Processor management structure
 pub struct Processor {
-    current: Option<Arc<TaskControlBlock>>,
-    idle_task_cx: TaskContext,
+    current: Option<Arc<ControlBlock>>,
+    idle_task_cx: Context,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Self {
             current: None,
-            idle_task_cx: TaskContext::zero_init(),
+            idle_task_cx: Context::zero_init(),
         }
     }
 
     /// Get current task in moving semanteme
-    pub fn take_current(&mut self) -> Option<Arc<TaskControlBlock>> {
+    pub fn take_current(&mut self) -> Option<Arc<ControlBlock>> {
         self.current.take()
     }
 
     /// Get current task in cloning semanteme
-    pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
+    pub fn current(&self) -> Option<Arc<ControlBlock>> {
         self.current.clone()
     }
 
     /// Get mutable reference to `idle_task_cx`
-    fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
+    fn idle_task_cx_ptr(&mut self) -> *mut Context {
         core::ptr::from_mut(&mut self.idle_task_cx)
     }
 }
@@ -46,34 +44,34 @@ lazy_static! {
 }
 
 /// take the thread that the current processor is executing
-pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn take_current_tcb() -> Option<Arc<ControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
 /// Current TCB
-pub fn current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn current_tcb() -> Option<Arc<ControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
 /// Current PCB
-pub fn current_process() -> Arc<ProcessControlBlock> {
-    current_task().unwrap().process.upgrade().unwrap()
+pub fn current_pcb() -> Arc<ProcessControlBlock> {
+    current_tcb().unwrap().process.upgrade().unwrap()
 }
 
 /// Current satp
 pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     task.user_token()
 }
 
 /// Current trap context
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task().unwrap().inner_exclusive_access().trap_cx()
+    current_tcb().unwrap().inner_exclusive_access().trap_cx()
 }
 
 /// Virtual address of current trap context
 pub fn current_trap_cx_user_va() -> usize {
-    current_task()
+    current_tcb()
         .unwrap()
         .inner_exclusive_access()
         .res
@@ -87,14 +85,14 @@ pub fn current_trap_cx_user_va() -> usize {
 /// `__switch`
 pub fn run_tasks() {
     loop {
-        if let Some(task) = fetch_task() {
+        if let Some(task) = fetch() {
             let mut processor = PROCESSOR.exclusive_access();
             let idle_task_cx_ptr = processor.idle_task_cx_ptr();
 
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
-            let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
-            task_inner.task_status = TaskStatus::Running;
+            let next_task_cx_ptr = &task_inner.task_cx as *const Context;
+            task_inner.task_status = Status::Running;
             drop(task_inner);
 
             // release coming task TCB manually
@@ -108,7 +106,7 @@ pub fn run_tasks() {
 }
 
 /// Return to idle control flow for new scheduling
-pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
+pub fn schedule(switched_task_cx_ptr: *mut Context) {
     let mut processor = PROCESSOR.exclusive_access();
     let idle_task_cx_ptr = processor.idle_task_cx_ptr();
     drop(processor);

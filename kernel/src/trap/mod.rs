@@ -4,10 +4,12 @@
 //! - On trap, system jumps to `__alltraps`.
 //!   - saves context.
 //!   - switches stack form user to kernel.
-//!   - call [`trap_handler`]
+//!   - call [`user_handler`] or [`kernel_handler`]
 //! - Handle [`Exception`] and [`Interrupt`]
 
 mod context;
+
+pub use context::Context;
 
 use crate::{
     config::TRAMPOLINE,
@@ -17,7 +19,7 @@ use crate::{
         current_trap_cx_user_va, current_user_token, exit_current_and_run_next,
         suspend_current_and_run_next, SignalFlags,
     },
-    timer::{check_timer, set_next_trigger},
+    timer,
 };
 use core::arch::{asm, global_asm};
 use log::debug;
@@ -31,7 +33,7 @@ global_asm!(include_str!("trap.S"));
 
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
-pub extern "C" fn trap_handler() -> ! {
+pub extern "C" fn user_handler() -> ! {
     set_kernel_trap_entry();
     let mut cx = current_trap_cx();
     let scause = scause::read(); // get trap cause
@@ -71,8 +73,8 @@ pub extern "C" fn trap_handler() -> ! {
             add_signal_to_current(SignalFlags::SIGILL);
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            set_next_trigger();
-            check_timer();
+            timer::set_next_trigger();
+            timer::check();
             suspend_current_and_run_next();
         }
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -93,14 +95,14 @@ pub extern "C" fn trap_handler() -> ! {
         exit_current_and_run_next(errno);
     }
 
-    trap_return()
+    leave()
 }
 
 /// set the new addr of __restore asm function in TRAMPOLINE page,
 /// set the reg a0 = `trap_cx_ptr`, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 #[no_mangle]
-pub extern "C" fn trap_return() -> ! {
+pub extern "C" fn leave() -> ! {
     extern "C" {
         fn __alltraps();
         fn __restore();
@@ -125,7 +127,7 @@ pub extern "C" fn trap_return() -> ! {
 }
 
 #[no_mangle]
-pub extern "C" fn trap_from_kernel() {
+pub extern "C" fn kernel_handler() {
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {
@@ -133,8 +135,8 @@ pub extern "C" fn trap_from_kernel() {
             crate::board::irq_handler();
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
-            set_next_trigger();
-            check_timer();
+            timer::set_next_trigger();
+            timer::check();
             // do not schedule now
         }
         cause => {
@@ -167,7 +169,7 @@ fn set_kernel_trap_entry() {
     let __alltraps_k_va = __alltraps_k as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
         stvec::write(__alltraps_k_va, TrapMode::Direct);
-        sscratch::write(trap_from_kernel as usize);
+        sscratch::write(kernel_handler as usize);
     }
 }
 
@@ -188,5 +190,3 @@ fn disable_supervisor_interrupt() {
         sstatus::clear_sie();
     }
 }
-
-pub use context::TrapContext;

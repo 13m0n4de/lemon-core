@@ -1,20 +1,22 @@
+use super::{
+    context::Context,
+    id::{kstack_alloc, KernelStack, TaskUserRes},
+    pcb::ProcessControlBlock,
+};
+use crate::{
+    mm::PhysPageNum,
+    sync::{UPIntrFreeCell, UPIntrRefMut},
+    trap::Context as TrapContext,
+};
 use alloc::sync::{Arc, Weak};
 
-use crate::mm::PhysPageNum;
-use crate::sync::{UPIntrFreeCell, UPIntrRefMut};
-use crate::trap::TrapContext;
-
-use super::context::TaskContext;
-use super::id::{kstack_alloc, KernelStack, TaskUserRes};
-use super::pcb::ProcessControlBlock;
-
-pub struct TaskControlBlock {
+pub struct ControlBlock {
     pub process: Weak<ProcessControlBlock>,
     pub kstack: KernelStack,
     inner: UPIntrFreeCell<TaskControlBlockInner>,
 }
 
-impl TaskControlBlock {
+impl ControlBlock {
     pub fn new(
         process: Arc<ProcessControlBlock>,
         ustack_base: usize,
@@ -31,8 +33,8 @@ impl TaskControlBlock {
                 UPIntrFreeCell::new(TaskControlBlockInner {
                     res: Some(res),
                     trap_cx_ppn,
-                    task_cx: TaskContext::goto_trap_return(kstack_top),
-                    task_status: TaskStatus::Ready,
+                    task_cx: Context::leave_trap(kstack_top),
+                    task_status: Status::Ready,
                     exit_code: None,
                 })
             },
@@ -53,8 +55,8 @@ impl TaskControlBlock {
 pub struct TaskControlBlockInner {
     pub res: Option<TaskUserRes>,
     pub trap_cx_ppn: PhysPageNum,
-    pub task_cx: TaskContext,
-    pub task_status: TaskStatus,
+    pub task_cx: Context,
+    pub task_status: Status,
     pub exit_code: Option<i32>,
 }
 
@@ -65,7 +67,7 @@ impl TaskControlBlockInner {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum TaskStatus {
+pub enum Status {
     Ready,
     Running,
     Blocked,

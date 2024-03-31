@@ -9,24 +9,23 @@ mod signal;
 mod switch;
 mod tcb;
 
-use alloc::{sync::Arc, vec::Vec};
-use lazy_static::lazy_static;
-use log::info;
-
 use crate::{
     fs::{open_file, OpenFlags},
     sbi::shutdown,
 };
+use alloc::{sync::Arc, vec::Vec};
+use lazy_static::lazy_static;
+use log::info;
 
-pub use context::TaskContext;
-pub use manager::{add_task, pid2process, wakeup_task};
+pub use context::Context;
+pub use manager::{add, pid2process, wakeup};
 pub use pcb::ProcessControlBlock;
 pub use processor::{
-    current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
-    run_tasks, schedule, take_current_task,
+    current_pcb, current_tcb, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    run_tasks, schedule, take_current_tcb,
 };
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
-pub use tcb::{TaskControlBlock, TaskStatus};
+pub use tcb::{ControlBlock, Status};
 
 use self::{id::TaskUserRes, manager::remove_from_pid2process};
 
@@ -50,37 +49,37 @@ pub const IDLE_PID: usize = 0;
 /// Suspend the current 'Running' task and run the next task in task list
 pub fn suspend_current_and_run_next() {
     // There must be an application running.
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
 
     // --- access current TCB exclusively
     let mut task_inner = task.inner_exclusive_access();
-    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    let task_cx_ptr = &mut task_inner.task_cx as *mut Context;
     // change status to Ready
-    task_inner.task_status = TaskStatus::Ready;
+    task_inner.task_status = Status::Ready;
     drop(task_inner);
     // --- release current TCB
 
     // push back to ready queue.
-    add_task(task);
+    add(task);
     // jump to scheduling cycle.
     schedule(task_cx_ptr);
 }
 
-pub fn block_current_task() -> *mut TaskContext {
-    let task = take_current_task().unwrap();
+pub fn block_current() -> *mut Context {
+    let task = take_current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
-    task_inner.task_status = TaskStatus::Blocked;
-    core::ptr::from_mut::<TaskContext>(&mut task_inner.task_cx)
+    task_inner.task_status = Status::Blocked;
+    core::ptr::from_mut::<Context>(&mut task_inner.task_cx)
 }
 
 pub fn block_current_and_run_next() {
-    let task_cx_ptr = block_current_task();
+    let task_cx_ptr = block_current();
     schedule(task_cx_ptr);
 }
 
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     let process = task.process.upgrade().unwrap();
     let tid = task_inner.res.as_ref().unwrap().tid;
@@ -166,5 +165,5 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     drop(process);
     // we do not have to save task context
-    schedule(core::ptr::from_mut(&mut TaskContext::zero_init()));
+    schedule(core::ptr::from_mut(&mut Context::zero_init()));
 }

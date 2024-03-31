@@ -1,25 +1,22 @@
+use super::{
+    id::{pid_alloc, PidHandle, RecycleAllocator},
+    manager::{add, insert_into_pid2process},
+    tcb::ControlBlock,
+    SignalFlags,
+};
 use crate::{
     fs::{find_inode, File, Stdin, Stdout, PROC_INODE},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPIntrFreeCell, UPIntrRefMut},
-    trap::{trap_handler, TrapContext},
+    trap::{user_handler, Context},
     DEV_NON_BLOCKING_ACCESS,
 };
-
 use alloc::{
     format,
     string::{String, ToString},
     sync::{Arc, Weak},
     vec,
     vec::Vec,
-};
-
-use super::{
-    add_task,
-    id::{pid_alloc, PidHandle, RecycleAllocator},
-    manager::insert_into_pid2process,
-    tcb::TaskControlBlock,
-    SignalFlags,
 };
 
 pub struct ProcessControlBlock {
@@ -67,11 +64,7 @@ impl ProcessControlBlock {
         });
 
         // create a main thread, we should allocate ustack and trap_cx here
-        let task = Arc::new(TaskControlBlock::new(
-            Arc::clone(&process),
-            ustack_base,
-            true,
-        ));
+        let task = Arc::new(ControlBlock::new(Arc::clone(&process), ustack_base, true));
 
         // prepare trap_cx of main thread
         let task_inner = task.inner_exclusive_access();
@@ -79,12 +72,12 @@ impl ProcessControlBlock {
         let ustack_top = task_inner.res.as_ref().unwrap().ustack_top();
         let kstack_top = task.kstack.top();
         drop(task_inner);
-        *trap_cx = TrapContext::app_init_context(
+        *trap_cx = Context::app_init_context(
             entry_point,
             ustack_top,
             KERNEL_SPACE.exclusive_access().token(),
             kstack_top,
-            trap_handler as usize,
+            user_handler as usize,
         );
 
         // add main thread to the process
@@ -94,7 +87,7 @@ impl ProcessControlBlock {
         insert_into_pid2process(process.pid(), Arc::clone(&process));
 
         // add main thread to scheduler
-        add_task(task);
+        add(task);
         process
     }
 
@@ -158,12 +151,12 @@ impl ProcessControlBlock {
         *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
 
         // initialize trap_cx
-        let mut trap_cx = TrapContext::app_init_context(
+        let mut trap_cx = Context::app_init_context(
             entry_point,
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             task.kstack.top(),
-            trap_handler as usize,
+            user_handler as usize,
         );
         trap_cx.x[10] = argc;
         trap_cx.x[11] = argv_base;
@@ -208,7 +201,7 @@ impl ProcessControlBlock {
         parent_inner.children.push(child.clone());
 
         // create main thread of child process
-        let task = Arc::new(TaskControlBlock::new(
+        let task = Arc::new(ControlBlock::new(
             child.clone(),
             parent_inner
                 .task(0)
@@ -234,7 +227,7 @@ impl ProcessControlBlock {
         insert_into_pid2process(child.pid(), child.clone());
 
         // add this thread to scheduler
-        add_task(task);
+        add(task);
 
         // write proc info
         *DEV_NON_BLOCKING_ACCESS.exclusive_access() = false;
@@ -265,7 +258,7 @@ pub struct ProcessControlBlockInner {
     pub cwd: String,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub signals: SignalFlags,
-    pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
+    pub tasks: Vec<Option<Arc<ControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
     pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
@@ -294,7 +287,7 @@ impl ProcessControlBlockInner {
         self.tasks.len()
     }
 
-    pub fn task(&self, tid: usize) -> Arc<TaskControlBlock> {
+    pub fn task(&self, tid: usize) -> Arc<ControlBlock> {
         self.tasks[tid].as_ref().unwrap().clone()
     }
 }

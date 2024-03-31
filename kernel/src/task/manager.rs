@@ -7,15 +7,15 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
 use super::pcb::ProcessControlBlock;
-use super::tcb::{TaskControlBlock, TaskStatus};
+use super::tcb::{ControlBlock, Status};
 
 /// A array of `TaskControlBlock` that is thread-safe
-pub struct TaskManager {
-    ready_queue: VecDeque<Arc<TaskControlBlock>>,
+pub struct Manager {
+    ready_queue: VecDeque<Arc<ControlBlock>>,
 }
 
 /// A simple FIFO scheduler
-impl TaskManager {
+impl Manager {
     pub fn new() -> Self {
         Self {
             ready_queue: VecDeque::new(),
@@ -23,37 +23,37 @@ impl TaskManager {
     }
 
     /// Add a task to [`TaskManager`]
-    pub fn add(&mut self, task: Arc<TaskControlBlock>) {
+    pub fn add(&mut self, task: Arc<ControlBlock>) {
         self.ready_queue.push_back(task);
     }
 
     /// Remove the first task and return it,or [`None`] if [`TaskManager`] is empty
-    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
+    pub fn fetch(&mut self) -> Option<Arc<ControlBlock>> {
         self.ready_queue.pop_front()
     }
 }
 
 lazy_static! {
-    static ref TASK_MANAGER: UPIntrFreeCell<TaskManager> =
-        unsafe { UPIntrFreeCell::new(TaskManager::new()) };
+    static ref TASK_MANAGER: UPIntrFreeCell<Manager> =
+        unsafe { UPIntrFreeCell::new(Manager::new()) };
     static ref PID2PCB: UPIntrFreeCell<BTreeMap<usize, Arc<ProcessControlBlock>>> =
         unsafe { UPIntrFreeCell::new(BTreeMap::new()) };
 }
 
 /// Add the thread to the ready queue
-pub fn add_task(task: Arc<TaskControlBlock>) {
+pub fn add(task: Arc<ControlBlock>) {
     TASK_MANAGER.exclusive_access().add(task);
 }
 
-pub fn wakeup_task(task: Arc<TaskControlBlock>) {
+pub fn wakeup(task: Arc<ControlBlock>) {
     let mut task_inner = task.inner_exclusive_access();
-    task_inner.task_status = TaskStatus::Ready;
+    task_inner.task_status = Status::Ready;
     drop(task_inner);
-    add_task(task);
+    add(task);
 }
 
 /// Pop a task from the ready queue
-pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
+pub fn fetch() -> Option<Arc<ControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
 

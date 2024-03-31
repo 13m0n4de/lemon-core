@@ -1,6 +1,6 @@
 use crate::drivers::GPU_DEVICE;
 use crate::mm::{MapArea, MapPermission, MapType, PhysAddr, VirtAddr};
-use crate::task::current_process;
+use crate::task::current_pcb;
 
 const FB_VADDR: usize = 0x1000_0000;
 
@@ -14,7 +14,7 @@ pub fn sys_framebuffer() -> isize {
     let fb_start_vpn = VirtAddr::from(FB_VADDR).as_vpn_by_floor();
     let pn_offset = fb_start_ppn.0 as isize - fb_start_vpn.0 as isize;
 
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     process_inner.memory_set.push(

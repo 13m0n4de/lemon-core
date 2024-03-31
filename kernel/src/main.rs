@@ -15,7 +15,6 @@
 #![deny(missing_docs)]
 #![deny(warnings)]
 #![deny(clippy::all)]
-#![deny(clippy::cargo)]
 #![deny(clippy::pedantic)]
 #![no_std]
 #![no_main]

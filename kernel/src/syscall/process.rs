@@ -7,7 +7,7 @@ use crate::{
     fs::{get_full_path, open_file, OpenFlags},
     mm::{translated_mut_ref, translated_ref, translated_str},
     task::{
-        current_process, current_user_token, exit_current_and_run_next, pid2process,
+        current_pcb, current_user_token, exit_current_and_run_next, pid2process,
         suspend_current_and_run_next, SignalFlags,
     },
     timer::get_time_ms,
@@ -54,7 +54,7 @@ pub fn sys_get_time() -> isize {
 ///
 /// The PID of the current process.
 pub fn sys_getpid() -> isize {
-    current_process().pid() as isize
+    current_pcb().pid() as isize
 }
 
 /// Creates a duplicate of the current process.
@@ -64,7 +64,7 @@ pub fn sys_getpid() -> isize {
 /// Returns the Process ID (PID) of the newly created process to the parent process,
 /// and `0` to the child process.
 pub fn sys_fork() -> isize {
-    let current_process = current_process();
+    let current_process = current_pcb();
     let new_process = current_process.fork();
     let new_pid = new_process.pid();
     // modify trap context of new_task, because it returns immediately after switching
@@ -93,7 +93,7 @@ pub fn sys_fork() -> isize {
 /// - `-1` if the file cannot be opened.
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -137,7 +137,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 /// - `-1` if no matching child process exists.
 /// - `-2` if the child process is still running.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     // find a child process
 
     // ---- access current TCB exclusively
