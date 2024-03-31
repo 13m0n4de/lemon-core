@@ -34,7 +34,7 @@ impl BlockCache {
 
     /// Get the address of an offset inside the cached block data
     fn addr_of_offset(&self, offset: usize) -> usize {
-        &self.cache[offset] as *const _ as usize
+        core::ptr::from_ref(&self.cache[offset]) as usize
     }
 
     pub fn as_ref<T>(&self, offset: usize) -> &T
@@ -76,7 +76,7 @@ impl BlockCache {
 
 impl Drop for BlockCache {
     fn drop(&mut self) {
-        self.sync()
+        self.sync();
     }
 }
 
@@ -92,30 +92,28 @@ impl BlockCacheManager {
     pub fn get_block_cache(
         &mut self,
         block_id: usize,
-        block_device: Arc<dyn BlockDevice>,
+        block_device: &Arc<dyn BlockDevice>,
     ) -> Arc<Mutex<BlockCache>> {
-        match self.queue.iter().find(|(id, _)| *id == block_id) {
-            Some((_, cache)) => cache.clone(),
-            None => {
-                // substitute
-                if self.queue.len() == BLOCK_CACHE_SIZE {
-                    if let Some((idx, _)) = self
-                        .queue
-                        .iter()
-                        .enumerate()
-                        .find(|(_, (_, cache))| Arc::strong_count(cache) == 1)
-                    {
-                        self.queue.swap_remove(idx);
-                    } else {
-                        panic!("Run out of BlockCache");
-                    }
+        if let Some((_, cache)) = self.queue.iter().find(|(id, _)| *id == block_id) {
+            cache.clone()
+        } else {
+            // substitute
+            if self.queue.len() == BLOCK_CACHE_SIZE {
+                if let Some((idx, _)) = self
+                    .queue
+                    .iter()
+                    .enumerate()
+                    .find(|(_, (_, cache))| Arc::strong_count(cache) == 1)
+                {
+                    self.queue.swap_remove(idx);
+                } else {
+                    panic!("Run out of BlockCache");
                 }
-                // load block into mem and push back
-                let block_cache =
-                    Arc::new(Mutex::new(BlockCache::new(block_id, block_device.clone())));
-                self.queue.push((block_id, Arc::clone(&block_cache)));
-                block_cache
             }
+            // load block into mem and push back
+            let block_cache = Arc::new(Mutex::new(BlockCache::new(block_id, block_device.clone())));
+            self.queue.push((block_id, Arc::clone(&block_cache)));
+            block_cache
         }
     }
 }
@@ -127,7 +125,7 @@ lazy_static! {
 
 pub fn get_block_cache(
     block_id: usize,
-    block_device: Arc<dyn BlockDevice>,
+    block_device: &Arc<dyn BlockDevice>,
 ) -> Arc<Mutex<BlockCache>> {
     BLOCK_CACHE_MANAGER
         .lock()
@@ -136,7 +134,7 @@ pub fn get_block_cache(
 
 pub fn block_cache_sync_all() {
     let manager = BLOCK_CACHE_MANAGER.lock();
-    for (_, cache) in manager.queue.iter() {
+    for (_, cache) in &manager.queue {
         cache.lock().sync();
     }
 }

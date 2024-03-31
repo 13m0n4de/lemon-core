@@ -34,14 +34,14 @@ impl Inode {
 
     /// Call a function over a disk inode to read it
     fn read_disk_inode<V>(&self, f: impl FnOnce(&DiskInode) -> V) -> V {
-        get_block_cache(self.block_id, Arc::clone(&self.block_device))
+        get_block_cache(self.block_id, &self.block_device)
             .lock()
             .read(self.block_offset, f)
     }
 
     /// Call a function over a disk inode to modify it
     fn modify_disk_inode<V>(&self, f: impl FnOnce(&mut DiskInode) -> V) -> V {
-        get_block_cache(self.block_id, Arc::clone(&self.block_device))
+        get_block_cache(self.block_id, &self.block_device)
             .lock()
             .modify(self.block_offset, f)
     }
@@ -133,7 +133,7 @@ impl Inode {
         let new_inode_id = fs.alloc_inode();
         // initialize inode
         let (new_inode_block_id, new_inode_block_offset) = fs.disk_inode_position(new_inode_id);
-        get_block_cache(new_inode_block_id as usize, Arc::clone(&self.block_device))
+        get_block_cache(new_inode_block_id as usize, &self.block_device)
             .lock()
             .modify(new_inode_block_offset, |new_inode: &mut DiskInode| {
                 new_inode.initialize(inode_type);
@@ -186,7 +186,7 @@ impl Inode {
             let size = disk_inode.size;
             let data_blocks_dealloc = disk_inode.clear_size(&self.block_device);
             assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
-            for &data_block in data_blocks_dealloc.iter() {
+            for &data_block in &data_blocks_dealloc {
                 fs.dealloc_data(data_block);
             }
         });
@@ -237,7 +237,7 @@ impl Inode {
                     self.decrease_size(new_size as u32, dir_inode, &mut fs);
                 }
             }
-        })
+        });
     }
 
     /// Set the default `DirEntry` for the current file
@@ -259,7 +259,7 @@ impl Inode {
         });
     }
 
-    /// Get inode_id
+    /// Get `inode_id`
     pub fn inode_id(&self) -> u32 {
         self.fs
             .lock()
@@ -273,11 +273,11 @@ impl Inode {
 
     /// Whether this inode is a directory
     pub fn is_dir(&self) -> bool {
-        self.read_disk_inode(|disk_inode| disk_inode.is_dir())
+        self.read_disk_inode(super::layout::DiskInode::is_dir)
     }
 
     /// Whether this inode is a file
     pub fn is_file(&self) -> bool {
-        self.read_disk_inode(|disk_inode| disk_inode.is_file())
+        self.read_disk_inode(super::layout::DiskInode::is_file)
     }
 }
