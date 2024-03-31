@@ -3,6 +3,8 @@
 #![no_std]
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
 
 extern crate alloc;
 
