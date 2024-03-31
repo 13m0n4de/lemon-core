@@ -5,10 +5,10 @@ use crate::task::{block_current_and_run_next, current_tcb, wakeup, ControlBlock}
 use super::UPIntrFreeCell;
 
 pub struct Semaphore {
-    pub inner: UPIntrFreeCell<SemaphoreInner>,
+    pub inner: UPIntrFreeCell<Inner>,
 }
 
-pub struct SemaphoreInner {
+pub struct Inner {
     pub count: isize,
     pub wait_queue: VecDeque<Arc<ControlBlock>>,
 }
@@ -17,7 +17,7 @@ impl Semaphore {
     pub fn new(res_count: usize) -> Self {
         Self {
             inner: unsafe {
-                UPIntrFreeCell::new(SemaphoreInner {
+                UPIntrFreeCell::new(Inner {
                     count: res_count as isize,
                     wait_queue: VecDeque::new(),
                 })

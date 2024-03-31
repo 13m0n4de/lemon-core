@@ -6,10 +6,10 @@ use crate::task::{block_current, block_current_and_run_next, current_tcb};
 use super::{up::UPIntrFreeCell, Mutex};
 
 pub struct Condvar {
-    pub inner: UPIntrFreeCell<CondvarInner>,
+    pub inner: UPIntrFreeCell<Inner>,
 }
 
-pub struct CondvarInner {
+pub struct Inner {
     pub wait_queue: VecDeque<Arc<task::ControlBlock>>,
 }
 
@@ -17,7 +17,7 @@ impl Condvar {
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPIntrFreeCell::new(CondvarInner {
+                UPIntrFreeCell::new(Inner {
                     wait_queue: VecDeque::new(),
                 })
             },

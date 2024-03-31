@@ -3,9 +3,9 @@
 use alloc::sync::Arc;
 
 use crate::{
-    sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore},
+    sync::{Blocking as MutexBlocking, Condvar, Mutex, Semaphore, Spin as MutexSpin},
     task::{block_current_and_run_next, current_pcb, current_tcb},
-    timer::{add, get_time_ms},
+    timer,
 };
 
 /// Puts the current task to sleep for a specified duration.
@@ -23,9 +23,9 @@ use crate::{
 ///
 /// Always returns `0` to indicate successful sleep operation.
 pub fn sys_sleep(ms: usize) -> isize {
-    let expire_ms = get_time_ms() + ms;
+    let expire_ms = timer::get_time_ms() + ms;
     let task = current_tcb().unwrap();
-    add(expire_ms, task);
+    timer::add(expire_ms, task);
     block_current_and_run_next();
     0
 }

@@ -13,11 +13,11 @@ pub trait Mutex: Sync + Send {
 }
 
 /// A spinning mutex implementation.
-pub struct MutexSpin {
+pub struct Spin {
     locked: UPIntrFreeCell<bool>,
 }
 
-impl MutexSpin {
+impl Spin {
     /// Creates a new, unlocked spinning mutex.
     pub fn new() -> Self {
         Self {
@@ -26,7 +26,7 @@ impl MutexSpin {
     }
 }
 
-impl Mutex for MutexSpin {
+impl Mutex for Spin {
     /// Locks the mutex using a spin-wait loop.
     fn lock(&self) {
         loop {
@@ -49,21 +49,21 @@ impl Mutex for MutexSpin {
 }
 
 /// A blocking mutex implementation.
-pub struct MutexBlocking {
-    inner: UPIntrFreeCell<MutexBlockingInner>,
+pub struct Blocking {
+    inner: UPIntrFreeCell<BlockingInner>,
 }
 
-pub struct MutexBlockingInner {
+pub struct BlockingInner {
     locked: bool,
     wait_queue: VecDeque<Arc<ControlBlock>>,
 }
 
-impl MutexBlocking {
+impl Blocking {
     /// Creates a new, unlocked blocking mutex.
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPIntrFreeCell::new(MutexBlockingInner {
+                UPIntrFreeCell::new(BlockingInner {
                     locked: false,
                     wait_queue: VecDeque::new(),
                 })
@@ -72,7 +72,7 @@ impl MutexBlocking {
     }
 }
 
-impl Mutex for MutexBlocking {
+impl Mutex for Blocking {
     /// Locks the mutex, blocking the current thread if the mutex is already locked.
     fn lock(&self) {
         let mut mutex_inner = self.inner.exclusive_access();
