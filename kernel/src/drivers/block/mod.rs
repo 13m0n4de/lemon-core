@@ -8,6 +8,7 @@ use lazy_static::lazy_static;
 
 use crate::board::BlockDeviceImpl;
 
+#[allow(clippy::module_name_repetitions)]
 pub use virtio_blk::VirtIOBlock;
 
 lazy_static! {
@@ -15,7 +16,7 @@ lazy_static! {
 }
 
 #[allow(unused)]
-pub fn block_device_test() {
+pub fn test() {
     let block_device = BLOCK_DEVICE.clone();
     let mut write_buffer = [0u8; 512];
     let mut read_buffer = [0u8; 512];

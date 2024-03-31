@@ -1,4 +1,4 @@
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use easy_fs::{EasyFileSystem, Inode};
 use lazy_static::lazy_static;
@@ -9,6 +9,7 @@ use super::{File, StatMode};
 
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
+#[allow(clippy::module_name_repetitions)]
 pub struct OSInode {
     readable: bool,
     writable: bool,
@@ -143,40 +144,8 @@ bitflags! {
     }
 }
 
-/// Open file with flags
-pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
-    let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
-    let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
-
-    if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = find_inode(path) {
-            if inode.is_file() {
-                // clear size
-                inode.clear();
-            }
-            Some(Arc::new(OSInode::new(readable, writable, inode)))
-        } else {
-            let (parent_path, target) = match path.rsplit_once('/') {
-                Some((parent_path, target)) => (parent_path, target),
-                None => ("", path),
-            };
-            let parent_inode = find_inode(parent_path)?;
-            parent_inode
-                .create(target)
-                .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
-        }
-    } else {
-        find_inode(path).map(|inode| {
-            if flags.contains(OpenFlags::TRUNC) {
-                inode.clear();
-            }
-            Arc::new(OSInode::new(readable, writable, inode))
-        })
-    }
-}
-
 /// Finding an inode using an absolute path
-pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
+pub fn find(path: &str) -> Option<Arc<Inode>> {
     path.split('/').try_fold(ROOT_INODE.clone(), |node, name| {
         if name.is_empty() {
             Some(node)
@@ -184,29 +153,4 @@ pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
             node.find(name)
         }
     })
-}
-
-/// Calculate the absolute path of the input path
-pub fn get_full_path(cwd: &str, path: &str) -> String {
-    let resolved_path = if path.starts_with('/') {
-        String::from(path)
-    } else {
-        String::from(cwd) + "/" + path
-    };
-
-    let mut parts = Vec::new();
-
-    for part in resolved_path.split('/') {
-        match part {
-            "" | "." => {}
-            ".." => {
-                parts.pop();
-            }
-            _ => {
-                parts.push(part);
-            }
-        }
-    }
-
-    String::from("/") + &parts.join("/")
 }

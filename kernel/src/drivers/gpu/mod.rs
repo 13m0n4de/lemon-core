@@ -17,6 +17,7 @@ static BMP_DATA: &[u8] = include_bytes!("../../../assets/cursor.bmp");
 
 const VIRTIO7: usize = 0x1000_7000;
 
+#[allow(clippy::module_name_repetitions)]
 pub trait GpuDevice: Send + Sync + Any {
     #[allow(unused)]
     fn update_cursor(&self);

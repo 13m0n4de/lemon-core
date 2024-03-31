@@ -29,6 +29,7 @@ struct VirtIOInputWrapper {
     condvar: Condvar,
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub trait InputDevice: Send + Sync + Any {
     fn read_event(&self) -> u64;
     fn is_empty(&self) -> bool;

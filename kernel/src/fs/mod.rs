@@ -5,11 +5,13 @@ mod pipe;
 mod stdio;
 
 use crate::mm::UserBuffer;
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc, vec::Vec};
 use bitflags::bitflags;
-pub use inode::{find_inode, get_full_path, open_file, OpenFlags, PROC_INODE};
-pub use pipe::make_pipe;
+pub use inode::{find as find_inode, OpenFlags, PROC_INODE};
+pub use pipe::make as make_pipe;
 pub use stdio::{Stdin, Stdout};
+
+use self::inode::OSInode;
 
 /// File trait
 pub trait File: Send + Sync {
@@ -66,5 +68,62 @@ bitflags! {
         const DIR = 0o040_000;
         const REG = 0o100_000;
         const LNK = 0o120_000;
+    }
+}
+
+/// Calculate the absolute path of the input path
+pub fn get_full_path(cwd: &str, path: &str) -> String {
+    let resolved_path = if path.starts_with('/') {
+        String::from(path)
+    } else {
+        String::from(cwd) + "/" + path
+    };
+
+    let mut parts = Vec::new();
+
+    for part in resolved_path.split('/') {
+        match part {
+            "" | "." => {}
+            ".." => {
+                parts.pop();
+            }
+            _ => {
+                parts.push(part);
+            }
+        }
+    }
+
+    String::from("/") + &parts.join("/")
+}
+
+/// Open file with flags
+pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
+    let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
+    let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
+
+    if flags.contains(OpenFlags::CREATE) {
+        if let Some(inode) = find_inode(path) {
+            if inode.is_file() {
+                // clear size
+                inode.clear();
+            }
+            Some(Arc::new(OSInode::new(readable, writable, inode)))
+        } else {
+            let (parent_path, target) = match path.rsplit_once('/') {
+                Some((parent_path, target)) => (parent_path, target),
+                None => ("", path),
+            };
+            let parent_inode = find_inode(parent_path)?;
+            parent_inode
+                .create(target)
+                .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
+        }
+    } else {
+        find_inode(path).map(|inode| {
+            if flags.contains(OpenFlags::TRUNC) {
+                inode.clear();
+            }
+            Arc::new(OSInode::new(readable, writable, inode))
+        })
     }
 }
