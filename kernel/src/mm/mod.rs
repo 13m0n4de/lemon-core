@@ -18,15 +18,15 @@ mod page_table;
 pub use address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
 pub use frame_allocator::{frame_alloc, frame_dealloc, FrameTracker};
 pub use memory_set::{kernel_token, MapArea, MapPermission, MapType, MemorySet, KERNEL_SPACE};
-pub use page_table::{PTEFlags, PageTable, PageTableEntry};
+pub use page_table::{Entry, PTEFlags, PageTable};
 
 use address::VPNRange;
 use alloc::{string::String, vec::Vec};
 
 /// Initiate heap allocator, frame allocator, kernel space.
 pub fn init() {
-    heap_allocator::init_heap();
-    frame_allocator::init_frame_allocator();
+    heap_allocator::init();
+    frame_allocator::init();
     KERNEL_SPACE.exclusive_access().activate();
 }
 

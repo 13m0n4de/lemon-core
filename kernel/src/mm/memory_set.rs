@@ -1,13 +1,14 @@
 //! Implementation of [`MapArea`] and [`MemorySet`].
 
-use super::frame_alloc;
-use super::StepByOne;
-use super::{PTEFlags, PageTable, PageTableEntry};
-use super::{PhysAddr, PhysPageNum};
-use super::{VPNRange, VirtAddr, VirtPageNum};
-use crate::config::MMIO;
-use crate::config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE};
-use crate::sync::UPIntrFreeCell;
+use super::{
+    frame_alloc, Entry, PTEFlags, PageTable, PhysAddr, PhysPageNum, StepByOne, VPNRange, VirtAddr,
+    VirtPageNum,
+};
+use crate::{
+    config::MMIO,
+    config::{MEMORY_END, PAGE_SIZE, TRAMPOLINE},
+    sync::UPIntrFreeCell,
+};
 use alloc::{sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use core::arch::asm;
@@ -199,7 +200,7 @@ impl MemorySet {
     }
 
     /// Translates a [`VirtPageNum`] to a [`PageTableEntry`] if it exists.
-    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<Entry> {
         self.page_table.translate(vpn)
     }
 

@@ -22,11 +22,11 @@ bitflags! {
 /// Page Table Entry
 #[repr(C)]
 #[derive(Copy, Clone)]
-pub struct PageTableEntry {
+pub struct Entry {
     bits: usize,
 }
 
-impl PageTableEntry {
+impl Entry {
     pub fn new(ppn: PhysPageNum, flags: PTEFlags) -> Self {
         Self {
             bits: ppn.0 << 10 | flags.bits() as usize,
@@ -91,7 +91,7 @@ impl PageTable {
         self.data_frames.remove(vpn)
     }
 
-    fn find_pte_then_alloc(&mut self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+    fn find_pte_then_alloc(&mut self, vpn: VirtPageNum) -> Option<&mut Entry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
 
@@ -99,7 +99,7 @@ impl PageTable {
             let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
-                *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
+                *pte = Entry::new(frame.ppn, PTEFlags::V);
                 self.metadata_frames.push(frame);
             }
             ppn = pte.ppn();
@@ -107,7 +107,7 @@ impl PageTable {
         ppn.as_mut_pte_array().get_mut(idxs[2])
     }
 
-    fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut PageTableEntry> {
+    fn find_pte(&self, vpn: VirtPageNum) -> Option<&mut Entry> {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
 
@@ -126,14 +126,14 @@ impl PageTable {
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.find_pte_then_alloc(vpn).unwrap();
         assert!(!pte.is_valid(), "vpn {vpn:?} is mapped before mapping");
-        *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
+        *pte = Entry::new(ppn, flags | PTEFlags::V);
     }
 
     /// Remove a key-value pair from the multi-level page table
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
         assert!(pte.is_valid(), "vpn {vpn:?} is invalid before unmapping");
-        *pte = PageTableEntry::empty();
+        *pte = Entry::empty();
     }
 
     /// Temporarily used to get arguments from user space.
@@ -146,7 +146,7 @@ impl PageTable {
     }
 
     /// Translates a [`VirtPageNum`] to a [`PageTableEntry`] if it exists.
-    pub fn translate(&self, vpn: VirtPageNum) -> Option<PageTableEntry> {
+    pub fn translate(&self, vpn: VirtPageNum) -> Option<Entry> {
         self.find_pte(vpn).map(|pte| *pte)
     }
 

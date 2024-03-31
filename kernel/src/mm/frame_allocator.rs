@@ -38,20 +38,20 @@ trait FrameAllocator {
 }
 
 /// An implementation for frame allocator
-pub struct StackFrameAllocator {
+pub struct Allocator {
     current: usize,
     end: usize,
     recycled: Vec<usize>,
 }
 
-impl StackFrameAllocator {
+impl Allocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
     }
 }
 
-impl FrameAllocator for StackFrameAllocator {
+impl FrameAllocator for Allocator {
     fn new() -> Self {
         Self {
             current: 0,
@@ -83,7 +83,7 @@ impl FrameAllocator for StackFrameAllocator {
     }
 }
 
-type FrameAllocatorImpl = StackFrameAllocator;
+type FrameAllocatorImpl = Allocator;
 
 lazy_static! {
     /// FrameAllocator global instance
@@ -92,7 +92,7 @@ lazy_static! {
 }
 
 /// Initiate the frame allocator using `ekernel` and [`MEMORY_END`]
-pub fn init_frame_allocator() {
+pub fn init() {
     extern "C" {
         fn ekernel();
     }
@@ -118,7 +118,7 @@ pub fn frame_dealloc(ppn: PhysPageNum) {
 
 /// A simple test for frame allocator
 #[allow(unused)]
-pub fn frame_allocator_test() {
+pub fn test() {
     let mut v: Vec<FrameTracker> = Vec::new();
 
     for i in 0..5 {

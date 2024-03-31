@@ -1,6 +1,6 @@
 //! Implementation of physical and virtual address and page number.
 
-use super::PageTableEntry;
+use super::Entry;
 use crate::config::{PAGE_SIZE, PAGE_SIZE_BITS};
 use core::fmt::{self, Debug, Formatter};
 
@@ -213,9 +213,9 @@ impl From<VirtPageNum> for VirtAddr {
 * PhysPageNum
 */
 impl PhysPageNum {
-    pub fn as_mut_pte_array(&self) -> &'static mut [PageTableEntry] {
+    pub fn as_mut_pte_array(&self) -> &'static mut [Entry] {
         let pa: PhysAddr = (*self).into();
-        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut PageTableEntry, 512) }
+        unsafe { core::slice::from_raw_parts_mut(pa.0 as *mut Entry, 512) }
     }
 
     pub fn as_mut_bytes_array(&self) -> &'static mut [u8] {
