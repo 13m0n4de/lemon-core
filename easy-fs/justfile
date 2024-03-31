@@ -1,0 +1,6 @@
+# List available recipes
+default:
+    just --list
+
+clippy:
+    cargo clippy --release
