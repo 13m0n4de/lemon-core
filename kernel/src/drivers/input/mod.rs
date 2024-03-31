@@ -10,8 +10,8 @@ use core::any::Any;
 use lazy_static::lazy_static;
 use virtio_drivers::{VirtIOHeader, VirtIOInput};
 
-const VIRTIO5: usize = 0x10005000;
-const VIRTIO6: usize = 0x10006000;
+const VIRTIO5: usize = 0x1000_5000;
+const VIRTIO6: usize = 0x1000_6000;
 
 lazy_static! {
     pub static ref KEYBOARD_DEVICE: Arc<dyn InputDevice> =
@@ -56,11 +56,10 @@ impl InputDevice for VirtIOInputWrapper {
             let mut inner = self.inner.exclusive_access();
             if let Some(event) = inner.events.pop_front() {
                 return event;
-            } else {
-                let task_cx_ptr = self.condvar.wait_no_sched();
-                drop(inner);
-                schedule(task_cx_ptr);
             }
+            let task_cx_ptr = self.condvar.wait_no_sched();
+            drop(inner);
+            schedule(task_cx_ptr);
         }
     }
 
@@ -74,9 +73,9 @@ impl InputDevice for VirtIOInputWrapper {
         self.inner.exclusive_session(|inner| {
             while let Some((_token, event)) = inner.virtio_input.pop_pending_event() {
                 count += 1;
-                let result = (event.event_type as u64) << 48
-                    | (event.code as u64) << 32
-                    | (event.value as u64);
+                let result = u64::from(event.event_type) << 48
+                    | u64::from(event.code) << 32
+                    | u64::from(event.value);
                 inner.events.push_back(result);
             }
         });

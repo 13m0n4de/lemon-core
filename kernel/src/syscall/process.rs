@@ -1,7 +1,7 @@
 //! Process Management System Calls
 
 use alloc::{sync::Arc, vec::Vec};
-use log::*;
+use log::trace;
 
 use crate::{
     fs::{get_full_path, open_file, OpenFlags},

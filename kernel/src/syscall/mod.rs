@@ -45,12 +45,20 @@ mod process;
 mod sync;
 mod thread;
 
-use fs::*;
-use gui::*;
-use input::*;
-use process::*;
-use sync::*;
-use thread::*;
+use fs::{
+    sys_chdir, sys_close, sys_dup, sys_dup2, sys_fstat, sys_getcwd, sys_mkdir, sys_open, sys_pipe,
+    sys_read, sys_unlink, sys_write,
+};
+use gui::{sys_framebuffer, sys_framebuffer_flush};
+use input::{sys_event_get, sys_key_pressed};
+use process::{
+    sys_exec, sys_exit, sys_fork, sys_get_time, sys_getpid, sys_kill, sys_waitpid, sys_yield,
+};
+use sync::{
+    sys_condvar_create, sys_condvar_signal, sys_condvar_wait, sys_mutex_create, sys_mutex_lock,
+    sys_mutex_unlock, sys_semaphore_create, sys_semaphore_down, sys_semaphore_up, sys_sleep,
+};
+use thread::{sys_gettid, sys_thread_create, sys_waittid};
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {

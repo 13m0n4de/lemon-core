@@ -278,11 +278,11 @@ impl ProcessControlBlockInner {
     }
 
     pub fn dealloc_tid(&mut self, tid: usize) {
-        self.task_res_allocator.dealloc(tid)
+        self.task_res_allocator.dealloc(tid);
     }
 
     pub fn alloc_fd(&mut self) -> usize {
-        if let Some(idx) = self.fd_table.iter().position(|fd| fd.is_none()) {
+        if let Some(idx) = self.fd_table.iter().position(core::option::Option::is_none) {
             idx
         } else {
             self.fd_table.push(None);

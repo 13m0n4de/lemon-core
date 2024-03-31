@@ -7,10 +7,10 @@ use super::CharDevice;
 use crate::sync::{Condvar, UPIntrFreeCell};
 use crate::task::schedule;
 use alloc::collections::VecDeque;
-use bitflags::*;
+use bitflags::bitflags;
 use core::ops::Add;
 use core::ptr::NonNull;
-use volatile::access::*;
+use volatile::access::{ReadOnly, ReadWrite, WriteOnly};
 use volatile::VolatileRef;
 
 bitflags! {
@@ -207,7 +207,6 @@ impl<const BASE_ADDR: usize> NS16550a<BASE_ADDR> {
         }
     }
 
-    #[allow(unused)]
     pub fn is_read_buffer_empty(&self) -> bool {
         self.inner
             .exclusive_session(|inner| inner.read_buffer.is_empty())
@@ -226,17 +225,18 @@ impl<const BASE_ADDR: usize> CharDevice for NS16550a<BASE_ADDR> {
             let mut inner = self.inner.exclusive_access();
             if let Some(ch) = inner.read_buffer.pop_front() {
                 return ch;
-            } else {
-                let task_cx_ptr = self.condvar.wait_no_sched();
-                drop(inner);
-                schedule(task_cx_ptr);
             }
+            let task_cx_ptr = self.condvar.wait_no_sched();
+            drop(inner);
+            schedule(task_cx_ptr);
         }
     }
+
     fn write(&self, ch: u8) {
         let mut inner = self.inner.exclusive_access();
         inner.ns16550a.write(ch);
     }
+
     fn handle_irq(&self) {
         let mut count = 0;
         self.inner.exclusive_session(|inner| {

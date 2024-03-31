@@ -4,7 +4,7 @@ use super::{PhysAddr, PhysPageNum};
 use crate::{config::MEMORY_END, sync::UPIntrFreeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
-use lazy_static::*;
+use lazy_static::lazy_static;
 
 /// Manage a frame which has the same lifecycle as the tracker
 pub struct FrameTracker {
@@ -74,9 +74,10 @@ impl FrameAllocator for StackFrameAllocator {
     fn dealloc(&mut self, ppn: PhysPageNum) {
         let ppn = ppn.0;
         // validity check
-        if ppn >= self.current || self.recycled.iter().any(|&v| v == ppn) {
-            panic!("Frame ppn={:#x} has not been allocated!", ppn);
-        }
+        assert!(
+            !(ppn >= self.current || self.recycled.iter().any(|&v| v == ppn)),
+            "Frame ppn={ppn:#x} has not been allocated!"
+        );
         // recycle
         self.recycled.push(ppn);
     }

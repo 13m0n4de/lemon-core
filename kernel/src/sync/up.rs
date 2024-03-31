@@ -91,7 +91,7 @@ impl<T> UPIntrFreeCell<T> {
         F: FnOnce(&mut T) -> V,
     {
         let mut inner = self.exclusive_access();
-        f(inner.deref_mut())
+        f(&mut *inner)
     }
 }
 
@@ -105,12 +105,12 @@ impl<'a, T> Drop for UPIntrRefMut<'a, T> {
 impl<'a, T> Deref for UPIntrRefMut<'a, T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
-        self.0.as_ref().unwrap().deref()
+        self.0.as_ref().unwrap()
     }
 }
 
 impl<'a, T> DerefMut for UPIntrRefMut<'a, T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.0.as_mut().unwrap().deref_mut()
+        self.0.as_mut().unwrap()
     }
 }

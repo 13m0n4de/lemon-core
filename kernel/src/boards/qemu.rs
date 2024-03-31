@@ -4,12 +4,12 @@ use crate::drivers::{
     BLOCK_DEVICE, KEYBOARD_DEVICE, MOUSE_DEVICE, UART,
 };
 
-pub const CLOCK_FREQ: usize = 10000000;
+pub const CLOCK_FREQ: usize = 10_000_000;
 pub const MEMORY_END: usize = 0x8800_0000;
 
 // https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c
 pub const MMIO: &[(usize, usize)] = &[
-    (0x0010_0000, 0x00_2000), // VIRT_TEST/RTC  in virt machine
+    (0x0010_0000, 0x00_0200), // VIRT_TEST/RTC  in virt machine
     (0x0C00_0000, 0x21_0000), // VIRT_PLIC in virt machine
     (0x1000_0000, 0x00_9000), // VIRT_UART0 with GPU  in virt machine
 ];

@@ -56,8 +56,7 @@ impl RecycleAllocator {
         assert!(id < self.current);
         assert!(
             !self.recycled.iter().any(|recycled_id| *recycled_id == id),
-            "id {} has been deallocated!",
-            id
+            "id {id} has been deallocated!"
         );
         self.recycled.push(id);
     }

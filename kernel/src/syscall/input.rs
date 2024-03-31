@@ -14,9 +14,5 @@ pub fn sys_event_get() -> isize {
 }
 
 pub fn sys_key_pressed() -> isize {
-    if UART.is_read_buffer_empty() {
-        0
-    } else {
-        1
-    }
+    isize::from(!UART.is_read_buffer_empty())
 }

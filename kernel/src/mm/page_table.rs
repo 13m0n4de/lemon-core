@@ -2,7 +2,7 @@
 
 use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use alloc::{collections::BTreeMap, vec, vec::Vec};
-use bitflags::*;
+use bitflags::bitflags;
 
 bitflags! {
     /// [`PageTableEntry`] flags
@@ -37,27 +37,27 @@ impl PageTableEntry {
         Self { bits: 0 }
     }
 
-    pub fn ppn(&self) -> PhysPageNum {
+    pub fn ppn(self) -> PhysPageNum {
         (self.bits >> 10 & ((1usize << 44) - 1)).into()
     }
 
-    pub fn flags(&self) -> PTEFlags {
+    pub fn flags(self) -> PTEFlags {
         PTEFlags::from_bits(self.bits as u8).unwrap()
     }
 
-    pub fn is_valid(&self) -> bool {
+    pub fn is_valid(self) -> bool {
         (self.flags() & PTEFlags::V) != PTEFlags::empty()
     }
 
-    pub fn is_readable(&self) -> bool {
+    pub fn is_readable(self) -> bool {
         (self.flags() & PTEFlags::R) != PTEFlags::empty()
     }
 
-    pub fn is_writable(&self) -> bool {
+    pub fn is_writable(self) -> bool {
         (self.flags() & PTEFlags::W) != PTEFlags::empty()
     }
 
-    pub fn is_executable(&self) -> bool {
+    pub fn is_executable(self) -> bool {
         (self.flags() & PTEFlags::X) != PTEFlags::empty()
     }
 }
@@ -95,7 +95,7 @@ impl PageTable {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
 
-        for &idx in idxs[..2].iter() {
+        for &idx in &idxs[..2] {
             let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 let frame = frame_alloc().unwrap();
@@ -111,7 +111,7 @@ impl PageTable {
         let idxs = vpn.indexes();
         let mut ppn = self.root_ppn;
 
-        for &idx in idxs[..2].iter() {
+        for &idx in &idxs[..2] {
             let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
                 return None;
@@ -125,14 +125,14 @@ impl PageTable {
     /// Insert a key-value pair into the multi-level page table
     pub fn map(&mut self, vpn: VirtPageNum, ppn: PhysPageNum, flags: PTEFlags) {
         let pte = self.find_pte_then_alloc(vpn).unwrap();
-        assert!(!pte.is_valid(), "vpn {:?} is mapped before mapping", vpn);
+        assert!(!pte.is_valid(), "vpn {vpn:?} is mapped before mapping");
         *pte = PageTableEntry::new(ppn, flags | PTEFlags::V);
     }
 
     /// Remove a key-value pair from the multi-level page table
     pub fn unmap(&mut self, vpn: VirtPageNum) {
         let pte = self.find_pte(vpn).unwrap();
-        assert!(pte.is_valid(), "vpn {:?} is invalid before unmapping", vpn);
+        assert!(pte.is_valid(), "vpn {vpn:?} is invalid before unmapping");
         *pte = PageTableEntry::empty();
     }
 
@@ -152,7 +152,7 @@ impl PageTable {
 
     /// Translates a [`VirtAddr`] to a [`PhysAddr`]
     pub fn translate_va(&self, va: VirtAddr) -> Option<PhysAddr> {
-        self.find_pte(va.clone().as_vpn_by_floor()).map(|pte| {
+        self.find_pte(va.as_vpn_by_floor()).map(|pte| {
             let aligned_pa: PhysAddr = pte.ppn().into();
             let offset = va.page_offset();
             let aligned_pa_usize: usize = aligned_pa.into();

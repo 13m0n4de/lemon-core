@@ -16,12 +16,12 @@ pub struct TrapContext {
     pub kernel_satp: usize,
     /// kernel stack
     pub kernel_sp: usize,
-    /// Addr of trap_handler function
+    /// Addr of `trap_handler` function
     pub trap_handler: usize,
 }
 
 impl TrapContext {
-    /// set stack pointer to x_2 reg (sp)
+    /// set stack pointer to `x_2` reg (sp)
     pub fn set_sp(&mut self, sp: usize) {
         self.x[2] = sp;
     }

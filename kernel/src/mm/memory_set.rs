@@ -12,7 +12,7 @@ use alloc::{sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use core::arch::asm;
 use lazy_static::lazy_static;
-use log::*;
+use log::{info, trace};
 use riscv::register::satp;
 
 extern "C" {
@@ -135,7 +135,7 @@ impl MapArea {
         }
     }
 
-    /// Copies data into the virtual pages managed by this MapArea, assuming the area is framed.
+    /// Copies data into the virtual pages managed by this `MapArea`, assuming the area is framed.
     /// data: start-aligned but maybe with shorter length, assume that all frames were cleared before.
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
@@ -165,7 +165,7 @@ impl Clone for MemorySet {
         // map trampoline
         memory_set.map_trampoline();
         // copy data sections/trap_context/user_stack
-        for area in self.areas.iter() {
+        for area in &self.areas {
             let new_area = area.clone();
             memory_set.push(new_area, None);
             // copy data from another space
@@ -208,7 +208,7 @@ impl MemorySet {
         self.page_table.token()
     }
 
-    /// Add a new MapArea into this [`MemorySet`]
+    /// Add a new `MapArea` into this [`MemorySet`]
     /// Assuming that there are no conflicts in the virtual address space.
     pub fn push(&mut self, mut map_area: MapArea, data: Option<&[u8]>) {
         map_area.map(&mut self.page_table);
@@ -228,7 +228,7 @@ impl MemorySet {
         self.push(
             MapArea::new(start_va, end_va, MapType::Framed, permission),
             None,
-        )
+        );
     }
 
     /// Remove [`MapArea`] that starts with `start_vpn`
@@ -255,7 +255,7 @@ impl MemorySet {
             VirtAddr::from(TRAMPOLINE).into(),
             PhysAddr::from(strampoline as usize).into(),
             PTEFlags::R | PTEFlags::X,
-        )
+        );
     }
 
     /// Without kernel stacks.
@@ -343,8 +343,8 @@ impl MemorySet {
         memory_set
     }
 
-    /// Include sections in elf and trampoline and TrapContext and user stack.
-    /// Returns user_sp and entry point.
+    /// Include sections in elf and trampoline and `TrapContext` and user stack.
+    /// Returns `user_sp` and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
 

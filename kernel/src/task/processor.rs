@@ -36,7 +36,7 @@ impl Processor {
 
     /// Get mutable reference to `idle_task_cx`
     fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
-        &mut self.idle_task_cx as *mut _
+        core::ptr::from_mut(&mut self.idle_task_cx)
     }
 }
 

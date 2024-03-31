@@ -50,7 +50,7 @@ impl Plic {
         target_priority: IntrTargetPriority,
     ) -> *mut u32 {
         let id = Self::hart_id_with_priority(hart_id, target_priority);
-        (self.base_addr + 0x20_0000 + 0x1000 * id) as *mut u32
+        (self.base_addr + 0x0020_0000 + 0x1000 * id) as *mut u32
     }
 
     fn claim_comp_ptr_of_hart_with_priority(
@@ -59,7 +59,7 @@ impl Plic {
         target_priority: IntrTargetPriority,
     ) -> *mut u32 {
         let id = Self::hart_id_with_priority(hart_id, target_priority);
-        (self.base_addr + 0x20_0004 + 0x1000 * id) as *mut u32
+        (self.base_addr + 0x0020_0004 + 0x1000 * id) as *mut u32
     }
 
     pub fn set_priority(&mut self, intr_source_id: usize, priority: u32) {

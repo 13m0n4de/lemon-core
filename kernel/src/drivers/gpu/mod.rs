@@ -15,7 +15,7 @@ lazy_static! {
 
 static BMP_DATA: &[u8] = include_bytes!("../../../assets/cursor.bmp");
 
-const VIRTIO7: usize = 0x10007000;
+const VIRTIO7: usize = 0x1000_7000;
 
 pub trait GpuDevice: Send + Sync + Any {
     #[allow(unused)]
@@ -47,7 +47,7 @@ impl VirtIOGpuWarpper {
                     0xFF
                 };
                 cursor_data.extend(pixel);
-                cursor_data.push(alpha)
+                cursor_data.push(alpha);
             }
             virtio
                 .setup_cursor(cursor_data.as_slice(), 50, 50, 50, 50)

@@ -1,4 +1,4 @@
-//! VirtIOBlock
+//! `VirtIOBlock`
 
 use alloc::collections::BTreeMap;
 use easy_fs::BlockDevice;
@@ -11,7 +11,7 @@ use crate::{
     DEV_NON_BLOCKING_ACCESS,
 };
 
-const VIRTIO0: usize = 0x10008000;
+const VIRTIO0: usize = 0x1000_8000;
 
 pub struct VirtIOBlock {
     virtio_blk: UPIntrFreeCell<VirtIOBlk<'static, VirtIOHal>>,

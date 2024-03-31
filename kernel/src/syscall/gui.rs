@@ -2,7 +2,7 @@ use crate::drivers::GPU_DEVICE;
 use crate::mm::{MapArea, MapPermission, MapType, PhysAddr, VirtAddr};
 use crate::task::current_process;
 
-const FB_VADDR: usize = 0x10000000;
+const FB_VADDR: usize = 0x1000_0000;
 
 pub fn sys_framebuffer() -> isize {
     let fb = GPU_DEVICE.framebuffer();

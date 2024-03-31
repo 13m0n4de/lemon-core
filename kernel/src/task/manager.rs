@@ -66,9 +66,10 @@ pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
 /// Remove the PCB based on PID
 pub fn remove_from_pid2process(pid: usize) {
     let mut map = PID2PCB.exclusive_access();
-    if map.remove(&pid).is_none() {
-        panic!("cannot find pid {} in pid2task!", pid);
-    }
+    assert!(
+        map.remove(&pid).is_some(),
+        "cannot find pid {pid} in pid2task!"
+    );
 }
 
 /// Add a pair of PID-PCB mappings

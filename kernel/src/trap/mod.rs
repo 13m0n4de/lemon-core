@@ -20,7 +20,7 @@ use crate::{
     timer::{check_timer, set_next_trigger},
 };
 use core::arch::{asm, global_asm};
-use log::*;
+use log::debug;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
@@ -31,7 +31,7 @@ global_asm!(include_str!("trap.S"));
 
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
-pub fn trap_handler() -> ! {
+pub extern "C" fn trap_handler() -> ! {
     set_kernel_trap_entry();
     let mut cx = current_trap_cx();
     let scause = scause::read(); // get trap cause
@@ -50,12 +50,14 @@ pub fn trap_handler() -> ! {
             cx = current_trap_cx();
             cx.x[10] = result as usize;
         }
-        Trap::Exception(Exception::StoreFault)
-        | Trap::Exception(Exception::StorePageFault)
-        | Trap::Exception(Exception::InstructionFault)
-        | Trap::Exception(Exception::InstructionPageFault)
-        | Trap::Exception(Exception::LoadFault)
-        | Trap::Exception(Exception::LoadPageFault) => {
+        Trap::Exception(
+            Exception::StoreFault
+            | Exception::StorePageFault
+            | Exception::InstructionFault
+            | Exception::InstructionPageFault
+            | Exception::LoadFault
+            | Exception::LoadPageFault,
+        ) => {
             debug!(
                 "[kernel] {:?} in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.",
                 scause.cause(),
@@ -95,19 +97,19 @@ pub fn trap_handler() -> ! {
 }
 
 /// set the new addr of __restore asm function in TRAMPOLINE page,
-/// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
+/// set the reg a0 = `trap_cx_ptr`, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 #[no_mangle]
-pub fn trap_return() -> ! {
-    disable_supervisor_interrupt();
-    set_user_trap_entry();
-    let trap_cx_user_va = current_trap_cx_user_va();
-    let user_satp = current_user_token();
-
+pub extern "C" fn trap_return() -> ! {
     extern "C" {
         fn __alltraps();
         fn __restore();
     }
+
+    disable_supervisor_interrupt();
+    set_user_trap_entry();
+    let trap_cx_user_va = current_trap_cx_user_va();
+    let user_satp = current_user_token();
 
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
@@ -123,7 +125,7 @@ pub fn trap_return() -> ! {
 }
 
 #[no_mangle]
-pub fn trap_from_kernel() {
+pub extern "C" fn trap_from_kernel() {
     let scause = scause::read();
     let stval = stval::read();
     match scause.cause() {

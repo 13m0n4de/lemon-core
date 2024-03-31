@@ -4,7 +4,7 @@ mod ns16550a;
 
 use crate::board::CharDeviceImpl;
 use alloc::sync::Arc;
-use lazy_static::*;
+use lazy_static::lazy_static;
 pub use ns16550a::NS16550a;
 
 pub trait CharDevice {

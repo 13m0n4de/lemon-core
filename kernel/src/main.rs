@@ -14,6 +14,9 @@
 
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::cargo)]
+#![deny(clippy::pedantic)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -52,9 +55,13 @@ lazy_static! {
         unsafe { UPIntrFreeCell::new(false) };
 }
 
-/// the rust entrypoint of OS
+/// The rust entrypoint of OS
+///
+/// # Panics
+///
+/// Panics if [`task::run_tasks`] returns.
 #[no_mangle]
-pub fn rust_main() -> ! {
+pub extern "C" fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();

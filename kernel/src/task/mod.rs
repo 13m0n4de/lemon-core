@@ -11,7 +11,7 @@ mod tcb;
 
 use alloc::{sync::Arc, vec::Vec};
 use lazy_static::lazy_static;
-use log::*;
+use log::info;
 
 use crate::{
     fs::{open_file, OpenFlags},
@@ -70,7 +70,7 @@ pub fn block_current_task() -> *mut TaskContext {
     let task = take_current_task().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     task_inner.task_status = TaskStatus::Blocked;
-    &mut task_inner.task_cx as *mut TaskContext
+    core::ptr::from_mut::<TaskContext>(&mut task_inner.task_cx)
 }
 
 pub fn block_current_and_run_next() {
@@ -122,7 +122,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         {
             // move all child processes under daemon process
             let mut daemon_inner = DAEMON.inner_exclusive_access();
-            for child in process_inner.children.iter() {
+            for child in &process_inner.children {
                 child.inner_exclusive_access().parent = Some(Arc::downgrade(&DAEMON));
                 daemon_inner.children.push(child.clone());
             }
@@ -166,6 +166,5 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     drop(process);
     // we do not have to save task context
-    let mut _unused = TaskContext::zero_init();
-    schedule(&mut _unused as *mut _);
+    schedule(core::ptr::from_mut(&mut TaskContext::zero_init()));
 }

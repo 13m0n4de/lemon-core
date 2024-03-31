@@ -47,16 +47,16 @@ pub fn sys_mutex_create(blocking: bool) -> isize {
     let process = current_process();
     let mut process_inner = process.inner_exclusive_access();
 
-    let mutex: Option<Arc<dyn Mutex>> = if !blocking {
-        Some(Arc::new(MutexSpin::new()))
-    } else {
+    let mutex: Option<Arc<dyn Mutex>> = if blocking {
         Some(Arc::new(MutexBlocking::new()))
+    } else {
+        Some(Arc::new(MutexSpin::new()))
     };
 
     if let Some(idx) = process_inner
         .mutex_list
         .iter()
-        .position(|mutex| mutex.is_none())
+        .position(core::option::Option::is_none)
     {
         process_inner.mutex_list[idx] = mutex;
         idx as isize
@@ -149,7 +149,7 @@ pub fn sys_semaphore_create(res_count: usize) -> isize {
     if let Some(idx) = process_inner
         .semaphore_list
         .iter()
-        .position(|semaphore| semaphore.is_none())
+        .position(core::option::Option::is_none)
     {
         process_inner.semaphore_list[idx] = semaphore;
         idx as isize
@@ -236,7 +236,7 @@ pub fn sys_condvar_create() -> isize {
     if let Some(idx) = process_inner
         .condvar_list
         .iter()
-        .position(|condvar| condvar.is_none())
+        .position(core::option::Option::is_none)
     {
         process_inner.condvar_list[idx] = condvar;
         idx as isize
@@ -277,8 +277,8 @@ pub fn sys_condvar_signal(condvar_id: usize) -> isize {
 
 /// Waits on a specified condition variable.
 ///
-/// Blocks the calling task until the condition variable identified by condvar_id is
-/// signaled. The task automatically re-acquires the mutex identified by mutex_id
+/// Blocks the calling task until the condition variable identified by `condvar_id` is
+/// signaled. The task automatically re-acquires the mutex identified by `mutex_id`
 /// upon waking up.
 ///
 /// # Arguments

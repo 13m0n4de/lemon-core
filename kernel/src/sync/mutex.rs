@@ -38,10 +38,9 @@ impl Mutex for MutexSpin {
                 drop(locked);
                 suspend_current_and_run_next();
                 continue;
-            } else {
-                *locked = true;
-                break;
             }
+            *locked = true;
+            break;
         }
     }
 
