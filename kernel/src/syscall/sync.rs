@@ -4,7 +4,7 @@ use alloc::sync::Arc;
 
 use crate::{
     sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore},
-    task::{block_current_and_run_next, current_process, current_tcb},
+    task::{block_current_and_run_next, current_pcb, current_tcb},
     timer::{add_timer, get_time_ms},
 };
 
@@ -44,7 +44,7 @@ pub fn sys_sleep(ms: usize) -> isize {
 ///
 /// The index of the newly created mutex in the mutex list, which serves as its identifier.
 pub fn sys_mutex_create(blocking: bool) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let mutex: Option<Arc<dyn Mutex>> = if blocking {
@@ -82,7 +82,7 @@ pub fn sys_mutex_create(blocking: bool) -> isize {
 /// - `0` on successful lock operation.
 /// - `-1` if the mutex does not exist.
 pub fn sys_mutex_lock(mutex_id: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     match process_inner.mutex_list.get(mutex_id) {
@@ -112,7 +112,7 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
 /// - `0` on successful unlock operation.
 /// - `-1` if the mutex does not exist.
 pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     match process_inner.mutex_list.get(mutex_id) {
@@ -141,7 +141,7 @@ pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
 /// The index of the newly created semaphore in the semaphore list, which serves as its
 /// identifier.
 pub fn sys_semaphore_create(res_count: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let semaphore = Some(Arc::new(Semaphore::new(res_count)));
@@ -174,7 +174,7 @@ pub fn sys_semaphore_create(res_count: usize) -> isize {
 /// - `0` on successful operation.
 /// - `-1` if the semaphore does not exist.
 pub fn sys_semaphore_up(sem_id: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     match process_inner.semaphore_list.get(sem_id) {
@@ -204,7 +204,7 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
 /// - `0` on successful operation.
 /// - `-1` if the semaphore does not exist.
 pub fn sys_semaphore_down(sem_id: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     match process_inner.semaphore_list.get(sem_id) {
@@ -228,7 +228,7 @@ pub fn sys_semaphore_down(sem_id: usize) -> isize {
 /// The index of the newly created condition variable in the condition variable list,
 /// which serves as its identifier.
 pub fn sys_condvar_create() -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let condvar = Some(Arc::new(Condvar::new()));
@@ -260,7 +260,7 @@ pub fn sys_condvar_create() -> isize {
 /// - `0` on successful operation.
 /// - `-1` if the condition variable does not exist.
 pub fn sys_condvar_signal(condvar_id: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     match process_inner.condvar_list.get(condvar_id) {
@@ -295,7 +295,7 @@ pub fn sys_condvar_signal(condvar_id: usize) -> isize {
 /// - `-1` if either the condition variable or the mutex does not exist, or if any other
 /// error occurs.
 pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     match process_inner.condvar_list.get(condvar_id) {

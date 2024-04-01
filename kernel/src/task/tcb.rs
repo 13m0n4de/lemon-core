@@ -8,13 +8,14 @@ use super::{
 };
 use crate::{mm::PhysPageNum, sync::UPSafeCell, trap::Context as TrapContext};
 
-pub struct ControlBlock {
+#[allow(clippy::module_name_repetitions)]
+pub struct TaskControlBlock {
     pub process: Weak<ProcessControlBlock>,
     pub kstack: KernelStack,
     inner: UPSafeCell<TaskControlBlockInner>,
 }
 
-impl ControlBlock {
+impl TaskControlBlock {
     pub fn new(
         process: &Arc<ProcessControlBlock>,
         ustack_base: usize,

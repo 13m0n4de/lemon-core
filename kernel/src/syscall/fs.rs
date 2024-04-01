@@ -6,7 +6,7 @@ use easy_fs::DIRENT_SIZE;
 
 use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
-use crate::task::{current_process, current_user_token};
+use crate::task::{current_pcb, current_user_token};
 
 /// Retrieves the current working directory of the calling process.
 ///
@@ -23,7 +23,7 @@ use crate::task::{current_process, current_user_token};
 /// - `-1` if the buffer is too small.
 pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     let mut user_buffer = UserBuffer::new(translated_byte_buffer(token, buf, len));
@@ -54,7 +54,7 @@ pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
 /// - The new file descriptor if successful.
 /// - `-1` if the original file descriptor is invalid.
 pub fn sys_dup(fd: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     match process_inner.fd_table.get(fd) {
@@ -82,7 +82,7 @@ pub fn sys_dup(fd: usize) -> isize {
 /// - `0` if successful.
 /// - `-1` if either `old_fd` or `new_fd` is invalid.
 pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let fd_table = &mut process_inner.fd_table;
@@ -110,7 +110,7 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
 /// - `-2` if is not a directory.
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -141,7 +141,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
 /// - `-2` if the directory cannot be created (e.g., due to permissions or if the directory already exists).
 pub fn sys_mkdir(path: *const u8) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -176,7 +176,7 @@ const AT_REMOVEDIR: u32 = 1;
 /// - `-3` if the directory is not empty.
 pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -223,7 +223,7 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
 /// - `-1` on failure.
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -249,7 +249,7 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
 /// - `0` on success.
 /// - `-1` if the file descriptor is invalid.
 pub fn sys_close(fd: usize) -> isize {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     if fd >= process_inner.fd_table.len() {
@@ -276,7 +276,7 @@ pub fn sys_close(fd: usize) -> isize {
 /// - `-1` on failure or if the file descriptor is invalid.
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     if fd >= process_inner.fd_table.len() {
@@ -310,7 +310,7 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 /// - `-1` on failure or if the file descriptor is invalid.
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     if fd >= process_inner.fd_table.len() {
@@ -343,7 +343,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 /// - `-1` if the file descriptor is invalid.
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
 
     let mut user_buffer = UserBuffer::new(translated_byte_buffer(
@@ -382,7 +382,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
 /// - `0` on success.
 pub fn sys_pipe(pipe: *mut usize) -> isize {
     let token = current_user_token();
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
     let (pipe_read, pipe_write) = make_pipe();

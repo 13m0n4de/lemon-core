@@ -1,4 +1,4 @@
-use super::current_process;
+use super::current_pcb;
 use bitflags::bitflags;
 
 bitflags! {
@@ -31,13 +31,13 @@ impl SignalFlags {
 }
 
 pub fn check_signals_error_of_current() -> Option<(i32, &'static str)> {
-    let process = current_process();
+    let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
     process_inner.signals.check_error()
 }
 
 pub fn add_signal_to_current(signal: SignalFlags) {
-    let process = current_process();
+    let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
     process_inner.signals |= signal;
 }

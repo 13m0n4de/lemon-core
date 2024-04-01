@@ -2,7 +2,7 @@
 
 use super::{
     context::Context as TaskContext, fetch_task, pcb::ProcessControlBlock, switch::__switch,
-    TaskControlBlock, TaskStatus,
+    Status, TaskControlBlock,
 };
 use crate::{sync::UPSafeCell, trap::Context as TrapContext};
 use alloc::sync::Arc;
@@ -53,7 +53,7 @@ pub fn current_tcb() -> Option<Arc<TaskControlBlock>> {
 }
 
 /// Current PCB
-pub fn current_process() -> Arc<ProcessControlBlock> {
+pub fn current_pcb() -> Arc<ProcessControlBlock> {
     current_tcb().unwrap().process.upgrade().unwrap()
 }
 
@@ -91,7 +91,7 @@ pub fn run_tasks() {
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
-            task_inner.task_status = TaskStatus::Running;
+            task_inner.task_status = Status::Running;
             drop(task_inner);
 
             // release coming task TCB manually

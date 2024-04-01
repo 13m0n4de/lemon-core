@@ -26,16 +26,15 @@ pub use manager::{
 };
 pub use pcb::ProcessControlBlock;
 pub use processor::{
-    current_process, current_tcb, current_trap_cx, current_trap_cx_user_va, current_user_token,
-    run_tasks,
+    current_pcb, current_tcb, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    run_tasks, schedule, take_current_tcb,
 };
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
 #[allow(clippy::module_name_repetitions)]
-pub use tcb::{ControlBlock as TaskControlBlock, Status as TaskStatus};
+pub use tcb::{Status, TaskControlBlock};
 
 use context::Context;
 use id::TaskUserRes;
-use processor::{schedule, take_current_tcb};
 
 lazy_static! {
     /// Global process that init user shell
@@ -68,7 +67,7 @@ pub fn suspend_current_and_run_next() {
     let mut task_inner = task.inner_exclusive_access();
     let task_cx_ptr = &mut task_inner.task_cx as *mut Context;
     // change status to Ready
-    task_inner.task_status = TaskStatus::Ready;
+    task_inner.task_status = Status::Ready;
     drop(task_inner);
     // --- release current TCB
 
@@ -82,7 +81,7 @@ pub fn block_current_and_run_next() {
     let task = take_current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     let task_cx_ptr = &mut task_inner.task_cx as *mut Context;
-    task_inner.task_status = TaskStatus::Blocked;
+    task_inner.task_status = Status::Blocked;
     drop(task_inner);
     schedule(task_cx_ptr);
 }
