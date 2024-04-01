@@ -11,7 +11,7 @@ use alloc::{sync::Arc, vec::Vec};
 use bitflags::bitflags;
 use core::arch::asm;
 use lazy_static::lazy_static;
-use log::*;
+use log::debug;
 use riscv::register::satp;
 
 extern "C" {
@@ -92,7 +92,7 @@ impl MapArea {
     #[allow(unused)]
     fn unmap_one(&mut self, page_table: &mut PageTable, vpn: VirtPageNum) {
         if self.map_type == MapType::Framed {
-            page_table.remove(&vpn);
+            page_table.remove(vpn);
         }
         page_table.unmap(vpn);
     }
@@ -112,7 +112,7 @@ impl MapArea {
         }
     }
 
-    /// Copies data into the virtual pages managed by this MapArea, assuming the area is framed.
+    /// Copies data into the virtual pages managed by this `MapArea`, assuming the area is framed.
     /// data: start-aligned but maybe with shorter length, assume that all frames were cleared before.
     pub fn copy_data(&mut self, page_table: &mut PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
@@ -181,7 +181,7 @@ impl MemorySet {
         self.push(
             MapArea::new(start_va, end_va, MapType::Framed, permission),
             None,
-        )
+        );
     }
 
     /// Mention that trampoline is not collected by areas.
@@ -190,7 +190,7 @@ impl MemorySet {
             VirtAddr::from(TRAMPOLINE).into(),
             PhysAddr::from(strampoline as usize).into(),
             PTEFlags::R | PTEFlags::X,
-        )
+        );
     }
 
     /// Without kernel stacks.
@@ -265,8 +265,8 @@ impl MemorySet {
         memory_set
     }
 
-    /// Include sections in elf and trampoline and TrapContext and user stack.
-    /// Returns user_sp and entry point.
+    /// Include sections in elf and trampoline and `TrapContext` and user stack.
+    /// Returns `user_sp` and entry point.
     pub fn from_elf(elf_data: &[u8]) -> (Self, usize, usize) {
         let mut memory_set = Self::new_bare();
 

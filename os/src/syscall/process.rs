@@ -1,6 +1,6 @@
 //! Process management syscalls
 
-use log::*;
+use log::info;
 
 use crate::{
     task::{exit_current_and_run_next, suspend_current_and_run_next},

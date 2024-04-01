@@ -19,7 +19,7 @@ use crate::{
     timer::set_next_trigger,
 };
 use core::arch::{asm, global_asm};
-use log::*;
+use log::info;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
@@ -42,7 +42,7 @@ pub fn enable_timer_interrupt() {
 
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
-pub fn trap_handler() -> ! {
+pub extern "C" fn user_handler() -> ! {
     user_time_end();
     set_kernel_trap_entry();
     let cx = current_trap_cx();
@@ -54,10 +54,12 @@ pub fn trap_handler() -> ! {
             cx.sepc += 4;
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
-        Trap::Exception(Exception::StoreFault)
-        | Trap::Exception(Exception::StorePageFault)
-        | Trap::Exception(Exception::LoadFault)
-        | Trap::Exception(Exception::LoadPageFault) => {
+        Trap::Exception(
+            Exception::StoreFault
+            | Exception::StorePageFault
+            | Exception::LoadFault
+            | Exception::LoadPageFault,
+        ) => {
             info!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
             exit_current_and_run_next();
         }
@@ -78,21 +80,23 @@ pub fn trap_handler() -> ! {
         }
     }
     user_time_start();
-    trap_return()
+    leave()
 }
 
 /// set the new addr of __restore asm function in TRAMPOLINE page,
-/// set the reg a0 = trap_cx_ptr, reg a1 = phy addr of usr page table,
+/// set the reg a0 = `trap_cx_ptr`, reg a1 = phy addr of usr page table,
 /// finally, jump to new addr of __restore asm function
 #[no_mangle]
-pub fn trap_return() -> ! {
-    set_user_trap_entry();
-    let trap_cx_ptr = TRAP_CONTEXT;
-    let user_satp = current_user_token();
+pub extern "C" fn leave() -> ! {
     extern "C" {
         fn __alltraps();
         fn __restore();
     }
+
+    set_user_trap_entry();
+    let trap_cx_ptr = TRAP_CONTEXT;
+    let user_satp = current_user_token();
+
     let restore_va = __restore as usize - __alltraps as usize + TRAMPOLINE;
     unsafe {
         asm!(
@@ -109,13 +113,13 @@ pub fn trap_return() -> ! {
 #[no_mangle]
 /// Unimplement: traps/interrupts/exceptions from kernel mode
 /// Todo: Chapter 9: I/O device
-pub fn trap_from_kernel() -> ! {
+pub extern "C" fn kernel_handler() -> ! {
     panic!("a trap from kernel!");
 }
 
 fn set_kernel_trap_entry() {
     unsafe {
-        stvec::write(trap_from_kernel as usize, TrapMode::Direct);
+        stvec::write(kernel_handler as usize, TrapMode::Direct);
     }
 }
 
@@ -125,4 +129,4 @@ fn set_user_trap_entry() {
     }
 }
 
-pub use context::TrapContext;
+pub use context::Context;

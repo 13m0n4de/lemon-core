@@ -1,14 +1,14 @@
 //! Implementation of [`TaskManager`]
 
-use super::{TaskContext, TaskControlBlock, TaskStatus, __switch};
+use super::{Context as TaskContext, TaskControlBlock, TaskStatus, __switch};
 use crate::loader::{get_app_data, get_num_app};
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use crate::timer::get_time_ms;
-use crate::trap::TrapContext;
+use crate::trap::Context as TrapContext;
 use alloc::vec::Vec;
 use lazy_static::lazy_static;
-use log::*;
+use log::{debug, info, trace};
 
 pub struct TaskManagerInner {
     tasks: Vec<TaskControlBlock>,
@@ -24,12 +24,12 @@ impl TaskManagerInner {
     }
 }
 
-pub struct TaskManager {
+pub struct Manager {
     pub num_app: usize,
     inner: UPSafeCell<TaskManagerInner>,
 }
 
-impl TaskManager {
+impl Manager {
     // Run the first task in task list.
     pub fn run_first_task(&self) -> ! {
         let mut pool = self.inner.exclusive_access();
@@ -41,10 +41,12 @@ impl TaskManager {
         pool.refresh_stop_watch();
 
         drop(pool);
-        let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
         unsafe {
-            __switch(&mut _unused as *mut _, next_task_cx_ptr);
+            __switch(
+                core::ptr::from_mut(&mut TaskContext::zero_init()),
+                next_task_cx_ptr,
+            );
         }
         panic!("unreachable in run_first_task!");
     }
@@ -68,7 +70,7 @@ impl TaskManager {
     fn find_next_task(&self) -> Option<usize> {
         let pool = self.inner.exclusive_access();
         let current = pool.current_task;
-        (current + 1..current + self.num_app + 1)
+        ((current + 1)..(current + self.num_app))
             .map(|id| id % self.num_app)
             .find(|id| pool.tasks[*id].task_status == TaskStatus::Ready)
     }
@@ -136,7 +138,7 @@ impl TaskManager {
 }
 
 lazy_static! {
-    static ref TASK_MANAGER: TaskManager = {
+    static ref TASK_MANAGER: Manager = {
         let num_app = get_num_app();
         debug!("num_app = {num_app}");
 
@@ -151,12 +153,12 @@ lazy_static! {
                 stop_watch: 0,
             })
         };
-        TaskManager { num_app, inner }
+        Manager { num_app, inner }
     };
 }
 
 /// Run first task
-pub fn run_first_task() {
+pub fn run_first() {
     TASK_MANAGER.run_first_task();
 }
 
@@ -174,12 +176,12 @@ pub fn suspend_current_and_run_next() {
 
 // Counting kernel time, starting from now is user time.
 pub fn user_time_start() {
-    TASK_MANAGER.user_time_start()
+    TASK_MANAGER.user_time_start();
 }
 
 // Counting user time, starting from now is kernel time.
 pub fn user_time_end() {
-    TASK_MANAGER.user_time_end()
+    TASK_MANAGER.user_time_end();
 }
 
 /// Get the current 'Running' task's token.

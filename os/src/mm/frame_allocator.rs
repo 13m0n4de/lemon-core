@@ -4,7 +4,7 @@ use super::{PhysAddr, PhysPageNum};
 use crate::{config::MEMORY_END, sync::UPSafeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
-use lazy_static::*;
+use lazy_static::lazy_static;
 
 /// Manage a frame which has the same lifecycle as the tracker
 pub struct FrameTracker {
@@ -38,20 +38,20 @@ trait FrameAllocator {
 }
 
 /// An implementation for frame allocator
-pub struct StackFrameAllocator {
+pub struct Allocator {
     current: usize,
     end: usize,
     recycled: Vec<usize>,
 }
 
-impl StackFrameAllocator {
+impl Allocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
     }
 }
 
-impl FrameAllocator for StackFrameAllocator {
+impl FrameAllocator for Allocator {
     fn new() -> Self {
         Self {
             current: 0,
@@ -74,15 +74,16 @@ impl FrameAllocator for StackFrameAllocator {
     fn dealloc(&mut self, ppn: PhysPageNum) {
         let ppn = ppn.0;
         // validity check
-        if ppn >= self.current || self.recycled.iter().any(|&v| v == ppn) {
-            panic!("Frame ppn={:#x} has not been allocated!", ppn);
-        }
+        assert!(
+            !(ppn >= self.current || self.recycled.iter().any(|&v| v == ppn)),
+            "Frame ppn={ppn:#x} has not been allocated!"
+        );
         // recycle
         self.recycled.push(ppn);
     }
 }
 
-type FrameAllocatorImpl = StackFrameAllocator;
+type FrameAllocatorImpl = Allocator;
 
 lazy_static! {
     /// FrameAllocator global instance
@@ -91,7 +92,7 @@ lazy_static! {
 }
 
 /// Initiate the frame allocator using `ekernel` and [`MEMORY_END`]
-pub fn init_frame_allocator() {
+pub fn init() {
     extern "C" {
         fn ekernel();
     }
@@ -117,7 +118,7 @@ fn frame_dealloc(ppn: PhysPageNum) {
 
 /// A simple test for frame allocator
 #[allow(unused)]
-pub fn frame_allocator_test() {
+pub fn test() {
     let mut v: Vec<FrameTracker> = Vec::new();
 
     for i in 0..5 {

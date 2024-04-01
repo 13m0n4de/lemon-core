@@ -8,19 +8,18 @@ mod switch;
 
 use crate::config::{kernel_stack_position, TRAP_CONTEXT};
 use crate::mm::{MapPermission, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
-use crate::trap::{trap_handler, TrapContext};
-
-use context::TaskContext;
+use crate::trap::{user_handler, Context as TrapContext};
+use context::Context;
 use switch::__switch;
 
 pub use manager::{
-    current_trap_cx, current_user_token, exit_current_and_run_next, run_first_task,
+    current_trap_cx, current_user_token, exit_current_and_run_next, run_first,
     suspend_current_and_run_next, user_time_end, user_time_start,
 };
 
 struct TaskControlBlock {
     task_status: TaskStatus,
-    task_cx: TaskContext,
+    task_cx: Context,
     memory_set: MemorySet,
     trap_cx_ppn: PhysPageNum,
     #[allow(dead_code)]
@@ -48,7 +47,7 @@ impl TaskControlBlock {
         );
         let task_control_block = Self {
             task_status,
-            task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+            task_cx: Context::goto_trap_return(kernel_stack_top),
             memory_set,
             trap_cx_ppn,
             base_size: user_sp,
@@ -63,7 +62,7 @@ impl TaskControlBlock {
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             kernel_stack_top,
-            trap_handler as usize,
+            user_handler as usize,
         );
         task_control_block
     }
