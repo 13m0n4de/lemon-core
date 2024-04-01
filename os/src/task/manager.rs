@@ -2,19 +2,19 @@
 
 use crate::sync::UPSafeCell;
 
-use super::control_block::TaskControlBlock;
+use super::tcb::TaskControlBlock;
 
 use alloc::collections::{BTreeMap, VecDeque};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
 /// A array of `TaskControlBlock` that is thread-safe
-pub struct TaskManager {
+pub struct Manager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 /// A simple FIFO scheduler
-impl TaskManager {
+impl Manager {
     pub fn new() -> Self {
         Self {
             ready_queue: VecDeque::new(),
@@ -33,14 +33,13 @@ impl TaskManager {
 }
 
 lazy_static! {
-    static ref TASK_MANAGER: UPSafeCell<TaskManager> =
-        unsafe { UPSafeCell::new(TaskManager::new()) };
+    static ref TASK_MANAGER: UPSafeCell<Manager> = unsafe { UPSafeCell::new(Manager::new()) };
     static ref PID2TCB: UPSafeCell<BTreeMap<usize, Arc<TaskControlBlock>>> =
         unsafe { UPSafeCell::new(BTreeMap::new()) };
 }
 
 /// Interface offered to add task
-pub fn add_task(task: Arc<TaskControlBlock>) {
+pub fn add(task: Arc<TaskControlBlock>) {
     PID2TCB
         .exclusive_access()
         .insert(task.getpid(), task.clone());
@@ -48,7 +47,7 @@ pub fn add_task(task: Arc<TaskControlBlock>) {
 }
 
 /// Interface offered to pop the first task
-pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
+pub fn fetch() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
 
@@ -59,7 +58,8 @@ pub fn pid2task(pid: usize) -> Option<Arc<TaskControlBlock>> {
 
 pub fn remove_from_pid2task(pid: usize) {
     let mut map = PID2TCB.exclusive_access();
-    if map.remove(&pid).is_none() {
-        panic!("cannot find pid {} in pid2task!", pid);
-    }
+    assert!(
+        map.remove(&pid).is_some(),
+        "cannot find pid {pid} in pid2task!"
+    );
 }

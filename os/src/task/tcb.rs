@@ -1,18 +1,23 @@
-use alloc::string::{String, ToString};
-use alloc::sync::{Arc, Weak};
-use alloc::vec::Vec;
-use alloc::{format, vec};
+use super::{
+    context::Context as TaskContext,
+    pid::{alloc as pid_alloc, KernelStack, PidHandle},
+    SignalActions, SignalFlags, Status,
+};
+use crate::{
+    config::TRAP_CONTEXT,
+    fs::{find_inode, File, Stdin, Stdout},
+    mm::{translated_mut_ref, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE},
+    sync::UPSafeCell,
+    trap::{user_handler, Context as TrapContext},
+};
+use alloc::{
+    format,
+    string::{String, ToString},
+    sync::{Arc, Weak},
+    vec,
+    vec::Vec,
+};
 use core::cell::RefMut;
-
-use crate::config::TRAP_CONTEXT;
-use crate::fs::{find_inode, File, Stdin, Stdout};
-use crate::mm::{translated_mut_ref, MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
-use crate::sync::UPSafeCell;
-use crate::trap::{trap_handler, TrapContext};
-
-use super::context::TaskContext;
-use super::pid::{pid_alloc, KernelStack, PidHandle};
-use super::{SignalActions, SignalFlags, TaskStatus};
 
 pub struct TaskControlBlock {
     pub pid: PidHandle,
@@ -28,7 +33,7 @@ impl TaskControlBlock {
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
             .ppn();
-        let task_status = TaskStatus::Ready;
+        let task_status = Status::Ready;
 
         // alloc a pid and a kernel stack in kernel space
         let pid_handle = pid_alloc();
@@ -44,7 +49,7 @@ impl TaskControlBlock {
                     trap_cx_ppn,
                     base_size: user_sp,
                     task_status,
-                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    task_cx: TaskContext::leave_trap(kernel_stack_top),
                     memory_set,
                     parent: None,
                     children: Vec::new(),
@@ -76,7 +81,7 @@ impl TaskControlBlock {
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             kernel_stack_top,
-            trap_handler as usize,
+            user_handler as usize,
         );
 
         task_control_block
@@ -86,6 +91,7 @@ impl TaskControlBlock {
         self.inner.exclusive_access()
     }
 
+    #[allow(clippy::similar_names)]
     pub fn fork(self: &Arc<Self>) -> Arc<Self> {
         // ---- access parent PCB exclusively
         let mut parent_inner = self.inner_exclusive_access();
@@ -106,15 +112,11 @@ impl TaskControlBlock {
         let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
         let proc_inode = procs_inode
             .create_dir(&pid_handle.0.to_string())
-            .expect(&format!(
-                "Failed to create inode for '/proc/{}/'.",
-                pid_handle.0
-            ));
+            .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid_handle.0));
         proc_inode.set_default_dirent(procs_inode.inode_id());
-        let cmdline_inode = proc_inode.create("cmdline").expect(&format!(
-            "Failed to find inode for '/proc/{}/cmdline'.",
-            pid_handle.0
-        ));
+        let cmdline_inode = proc_inode.create("cmdline").unwrap_or_else(|| {
+            panic!("Failed to find inode for '/proc/{}/cmdline'.", pid_handle.0)
+        });
 
         if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
             let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
@@ -131,8 +133,8 @@ impl TaskControlBlock {
                 UPSafeCell::new(TaskControlBlockInner {
                     trap_cx_ppn,
                     base_size: parent_inner.base_size,
-                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                    task_status: TaskStatus::Ready,
+                    task_cx: TaskContext::leave_trap(kernel_stack_top),
+                    task_status: Status::Ready,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
@@ -163,14 +165,13 @@ impl TaskControlBlock {
         // **** release children PCB automatically
     }
 
+    #[allow(clippy::similar_names)]
     pub fn exec(&self, elf_data: &[u8], args: &[String]) {
         // memory_set with elf program headers/trampoline/trap context/user stack
         let (memory_set, mut user_sp, entry_point) = MemorySet::from_elf(elf_data);
 
-        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0)).expect(&format!(
-            "Failed to find inode for '/proc/{}/cmdline'",
-            self.pid.0
-        ));
+        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0))
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'", self.pid.0));
         cmdline_inode.clear();
         cmdline_inode.write_at(0, args.join(" ").as_bytes());
 
@@ -217,7 +218,7 @@ impl TaskControlBlock {
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             self.kernel_stack.top(),
-            trap_handler as usize,
+            user_handler as usize,
         );
 
         trap_cx.x[10] = argc;
@@ -236,7 +237,7 @@ pub struct TaskControlBlockInner {
 
     pub base_size: usize,
 
-    pub task_status: TaskStatus,
+    pub task_status: Status,
     pub task_cx: TaskContext,
     pub memory_set: MemorySet,
 
@@ -265,26 +266,26 @@ impl TaskControlBlockInner {
         self.memory_set.token()
     }
 
-    fn status(&self) -> TaskStatus {
+    fn status(&self) -> Status {
         self.task_status
     }
 
     pub fn is_zombie(&self) -> bool {
-        self.status() == TaskStatus::Zombie
+        self.status() == Status::Zombie
     }
 
     #[allow(unused)]
     pub fn is_ready(&self) -> bool {
-        self.status() == TaskStatus::Ready
+        self.status() == Status::Ready
     }
 
     #[allow(unused)]
     pub fn is_running(&self) -> bool {
-        self.status() == TaskStatus::Running
+        self.status() == Status::Running
     }
 
     pub fn alloc_fd(&mut self) -> usize {
-        if let Some(idx) = self.fd_table.iter().position(|fd| fd.is_none()) {
+        if let Some(idx) = self.fd_table.iter().position(core::option::Option::is_none) {
             idx
         } else {
             self.fd_table.push(None);
@@ -294,6 +295,7 @@ impl TaskControlBlockInner {
 }
 
 impl Drop for TaskControlBlock {
+    #[allow(clippy::similar_names)]
     fn drop(&mut self) {
         let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
         if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {

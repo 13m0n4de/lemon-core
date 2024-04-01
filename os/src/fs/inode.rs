@@ -9,13 +9,14 @@ use super::{File, StatMode};
 
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
+#[allow(clippy::module_name_repetitions)]
 pub struct OSInode {
     readable: bool,
     writable: bool,
     inner: UPSafeCell<OSInodeInner>,
 }
 
-/// The OS inode inner in 'UPSafeCell'
+/// The OS inode inner in [`UPSafeCell`]
 pub struct OSInodeInner {
     offset: usize,
     inode: Arc<Inode>,
@@ -60,7 +61,7 @@ impl File for OSInode {
     fn read(&self, mut buf: UserBuffer) -> usize {
         let mut inner = self.inner.exclusive_access();
         let mut total_read_size = 0usize;
-        for slice in buf.buffers.iter_mut() {
+        for slice in &mut buf.buffers {
             let read_size = inner.inode.read_at(inner.offset, slice);
             if read_size == 0 {
                 break;
@@ -74,7 +75,7 @@ impl File for OSInode {
     fn write(&self, buf: UserBuffer) -> usize {
         let mut inner = self.inner.exclusive_access();
         let mut total_write_size = 0usize;
-        for slice in buf.buffers.iter() {
+        for slice in &buf.buffers {
             let write_size = inner.inode.write_at(inner.offset, slice);
             assert_eq!(write_size, slice.len());
             inner.offset += write_size;
@@ -88,7 +89,7 @@ impl File for OSInode {
     }
 
     fn set_offset(&self, offset: usize) {
-        self.inner.exclusive_access().offset = offset
+        self.inner.exclusive_access().offset = offset;
     }
 
     fn file_size(&self) -> u32 {
@@ -137,12 +138,13 @@ bitflags! {
 }
 
 /// Open file with flags
+#[allow(clippy::needless_pass_by_value)]
 pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
     let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
 
     if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = find_inode(path) {
+        if let Some(inode) = find(path) {
             if inode.is_file() {
                 // clear size
                 inode.clear();
@@ -153,13 +155,13 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
                 Some((parent_path, target)) => (parent_path, target),
                 None => ("", path),
             };
-            let parent_inode = find_inode(parent_path)?;
+            let parent_inode = find(parent_path)?;
             parent_inode
                 .create(target)
                 .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
-        find_inode(path).map(|inode| {
+        find(path).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }
@@ -168,12 +170,12 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     }
 }
 
-pub fn find_inode(path: &str) -> Option<Arc<Inode>> {
+pub fn find(path: &str) -> Option<Arc<Inode>> {
     path.split('/').try_fold(ROOT_INODE.clone(), |node, name| {
-        if !name.is_empty() {
-            node.find(name)
-        } else {
+        if name.is_empty() {
             Some(node)
+        } else {
+            node.find(name)
         }
     })
 }

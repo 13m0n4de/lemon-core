@@ -27,8 +27,8 @@ const SYSCALL_WAITPID: usize = 260;
 mod fs;
 mod process;
 
-use fs::*;
-use process::*;
+use fs::{sys_chdir, sys_close, sys_dup, sys_dup2, sys_fstat, sys_getcwd, sys_mkdir, sys_open, sys_pipe, sys_read, sys_unlink, sys_write};
+use process::{sys_exec, sys_exit, sys_fork, sys_get_time, sys_getpid, sys_kill, sys_sigaction, sys_sigprocmask, sys_sigreturn, sys_waitpid, sys_yield};
 
 use crate::task::SignalAction;
 

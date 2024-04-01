@@ -1,7 +1,7 @@
-use bitflags::*;
-use log::*;
+use bitflags::bitflags;
+use log::debug;
 
-use super::{current_task, suspend_current_and_run_next};
+use super::{current_tcb, suspend_current_and_run_next};
 
 pub const MAX_SIG: usize = 31;
 
@@ -44,7 +44,7 @@ bitflags! {
 }
 
 impl SignalFlags {
-    pub fn check_error(&self) -> Option<(i32, &'static str)> {
+    pub fn check_error(self) -> Option<(i32, &'static str)> {
         if self.contains(Self::SIGINT) {
             Some((-2, "Killed, SIGINT=2"))
         } else if self.contains(Self::SIGILL) {
@@ -66,6 +66,7 @@ impl SignalFlags {
 /// Action for a signal
 #[derive(Clone, Copy)]
 #[repr(C, align(16))]
+#[allow(clippy::module_name_repetitions)]
 pub struct SignalAction {
     pub handler: usize,
     pub mask: SignalFlags,
@@ -81,6 +82,7 @@ impl Default for SignalAction {
 }
 
 #[derive(Clone, Copy)]
+#[allow(clippy::module_name_repetitions)]
 pub struct SignalActions {
     pub table: [SignalAction; MAX_SIG + 1],
 }
@@ -94,7 +96,7 @@ impl Default for SignalActions {
 }
 
 pub fn add_signal_to_current(signal: SignalFlags) {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     task_inner.signals |= signal;
 }
@@ -102,7 +104,7 @@ pub fn add_signal_to_current(signal: SignalFlags) {
 pub fn handle_signals() {
     loop {
         check_pending_signals();
-        let task = current_task().unwrap();
+        let task = current_tcb().unwrap();
         let task_inner = task.inner_exclusive_access();
         if !task_inner.frozen || task_inner.killed {
             break;
@@ -112,14 +114,14 @@ pub fn handle_signals() {
 }
 
 pub fn check_signals_error_of_current() -> Option<(i32, &'static str)> {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
     task_inner.signals.check_error()
 }
 
 fn check_pending_signals() {
     for sig in 0..=MAX_SIG {
-        let task = current_task().unwrap();
+        let task = current_tcb().unwrap();
         let task_inner = task.inner_exclusive_access();
         let signal = SignalFlags::from_bits(1 << sig).unwrap();
         if task_inner.signals.contains(signal) && (!task_inner.signal_mask.contains(signal)) {
@@ -151,7 +153,7 @@ fn check_pending_signals() {
 }
 
 fn call_kernel_signal_handler(signal: SignalFlags) {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     match signal {
         SignalFlags::SIGSTOP => {
@@ -171,7 +173,7 @@ fn call_kernel_signal_handler(signal: SignalFlags) {
 }
 
 fn call_user_signal_handler(sig: usize, signal: SignalFlags) {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
 
     let handler = task_inner.signal_actions.table[sig].handler;

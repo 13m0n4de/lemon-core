@@ -53,13 +53,12 @@ impl File for Pipe {
                     unsafe { *byte_ref = ring_buffer.read_byte() };
                     already_read += 1;
                     break;
-                } else {
-                    if ring_buffer.all_write_ends_closed() {
-                        return already_read;
-                    }
-                    drop(ring_buffer);
-                    suspend_current_and_run_next();
                 }
+                if ring_buffer.all_write_ends_closed() {
+                    return already_read;
+                }
+                drop(ring_buffer);
+                suspend_current_and_run_next();
             }
         }
         already_read
@@ -79,13 +78,12 @@ impl File for Pipe {
                     ring_buffer.write_byte(unsafe { *byte_ref });
                     already_write += 1;
                     break;
-                } else {
-                    if ring_buffer.all_write_ends_closed() {
-                        return already_write;
-                    }
-                    drop(ring_buffer);
-                    suspend_current_and_run_next();
                 }
+                if ring_buffer.all_write_ends_closed() {
+                    return already_write;
+                }
+                drop(ring_buffer);
+                suspend_current_and_run_next();
             }
         }
         already_write
@@ -102,6 +100,7 @@ enum RingBufferStatus {
 }
 
 /// Implements a ring buffer for data transfer between the read and write ends of a pipe.
+#[allow(clippy::module_name_repetitions)]
 pub struct PipeRingBuffer {
     arr: [u8; RING_BUFFER_SIZE],
     head: usize,
@@ -167,8 +166,8 @@ impl PipeRingBuffer {
     }
 }
 
-/// Creates a pair of connected pipe ends, return (read_end, write_end).
-pub fn make_pipe() -> (Arc<Pipe>, Arc<Pipe>) {
+/// Creates a pair of connected pipe ends, return (`read_end`, `write_end`).
+pub fn make() -> (Arc<Pipe>, Arc<Pipe>) {
     let buffer = Arc::new(unsafe { UPSafeCell::new(PipeRingBuffer::new()) });
     let read_end = Arc::new(Pipe::read_end_with_buffer(buffer.clone()));
     let write_end = Arc::new(Pipe::write_end_with_buffer(buffer.clone()));

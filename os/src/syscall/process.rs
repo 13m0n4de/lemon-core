@@ -1,17 +1,16 @@
 //! Process management syscalls
 
-use alloc::{sync::Arc, vec::Vec};
-use log::*;
-
 use crate::{
     fs::{get_full_path, open_file, OpenFlags},
     mm::{translated_mut_ref, translated_ref, translated_str},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next, pid2task,
+        add_task, current_tcb, current_user_token, exit_current_and_run_next, pid2task,
         suspend_current_and_run_next, SignalAction, SignalFlags, MAX_SIG,
     },
     timer::get_time_ms,
 };
+use alloc::{sync::Arc, vec::Vec};
+use log::trace;
 
 /// task exits and submit an exit code
 pub fn sys_exit(exit_code: i32) -> ! {
@@ -32,11 +31,11 @@ pub fn sys_get_time() -> isize {
 }
 
 pub fn sys_getpid() -> isize {
-    current_task().unwrap().pid.0 as isize
+    current_tcb().unwrap().pid.0 as isize
 }
 
 pub fn sys_fork() -> isize {
-    let current_task = current_task().unwrap();
+    let current_task = current_tcb().unwrap();
     let new_task = current_task.fork();
     let new_pid = new_task.pid.0;
     // modify trap context of new_task, because it returns immediately after switching
@@ -49,9 +48,10 @@ pub fn sys_fork() -> isize {
     new_pid as isize
 }
 
+#[allow(clippy::similar_names)]
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -85,7 +85,7 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 /// If there is not a child process whose pid is same as given, return -1.
 /// Else if there is a child process but it is still running, return -2.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     // find a child process
 
     // ---- access current TCB exclusively
@@ -143,7 +143,7 @@ pub fn sys_sigaction(
     old_action: *mut SignalAction,
 ) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut inner = task.inner_exclusive_access();
 
     if signum as usize > MAX_SIG || action.is_null() || old_action.is_null() {
@@ -164,7 +164,7 @@ pub fn sys_sigaction(
 }
 
 pub fn sys_sigreturn() -> isize {
-    if let Some(task) = current_task() {
+    if let Some(task) = current_tcb() {
         let mut inner = task.inner_exclusive_access();
         inner.handling_sig = None;
         // restore the trap context
@@ -180,7 +180,7 @@ pub fn sys_sigreturn() -> isize {
 }
 
 pub fn sys_sigprocmask(mask: u32) -> isize {
-    if let Some(task) = current_task() {
+    if let Some(task) = current_tcb() {
         let mut inner = task.inner_exclusive_access();
         let old_mask = inner.signal_mask;
         if let Some(flag) = SignalFlags::from_bits(mask) {

@@ -6,11 +6,11 @@ use easy_fs::DIRENT_SIZE;
 
 use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
-use crate::task::{current_task, current_user_token};
+use crate::task::{current_tcb, current_user_token};
 
 pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     let mut user_buffer = UserBuffer::new(translated_byte_buffer(token, buf, len));
@@ -29,7 +29,7 @@ pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
 }
 
 pub fn sys_dup(fd: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut inner = task.inner_exclusive_access();
 
     match inner.fd_table.get(fd) {
@@ -44,7 +44,7 @@ pub fn sys_dup(fd: usize) -> isize {
 }
 
 pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
 
     let fd_table = &mut task_inner.fd_table;
@@ -61,7 +61,7 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
 
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -81,7 +81,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
 
 pub fn sys_mkdir(path: *const u8) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -103,7 +103,7 @@ const AT_REMOVEDIR: u32 = 1;
 
 pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -126,9 +126,8 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
                         inode.clear();
                         parent_inode.delete(target);
                         return 0;
-                    } else {
-                        return -3; // not empty
                     }
+                    return -3; // not empty
                 }
                 -2 // type not matched
             }
@@ -140,7 +139,7 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
 
     let path = translated_str(token, path);
@@ -156,7 +155,7 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
 }
 
 pub fn sys_close(fd: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut inner = task.inner_exclusive_access();
 
     if fd >= inner.fd_table.len() {
@@ -171,7 +170,7 @@ pub fn sys_close(fd: usize) -> isize {
 
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     if fd >= task_inner.fd_table.len() {
@@ -194,7 +193,7 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     if fd >= task_inner.fd_table.len() {
@@ -216,7 +215,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let task_inner = task.inner_exclusive_access();
 
     let mut user_buffer = UserBuffer::new(translated_byte_buffer(
@@ -231,8 +230,10 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     }
     let file = fd_table[fd].clone().unwrap();
     let stat = Stat::from(file);
-    let stat_slice =
-        slice_from_raw_parts(&stat as *const _ as *const u8, core::mem::size_of::<Stat>());
+    let stat_slice = slice_from_raw_parts(
+        core::ptr::from_ref(&stat).cast::<u8>(),
+        core::mem::size_of::<Stat>(),
+    );
 
     for (i, p) in user_buffer.iter_mut().enumerate() {
         unsafe {
@@ -244,7 +245,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
 
 pub fn sys_pipe(pipe: *mut usize) -> isize {
     let token = current_user_token();
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
 
     let (pipe_read, pipe_write) = make_pipe();

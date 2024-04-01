@@ -8,8 +8,10 @@ use crate::{
 };
 
 /// Bind pid lifetime to [`PidHandle`]
+#[allow(clippy::module_name_repetitions)]
 pub struct PidHandle(pub usize);
 
+#[allow(clippy::module_name_repetitions)]
 pub struct PidAllocator {
     current: usize,
     recycled: Vec<usize>,
@@ -47,8 +49,7 @@ impl PidAllocator {
                 .recycled
                 .iter()
                 .any(|recycled_pid| *recycled_pid == pid),
-            "pid {} has been deallocated!",
-            pid
+            "pid {pid} has been deallocated!"
         );
         self.recycled.push(pid);
     }
@@ -59,7 +60,7 @@ lazy_static! {
         unsafe { UPSafeCell::new(PidAllocator::new()) };
 }
 
-pub fn pid_alloc() -> PidHandle {
+pub fn alloc() -> PidHandle {
     PID_ALLOCATOR.exclusive_access().alloc()
 }
 

@@ -7,8 +7,8 @@ mod stdio;
 use crate::mm::UserBuffer;
 use alloc::sync::Arc;
 use bitflags::bitflags;
-pub use inode::{find_inode, get_full_path, open_file, OpenFlags};
-pub use pipe::make_pipe;
+pub use inode::{find as find_inode, get_full_path, open_file, OpenFlags};
+pub use pipe::make as make_pipe;
 pub use stdio::{Stdin, Stdout};
 
 /// File trait
@@ -63,8 +63,8 @@ bitflags! {
     #[derive(PartialEq, Eq, Default)]
     pub struct StatMode: u32 {
         const NULL = 0;
-        const DIR = 0o040000;
-        const REG = 0o100000;
-        const LNK = 0o120000;
+        const DIR = 0o040_000;
+        const REG = 0o100_000;
+        const LNK = 0o120_000;
     }
 }
