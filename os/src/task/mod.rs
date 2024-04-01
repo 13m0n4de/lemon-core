@@ -17,17 +17,17 @@ use crate::{
     sbi::shutdown,
 };
 use context::Context;
-use processor::{schedule, take_current_tcb};
+use tcb::TaskControlBlock;
 
 #[allow(clippy::module_name_repetitions)]
-pub use manager::{add as add_task, fetch as fetch_task, pid2task};
-pub use processor::{current_tcb, current_trap_cx, current_user_token, run_tasks};
+pub use manager::{add as add_task, fetch as fetch_task, pid2task, remove_from_pid2task};
+pub use processor::{
+    current_tcb, current_trap_cx, current_user_token, run_tasks, schedule, take_current_tcb,
+};
 pub use signal::{
     add_signal_to_current, check_signals_error_of_current, handle_signals, SignalAction,
     SignalActions, SignalFlags, MAX_SIG,
 };
-
-use self::{manager::remove_from_pid2task, tcb::TaskControlBlock};
 
 #[derive(Copy, Clone, PartialEq)]
 pub enum Status {

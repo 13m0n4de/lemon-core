@@ -240,7 +240,7 @@ impl Inode {
         });
     }
 
-    /// Set the default [`DirEntry`] for the current file
+    /// Set the default `DirEntry` for the current file
     pub fn set_default_dirent(&self, parent_inode_id: u32) {
         let mut fs = self.fs.lock();
         self.modify_disk_inode(|cur_dir_inode| {

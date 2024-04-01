@@ -16,7 +16,7 @@ mod memory_set;
 mod page_table;
 
 pub use address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
-pub use frame_allocator::{frame_alloc, frame_dealloc, FrameTracker};
+pub use frame_allocator::{alloc as frame_alloc, dealloc as frame_dealloc, FrameTracker};
 pub use memory_set::{kernel_token, MapPermission, MemorySet, KERNEL_SPACE};
 pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 

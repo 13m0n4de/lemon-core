@@ -1,4 +1,4 @@
-//! Implementation of [`TaskManager`]
+//! Implementation of `TaskManager`
 
 use crate::sync::UPSafeCell;
 
@@ -21,12 +21,12 @@ impl Manager {
         }
     }
 
-    /// Add a task to [`TaskManager`]
+    /// Add a task to [`Manager`]
     pub fn add(&mut self, task: Arc<TaskControlBlock>) {
         self.ready_queue.push_back(task);
     }
 
-    /// Remove the first task and return it,or [`None`] if [`TaskManager`] is empty
+    /// Remove the first task and return it,or [`None`] if [`Manager`] is empty
     pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.ready_queue.pop_front()
     }
