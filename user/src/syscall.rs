@@ -105,7 +105,7 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
 ///
 /// # Panics
 ///
-/// Panics if syscall [`SYSCALL_EXIT`] returns.
+/// Panics if syscall `SYSCALL_EXIT` returns.
 pub fn sys_exit(exit_code: i32) -> ! {
     syscall(SYSCALL_EXIT, [exit_code as usize, 0, 0]);
     panic!("sys_exit never returns!");

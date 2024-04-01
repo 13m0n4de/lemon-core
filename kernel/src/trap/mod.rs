@@ -1,11 +1,4 @@
 //! Trap Handling Module
-//!
-//! - Set CSR `stvec` to `__alltraps`.
-//! - On trap, system jumps to `__alltraps`.
-//!   - saves context.
-//!   - switches stack form user to kernel.
-//!   - call [`user_handler`] or [`kernel_handler`]
-//! - Handle [`Exception`] and [`Interrupt`]
 
 mod context;
 
