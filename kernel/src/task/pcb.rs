@@ -1,7 +1,7 @@
 use super::{
     id::{pid_alloc, PidHandle, RecycleAllocator},
     manager::{add, insert_into_pid2process},
-    tcb::ControlBlock,
+    tcb::TaskControlBlock,
     SignalFlags,
 };
 use crate::{
@@ -64,7 +64,7 @@ impl ProcessControlBlock {
         });
 
         // create a main thread, we should allocate ustack and trap_cx here
-        let task = Arc::new(ControlBlock::new(&process, ustack_base, true));
+        let task = Arc::new(TaskControlBlock::new(&process, ustack_base, true));
 
         // prepare trap_cx of main thread
         let task_inner = task.inner_exclusive_access();
@@ -202,7 +202,7 @@ impl ProcessControlBlock {
         parent_inner.children.push(child.clone());
 
         // create main thread of child process
-        let task = Arc::new(ControlBlock::new(
+        let task = Arc::new(TaskControlBlock::new(
             &child,
             parent_inner
                 .task(0)
@@ -259,7 +259,7 @@ pub struct ProcessControlBlockInner {
     pub cwd: String,
     pub fd_table: Vec<Option<Arc<dyn File + Send + Sync>>>,
     pub signals: SignalFlags,
-    pub tasks: Vec<Option<Arc<ControlBlock>>>,
+    pub tasks: Vec<Option<Arc<TaskControlBlock>>>,
     pub task_res_allocator: RecycleAllocator,
     pub mutex_list: Vec<Option<Arc<dyn Mutex>>>,
     pub semaphore_list: Vec<Option<Arc<Semaphore>>>,
@@ -288,7 +288,7 @@ impl ProcessControlBlockInner {
         self.tasks.len()
     }
 
-    pub fn task(&self, tid: usize) -> Arc<ControlBlock> {
+    pub fn task(&self, tid: usize) -> Arc<TaskControlBlock> {
         self.tasks[tid].as_ref().unwrap().clone()
     }
 }

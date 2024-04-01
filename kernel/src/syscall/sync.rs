@@ -25,7 +25,7 @@ use crate::{
 pub fn sys_sleep(ms: usize) -> isize {
     let expire_ms = timer::get_time_ms() + ms;
     let task = current_tcb().unwrap();
-    timer::add(expire_ms, task);
+    timer::add_timer(expire_ms, task);
     block_current_and_run_next();
     0
 }

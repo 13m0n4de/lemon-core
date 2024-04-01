@@ -1,16 +1,15 @@
-use alloc::{collections::VecDeque, sync::Arc};
-
-use crate::task;
-use crate::task::{block_current, block_current_and_run_next, current_tcb};
-
 use super::{up::UPIntrFreeCell, Mutex};
+use crate::task::{
+    block_current, block_current_and_run_next, current_tcb, wakeup_task, Context, TaskControlBlock,
+};
+use alloc::{collections::VecDeque, sync::Arc};
 
 pub struct Condvar {
     pub inner: UPIntrFreeCell<Inner>,
 }
 
 pub struct Inner {
-    pub wait_queue: VecDeque<Arc<task::ControlBlock>>,
+    pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 impl Condvar {
@@ -27,7 +26,7 @@ impl Condvar {
     pub fn signal(&self) {
         let mut inner = self.inner.exclusive_access();
         if let Some(task) = inner.wait_queue.pop_front() {
-            task::wakeup(task);
+            wakeup_task(task);
         }
     }
 
@@ -40,7 +39,7 @@ impl Condvar {
         mutex.lock();
     }
 
-    pub fn wait_no_sched(&self) -> *mut task::Context {
+    pub fn wait_no_sched(&self) -> *mut Context {
         self.inner.exclusive_session(|inner| {
             inner.wait_queue.push_back(current_tcb().unwrap());
         });

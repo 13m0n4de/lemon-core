@@ -74,7 +74,7 @@ pub extern "C" fn user_handler() -> ! {
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             timer::set_next_trigger();
-            timer::check();
+            timer::check_timer();
             suspend_current_and_run_next();
         }
         Trap::Interrupt(Interrupt::SupervisorExternal) => {
@@ -136,7 +136,7 @@ pub extern "C" fn kernel_handler() {
         }
         Trap::Interrupt(Interrupt::SupervisorTimer) => {
             timer::set_next_trigger();
-            timer::check();
+            timer::check_timer();
             // do not schedule now
         }
         cause => {

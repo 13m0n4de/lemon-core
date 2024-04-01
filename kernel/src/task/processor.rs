@@ -1,8 +1,8 @@
 //! Implementation of [`Processor`]
 
 use super::{
-    context::Context, manager::fetch, pcb::ProcessControlBlock, switch::__switch, tcb::Status,
-    ControlBlock,
+    context::Context as TaskContext, fetch_task, pcb::ProcessControlBlock, switch::__switch,
+    tcb::Status, TaskControlBlock,
 };
 use crate::{sync::UPIntrFreeCell, trap::Context as TrapContext};
 use alloc::sync::Arc;
@@ -10,30 +10,30 @@ use lazy_static::lazy_static;
 
 /// Processor management structure
 pub struct Processor {
-    current: Option<Arc<ControlBlock>>,
-    idle_task_cx: Context,
+    current: Option<Arc<TaskControlBlock>>,
+    idle_task_cx: TaskContext,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Self {
             current: None,
-            idle_task_cx: Context::zero_init(),
+            idle_task_cx: TaskContext::zero_init(),
         }
     }
 
     /// Get current task in moving semanteme
-    pub fn take_current(&mut self) -> Option<Arc<ControlBlock>> {
+    pub fn take_current(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.current.take()
     }
 
     /// Get current task in cloning semanteme
-    pub fn current(&self) -> Option<Arc<ControlBlock>> {
+    pub fn current(&self) -> Option<Arc<TaskControlBlock>> {
         self.current.clone()
     }
 
     /// Get mutable reference to `idle_task_cx`
-    fn idle_task_cx_ptr(&mut self) -> *mut Context {
+    fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
         core::ptr::from_mut(&mut self.idle_task_cx)
     }
 }
@@ -44,12 +44,12 @@ lazy_static! {
 }
 
 /// take the thread that the current processor is executing
-pub fn take_current_tcb() -> Option<Arc<ControlBlock>> {
+pub fn take_current_tcb() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
 /// Current TCB
-pub fn current_tcb() -> Option<Arc<ControlBlock>> {
+pub fn current_tcb() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
@@ -85,13 +85,13 @@ pub fn current_trap_cx_user_va() -> usize {
 /// `__switch`
 pub fn run_tasks() {
     loop {
-        if let Some(task) = fetch() {
+        if let Some(task) = fetch_task() {
             let mut processor = PROCESSOR.exclusive_access();
             let idle_task_cx_ptr = processor.idle_task_cx_ptr();
 
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
-            let next_task_cx_ptr = &task_inner.task_cx as *const Context;
+            let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
             task_inner.task_status = Status::Running;
             drop(task_inner);
 
@@ -106,7 +106,7 @@ pub fn run_tasks() {
 }
 
 /// Return to idle control flow for new scheduling
-pub fn schedule(switched_task_cx_ptr: *mut Context) {
+pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
     let mut processor = PROCESSOR.exclusive_access();
     let idle_task_cx_ptr = processor.idle_task_cx_ptr();
     drop(processor);

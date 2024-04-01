@@ -27,7 +27,7 @@ impl Debug for FrameTracker {
 
 impl Drop for FrameTracker {
     fn drop(&mut self) {
-        frame_dealloc(self.ppn);
+        dealloc(self.ppn);
     }
 }
 
@@ -38,20 +38,21 @@ trait FrameAllocator {
 }
 
 /// An implementation for frame allocator
-pub struct Allocator {
+#[allow(clippy::module_name_repetitions)]
+pub struct StackFrameAllocator {
     current: usize,
     end: usize,
     recycled: Vec<usize>,
 }
 
-impl Allocator {
+impl StackFrameAllocator {
     pub fn init(&mut self, l: PhysPageNum, r: PhysPageNum) {
         self.current = l.0;
         self.end = r.0;
     }
 }
 
-impl FrameAllocator for Allocator {
+impl FrameAllocator for StackFrameAllocator {
     fn new() -> Self {
         Self {
             current: 0,
@@ -83,7 +84,7 @@ impl FrameAllocator for Allocator {
     }
 }
 
-type FrameAllocatorImpl = Allocator;
+type FrameAllocatorImpl = StackFrameAllocator;
 
 lazy_static! {
     /// FrameAllocator global instance
@@ -104,7 +105,7 @@ pub fn init() {
 }
 
 /// Allocate a frame
-pub fn frame_alloc() -> Option<FrameTracker> {
+pub fn alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
         .alloc()
@@ -112,7 +113,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 }
 
 /// Deallocate a frame
-pub fn frame_dealloc(ppn: PhysPageNum) {
+pub fn dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
@@ -122,14 +123,14 @@ pub fn test() {
     let mut v: Vec<FrameTracker> = Vec::new();
 
     for i in 0..5 {
-        let frame = frame_alloc().unwrap();
+        let frame = alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }
     v.clear();
 
     for i in 0..5 {
-        let frame = frame_alloc().unwrap();
+        let frame = alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }

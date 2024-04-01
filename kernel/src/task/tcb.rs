@@ -10,13 +10,14 @@ use crate::{
 };
 use alloc::sync::{Arc, Weak};
 
-pub struct ControlBlock {
+#[allow(clippy::module_name_repetitions)]
+pub struct TaskControlBlock {
     pub process: Weak<ProcessControlBlock>,
     pub kstack: KernelStack,
     inner: UPIntrFreeCell<TaskControlBlockInner>,
 }
 
-impl ControlBlock {
+impl TaskControlBlock {
     pub fn new(
         process: &Arc<ProcessControlBlock>,
         ustack_base: usize,

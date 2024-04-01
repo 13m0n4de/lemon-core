@@ -1,4 +1,4 @@
-//! Implementation of [`TaskManager`]
+//! Implementation of `TaskManager`
 
 use crate::sync::UPIntrFreeCell;
 
@@ -7,11 +7,11 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
 use super::pcb::ProcessControlBlock;
-use super::tcb::{ControlBlock, Status};
+use super::tcb::{Status, TaskControlBlock};
 
 /// A array of `TaskControlBlock` that is thread-safe
 pub struct Manager {
-    ready_queue: VecDeque<Arc<ControlBlock>>,
+    ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 /// A simple FIFO scheduler
@@ -22,13 +22,13 @@ impl Manager {
         }
     }
 
-    /// Add a task to [`TaskManager`]
-    pub fn add(&mut self, task: Arc<ControlBlock>) {
+    /// Add a task to [`Manager`]
+    pub fn add(&mut self, task: Arc<TaskControlBlock>) {
         self.ready_queue.push_back(task);
     }
 
-    /// Remove the first task and return it,or [`None`] if [`TaskManager`] is empty
-    pub fn fetch(&mut self) -> Option<Arc<ControlBlock>> {
+    /// Remove the first task and return it,or [`None`] if [`Manager`] is empty
+    pub fn fetch(&mut self) -> Option<Arc<TaskControlBlock>> {
         self.ready_queue.pop_front()
     }
 }
@@ -41,11 +41,11 @@ lazy_static! {
 }
 
 /// Add the thread to the ready queue
-pub fn add(task: Arc<ControlBlock>) {
+pub fn add(task: Arc<TaskControlBlock>) {
     TASK_MANAGER.exclusive_access().add(task);
 }
 
-pub fn wakeup(task: Arc<ControlBlock>) {
+pub fn wakeup(task: Arc<TaskControlBlock>) {
     let mut task_inner = task.inner_exclusive_access();
     task_inner.task_status = Status::Ready;
     drop(task_inner);
@@ -53,7 +53,7 @@ pub fn wakeup(task: Arc<ControlBlock>) {
 }
 
 /// Pop a task from the ready queue
-pub fn fetch() -> Option<Arc<ControlBlock>> {
+pub fn fetch() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
 

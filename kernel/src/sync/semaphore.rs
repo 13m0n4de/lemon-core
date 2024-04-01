@@ -1,6 +1,6 @@
 use alloc::{collections::VecDeque, sync::Arc};
 
-use crate::task::{block_current_and_run_next, current_tcb, wakeup, ControlBlock};
+use crate::task::{block_current_and_run_next, current_tcb, wakeup_task, TaskControlBlock};
 
 use super::UPIntrFreeCell;
 
@@ -10,7 +10,7 @@ pub struct Semaphore {
 
 pub struct Inner {
     pub count: isize,
-    pub wait_queue: VecDeque<Arc<ControlBlock>>,
+    pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 impl Semaphore {
@@ -30,7 +30,7 @@ impl Semaphore {
         inner.count += 1;
         if inner.count <= 0 {
             if let Some(task) = inner.wait_queue.pop_back() {
-                wakeup(task);
+                wakeup_task(task);
             }
         }
     }
