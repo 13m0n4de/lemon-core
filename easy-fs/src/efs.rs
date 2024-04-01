@@ -23,9 +23,9 @@ pub struct EasyFileSystem {
 }
 
 impl EasyFileSystem {
-    /// Create and initialize a new EasyFileSystem on a given block device.
+    /// Create and initialize a new `EasyFileSystem` on a given block device.
     pub fn create(
-        block_device: Arc<dyn BlockDevice>,
+        block_device: &Arc<dyn BlockDevice>,
         total_blocks: u32,
         inode_bitmap_blocks: u32,
     ) -> Arc<Mutex<Self>> {
@@ -43,7 +43,7 @@ impl EasyFileSystem {
             data_bitmap_blocks as usize,
         );
         let mut efs = Self {
-            block_device: Arc::clone(&block_device),
+            block_device: Arc::clone(block_device),
             inode_bitmap,
             data_bitmap,
             inode_area_start_block: 1 + inode_bitmap_blocks,
@@ -52,17 +52,18 @@ impl EasyFileSystem {
 
         // clear all blocks
         (0..total_blocks as usize).for_each(|block_id| {
-            get_block_cache(block_id, Arc::clone(&block_device))
-                .lock()
-                .modify(0, |data_block: &mut DataBlock| {
+            get_block_cache(block_id, block_device).lock().modify(
+                0,
+                |data_block: &mut DataBlock| {
                     data_block.fill(0);
-                });
+                },
+            );
         });
 
         // initialize SuperBlock
-        get_block_cache(0, Arc::clone(&block_device)).lock().modify(
-            0,
-            |super_block: &mut SuperBlock| {
+        get_block_cache(0, block_device)
+            .lock()
+            .modify(0, |super_block: &mut SuperBlock| {
                 super_block.initialize(
                     total_blocks,
                     inode_bitmap_blocks,
@@ -70,14 +71,13 @@ impl EasyFileSystem {
                     data_bitmap_blocks,
                     data_area_blocks,
                 );
-            },
-        );
+            });
 
         // write back immediately
         // create a inode for root node "/"
         assert_eq!(efs.alloc_inode(), 0);
         let (root_inode_block_id, root_inode_offset) = efs.disk_inode_position(0);
-        get_block_cache(root_inode_block_id as usize, Arc::clone(&block_device))
+        get_block_cache(root_inode_block_id as usize, block_device)
             .lock()
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
                 disk_inode.initialize(DiskInodeType::Directory);
@@ -88,16 +88,16 @@ impl EasyFileSystem {
     }
 
     /// Open a block device as a filesystem
-    pub fn open(block_device: Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
+    pub fn open(block_device: &Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
         // read SuperBlock
-        get_block_cache(0, Arc::clone(&block_device))
+        get_block_cache(0, block_device)
             .lock()
             .read(0, |super_block: &SuperBlock| {
                 assert!(super_block.is_valid(), "Error loading EFS!");
                 let inode_total_blocks =
                     super_block.inode_bitmap_blocks + super_block.inode_area_blocks;
                 let efs = Self {
-                    block_device,
+                    block_device: Arc::clone(block_device),
                     inode_bitmap: Bitmap::new(1, super_block.inode_bitmap_blocks as usize),
                     data_bitmap: Bitmap::new(
                         (1 + inode_total_blocks) as usize,
@@ -119,7 +119,7 @@ impl EasyFileSystem {
         Inode::new(block_id, block_offset, Arc::clone(efs), block_device)
     }
 
-    /// Get block_id and offset by inode_id
+    /// Get `block_id` and offset by `inode_id`
     pub fn disk_inode_position(&self, inode_id: u32) -> (u32, usize) {
         let inode_size = core::mem::size_of::<DiskInode>();
         let inodes_per_block = (BLOCK_SIZE / inode_size) as u32;
@@ -145,7 +145,7 @@ impl EasyFileSystem {
 
     /// Deallocate a data block
     pub fn dealloc_data(&mut self, block_id: u32) {
-        get_block_cache(block_id as usize, Arc::clone(&self.block_device))
+        get_block_cache(block_id as usize, &self.block_device)
             .lock()
             .modify(0, |data_block: &mut DataBlock| {
                 data_block.fill(0);
@@ -153,6 +153,6 @@ impl EasyFileSystem {
         self.data_bitmap.dealloc(
             &self.block_device,
             (block_id - self.data_area_start_block) as usize,
-        )
+        );
     }
 }

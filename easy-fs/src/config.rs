@@ -6,7 +6,7 @@ pub const BLOCK_BITS: usize = BLOCK_SIZE * 8;
 pub const BLOCK_CACHE_SIZE: usize = 16;
 
 /// Magic number for sanity check
-pub const EFS_MAGIC: u32 = 0x3b800001;
+pub const EFS_MAGIC: u32 = 0x3b80_0001;
 
 /// The max number of direct inodes
 pub const INODE_DIRECT_COUNT: usize = 28;

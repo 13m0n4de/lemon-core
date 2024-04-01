@@ -87,7 +87,7 @@ impl File for OSInode {
 
 lazy_static! {
     pub static ref ROOT_INODE: Arc<Inode> = {
-        let efs = EasyFileSystem::open(BLOCK_DEVICE.clone());
+        let efs = EasyFileSystem::open(&BLOCK_DEVICE);
         Arc::new(EasyFileSystem::root_inode(&efs))
     };
 }

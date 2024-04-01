@@ -1,5 +1,8 @@
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+
 use block_file::BlockFile;
-use easy_fs::EasyFileSystem;
+use easy_fs::{BlockDevice, EasyFileSystem};
 
 use clap::Parser;
 use std::fs::{read_dir, File, OpenOptions};
@@ -26,7 +29,7 @@ fn main() -> std::io::Result<()> {
     let image_path = target_path.join("fs.img");
 
     println!("Initializing the easy-fs image...");
-    let block_file = Arc::new(BlockFile(Mutex::new({
+    let block_file: Arc<dyn BlockDevice> = Arc::new(BlockFile(Mutex::new({
         let f = OpenOptions::new()
             .read(true)
             .write(true)
@@ -38,13 +41,10 @@ fn main() -> std::io::Result<()> {
     })));
 
     // 16 MiB, at most 4095 files
-    let efs = EasyFileSystem::create(block_file, 16 * 2048, 1);
+    let efs = EasyFileSystem::create(&block_file, 16 * 2048, 1);
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
 
-    println!(
-        "Packing files from {:?} into the easy-fs image...",
-        source_path
-    );
+    println!("Packing files from {source_path:?} into the easy-fs image...");
     for entry in read_dir(source_path)? {
         let path = entry?.path();
         if path.is_file() {
@@ -79,7 +79,7 @@ mod tests {
     #[test]
     fn efs_test() -> std::io::Result<()> {
         // create a block device
-        let block_file = Arc::new(BlockFile(Mutex::new({
+        let block_file: Arc<dyn BlockDevice> = Arc::new(BlockFile(Mutex::new({
             let f = OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -89,10 +89,10 @@ mod tests {
             f.set_len(8192 * 512)?;
             f
         })));
-        EasyFileSystem::create(block_file.clone(), 4096, 1);
+        EasyFileSystem::create(&block_file, 4096, 1);
 
         // open the file system from the block device
-        let efs = EasyFileSystem::open(block_file.clone());
+        let efs = EasyFileSystem::open(&block_file);
 
         // get the Inode of the root directory
         let root_inode = EasyFileSystem::root_inode(&efs);
