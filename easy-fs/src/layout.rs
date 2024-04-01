@@ -240,7 +240,7 @@ impl DiskInode {
 
         // recycle direct
         let direct_recycle_count = current_blocks.min(INODE_DIRECT_COUNT);
-        while current_blocks < direct_recycle_count {
+        while recycled_blocks < direct_recycle_count {
             v.push(self.direct[recycled_blocks]);
             self.direct[recycled_blocks] = 0;
             recycled_blocks += 1;
