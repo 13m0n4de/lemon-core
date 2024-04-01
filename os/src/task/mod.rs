@@ -19,7 +19,7 @@ use processor::{schedule, take_current_tcb};
 use tcb::TaskControlBlock;
 
 #[allow(clippy::module_name_repetitions)]
-pub use manager::add as add_task;
+pub use manager::{add as add_task, fetch as fetch_task};
 pub use processor::{current_tcb, current_trap_cx, current_user_token, run_tasks};
 
 #[derive(Copy, Clone, PartialEq)]

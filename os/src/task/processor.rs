@@ -1,8 +1,7 @@
 //! Implementation of [`Processor`]
 
 use super::{
-    context::Context as TaskContext, manager::fetch, switch::__switch, tcb::TaskControlBlock,
-    Status,
+    context::Context as TaskContext, fetch_task, switch::__switch, tcb::TaskControlBlock, Status,
 };
 use crate::{sync::UPSafeCell, trap::Context as TrapContext};
 use alloc::sync::Arc;
@@ -65,7 +64,7 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// `__switch`
 pub fn run_tasks() {
     loop {
-        if let Some(task) = fetch() {
+        if let Some(task) = fetch_task() {
             let mut processor = PROCESSOR.exclusive_access();
             let idle_task_cx_ptr = processor.idle_task_cx_ptr();
 
