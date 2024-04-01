@@ -25,7 +25,7 @@ use page_table::{PTEFlags, PageTable};
 
 /// Initiate heap allocator, fream allocator, kernel space.
 pub fn init() {
-    heap_allocator::init_heap();
-    frame_allocator::init_frame_allocator();
+    heap_allocator::init();
+    frame_allocator::init();
     KERNEL_SPACE.exclusive_access().activate();
 }

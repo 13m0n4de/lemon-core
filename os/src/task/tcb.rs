@@ -5,11 +5,11 @@ use core::cell::RefMut;
 use crate::config::TRAP_CONTEXT;
 use crate::mm::{MemorySet, PhysPageNum, VirtAddr, KERNEL_SPACE};
 use crate::sync::UPSafeCell;
-use crate::trap::{trap_handler, TrapContext};
+use crate::trap::{user_handler, Context as TrapContext};
 
-use super::context::TaskContext;
-use super::pid::{pid_alloc, KernelStack, PidHandle};
-use super::TaskStatus;
+use super::context::Context;
+use super::pid::{alloc as pid_alloc, KernelStack, PidHandle};
+use super::Status;
 
 pub struct TaskControlBlock {
     pub pid: PidHandle,
@@ -25,7 +25,7 @@ impl TaskControlBlock {
             .translate(VirtAddr::from(TRAP_CONTEXT).into())
             .unwrap()
             .ppn();
-        let task_status = TaskStatus::Ready;
+        let task_status = Status::Ready;
 
         // alloc a pid and a kernel stack in kernel space
         let pid_handle = pid_alloc();
@@ -43,7 +43,7 @@ impl TaskControlBlock {
                     base_size: user_sp,
 
                     task_status,
-                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
+                    task_cx: Context::goto_trap_return(kernel_stack_top),
                     memory_set,
 
                     parent: None,
@@ -60,7 +60,7 @@ impl TaskControlBlock {
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             kernel_stack_top,
-            trap_handler as usize,
+            user_handler as usize,
         );
 
         task_control_block
@@ -92,8 +92,8 @@ impl TaskControlBlock {
                 UPSafeCell::new(TaskControlBlockInner {
                     trap_cx_ppn,
                     base_size: parent_inner.base_size,
-                    task_cx: TaskContext::goto_trap_return(kernel_stack_top),
-                    task_status: TaskStatus::Ready,
+                    task_cx: Context::goto_trap_return(kernel_stack_top),
+                    task_status: Status::Ready,
                     memory_set,
                     parent: Some(Arc::downgrade(self)),
                     children: Vec::new(),
@@ -138,7 +138,7 @@ impl TaskControlBlock {
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             self.kernel_stack.top(),
-            trap_handler as usize,
+            user_handler as usize,
         );
         // **** release inner automatically
     }
@@ -153,8 +153,8 @@ pub struct TaskControlBlockInner {
 
     pub base_size: usize,
 
-    pub task_status: TaskStatus,
-    pub task_cx: TaskContext,
+    pub task_status: Status,
+    pub task_cx: Context,
     pub memory_set: MemorySet,
 
     pub parent: Option<Weak<TaskControlBlock>>,
@@ -171,21 +171,21 @@ impl TaskControlBlockInner {
         self.memory_set.token()
     }
 
-    fn status(&self) -> TaskStatus {
+    fn status(&self) -> Status {
         self.task_status
     }
 
     pub fn is_zombie(&self) -> bool {
-        self.status() == TaskStatus::Zombie
+        self.status() == Status::Zombie
     }
 
     #[allow(unused)]
     pub fn is_ready(&self) -> bool {
-        self.status() == TaskStatus::Ready
+        self.status() == Status::Ready
     }
 
     #[allow(unused)]
     pub fn is_running(&self) -> bool {
-        self.status() == TaskStatus::Running
+        self.status() == Status::Running
     }
 }

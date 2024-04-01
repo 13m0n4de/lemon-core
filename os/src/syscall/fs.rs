@@ -33,9 +33,8 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
                 if c == 0 {
                     suspend_current_and_run_next();
                     continue;
-                } else {
-                    break;
                 }
+                break;
             }
             let ch = c as u8;
             let mut buffers = translated_byte_buffer(current_user_token(), buf, len);
