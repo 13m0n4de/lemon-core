@@ -6,8 +6,8 @@ const SYSCALL_EXIT: usize = 93;
 mod fs;
 mod process;
 
-use fs::*;
-use process::*;
+use fs::sys_write;
+use process::sys_exit;
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {

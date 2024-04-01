@@ -2,15 +2,15 @@
 
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
-use crate::trap::TrapContext;
+use crate::trap::Context as TrapContext;
 use core::arch::asm;
-use lazy_static::*;
-use log::*;
+use lazy_static::lazy_static;
+use log::{debug, info};
 
 const USER_STACK_SIZE: usize = 4096 * 2;
 const KERNEL_STACK_SIZE: usize = 4096 * 2;
 const MAX_APP_NUM: usize = 16;
-const APP_BASE_ADDRESS: usize = 0x80400000;
+const APP_BASE_ADDRESS: usize = 0x8040_0000;
 const APP_SIZE_LIMIT: usize = 0x20000;
 
 // stack for kernel mode
@@ -135,6 +135,10 @@ pub fn print_app_info() {
 
 /// run next app
 pub fn run_next_app() -> ! {
+    extern "C" {
+        fn __restore(cx_addr: usize);
+    }
+
     let mut app_manager = APP_MANAGER.exclusive_access();
     let current_app = app_manager.current_app();
     unsafe {
@@ -144,14 +148,14 @@ pub fn run_next_app() -> ! {
     drop(app_manager);
     // before this we have to drop local variables related to resources manually
     // and release the resources
-    extern "C" {
-        fn __restore(cx_addr: usize);
-    }
+
     unsafe {
-        __restore(KERNEL_STACK.push_context(TrapContext::app_init_context(
-            APP_BASE_ADDRESS,
-            USER_STACK.sp(),
-        )) as *const _ as usize);
+        __restore(
+            core::ptr::from_ref(KERNEL_STACK.push_context(TrapContext::app_init_context(
+                APP_BASE_ADDRESS,
+                USER_STACK.sp(),
+            ))) as usize,
+        );
     }
     panic!("Unreachable in batch::run_current_app!");
 }

@@ -35,7 +35,7 @@ __alltraps:
     sd t2, 2*8(sp)
     # set input argument of trap_handler(cx: &mut TrapContext)
     mv a0, sp
-    call trap_handler
+    call user_handler
 
 __restore:
     # case1: start running app by __restore

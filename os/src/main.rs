@@ -16,6 +16,11 @@
 
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -31,14 +36,14 @@ mod syscall;
 mod trap;
 
 use core::arch::global_asm;
-use log::*;
+use log::debug;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
 
 /// the rust entrypoint of OS
 #[no_mangle]
-pub fn rust_main() -> ! {
+pub extern "C" fn rust_main() -> ! {
     /* External Symbols:
      * - `stext`: start addr of text segment
      * - `etext`: end addr of text segment
