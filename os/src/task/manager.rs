@@ -1,4 +1,4 @@
-//! Implementation of [`TaskManager`]
+//! Implementation of `TaskManager`
 
 use super::{Context as TaskContext, TaskControlBlock, TaskStatus, __switch};
 use crate::loader::{get_app_data, get_num_app};

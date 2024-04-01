@@ -1,4 +1,4 @@
-//! Implementation of [`TaskContext`]
+//! Implementation of `TaskContext`
 
 use crate::trap::leave;
 

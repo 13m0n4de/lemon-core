@@ -4,7 +4,7 @@
 //! - On trap, system jumps to `__alltraps`.
 //!   - saves context.
 //!   - switches stack form user to kernel.
-//!   - call [`trap_handler`]
+//!   - call [`user_handler`]
 //! - Handle [`Exception`] and [`Interrupt`]
 
 mod context;

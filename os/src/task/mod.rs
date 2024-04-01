@@ -1,6 +1,6 @@
 //! # Task Management
 //!
-//! Use [`TaskManager`] to manage tasks, and use [`__switch`] to switch tasks.
+//! Use [`manager::Manager`] to manage tasks, and use [`__switch`] to switch tasks.
 
 mod context;
 mod manager;
