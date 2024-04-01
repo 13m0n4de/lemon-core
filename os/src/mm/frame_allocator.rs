@@ -27,7 +27,7 @@ impl Debug for FrameTracker {
 
 impl Drop for FrameTracker {
     fn drop(&mut self) {
-        frame_dealloc(self.ppn);
+        dealloc(self.ppn);
     }
 }
 
@@ -105,7 +105,7 @@ pub fn init() {
 }
 
 /// Allocate a frame
-pub fn frame_alloc() -> Option<FrameTracker> {
+pub fn alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
         .alloc()
@@ -113,7 +113,7 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 }
 
 /// Deallocate a frame
-fn frame_dealloc(ppn: PhysPageNum) {
+fn dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
@@ -123,14 +123,14 @@ pub fn test() {
     let mut v: Vec<FrameTracker> = Vec::new();
 
     for i in 0..5 {
-        let frame = frame_alloc().unwrap();
+        let frame = alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }
     v.clear();
 
     for i in 0..5 {
-        let frame = frame_alloc().unwrap();
+        let frame = alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }

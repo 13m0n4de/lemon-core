@@ -16,7 +16,8 @@ use context::Context;
 use processor::{schedule, take_current_tcb};
 use tcb::TaskControlBlock;
 
-pub use manager::add;
+#[allow(clippy::module_name_repetitions)]
+pub use manager::{add as add_task, fetch as fetch_task};
 pub use processor::{current_tcb, current_trap_cx, current_user_token, run_tasks};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -34,7 +35,7 @@ lazy_static! {
 
 /// Add init process to the mannger
 pub fn add_initproc() {
-    add(INITPROC.clone());
+    add_task(INITPROC.clone());
 }
 
 /// Suspend the current 'Running' task and run the next task in task list
@@ -51,7 +52,7 @@ pub fn suspend_current_and_run_next() {
     // --- release current TCB
 
     // push back to ready queue.
-    add(task);
+    add_task(task);
     // jump to scheduling cycle.
     schedule(task_cx_ptr);
 }

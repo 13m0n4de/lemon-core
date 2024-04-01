@@ -7,7 +7,7 @@ use crate::{
     loader::get_app_data_by_name,
     mm::{translated_mut_ref, translated_str},
     task::{
-        add as add_task, current_tcb, current_user_token, exit_current_and_run_next,
+        add_task, current_tcb, current_user_token, exit_current_and_run_next,
         suspend_current_and_run_next,
     },
     timer::get_time_ms,

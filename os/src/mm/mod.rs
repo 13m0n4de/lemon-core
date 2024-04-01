@@ -16,7 +16,7 @@ mod memory_set;
 mod page_table;
 
 pub use address::{PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
-pub use frame_allocator::{frame_alloc, FrameTracker};
+pub use frame_allocator::{alloc as frame_alloc, FrameTracker};
 pub use memory_set::{MapPermission, MemorySet, KERNEL_SPACE};
 pub use page_table::{translated_byte_buffer, translated_mut_ref, translated_str, PageTableEntry};
 
