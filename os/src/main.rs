@@ -16,6 +16,12 @@
 
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -34,14 +40,14 @@ mod timer;
 mod trap;
 
 use core::arch::global_asm;
-use log::*;
+use log::debug;
 
 global_asm!(include_str!("entry.asm"));
 global_asm!(include_str!("link_app.S"));
 
 /// the rust entrypoint of OS
 #[no_mangle]
-pub fn rust_main() -> ! {
+pub extern "C" fn rust_main() -> ! {
     clear_bss();
     logging::init();
     print_segment_info();
@@ -49,7 +55,7 @@ pub fn rust_main() -> ! {
     loader::load_apps();
     trap::enable_timer_interrupt();
     timer::set_next_trigger();
-    task::run_first_task();
+    task::run_first();
     panic!("unreachable in rust_main!");
 }
 

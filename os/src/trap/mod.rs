@@ -17,7 +17,7 @@ use crate::{
     timer::set_next_trigger,
 };
 use core::arch::global_asm;
-use log::*;
+use log::info;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Interrupt, Trap},
@@ -46,7 +46,7 @@ pub fn enable_timer_interrupt() {
 
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
-pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+pub extern "C" fn user_handler(cx: &mut Context) -> &mut Context {
     user_time_end();
 
     let scause = scause::read(); // get trap cause
@@ -56,7 +56,7 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             cx.sepc += 4;
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
-        Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
+        Trap::Exception(Exception::StoreFault | Exception::StorePageFault) => {
             info!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
             exit_current_and_run_next();
         }
@@ -80,4 +80,4 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     cx
 }
 
-pub use context::TrapContext;
+pub use context::Context;

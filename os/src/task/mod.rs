@@ -10,11 +10,11 @@ use crate::loader::init_app_cx;
 use crate::sbi::shutdown;
 use crate::sync::UPSafeCell;
 use crate::timer::get_time_ms;
-use lazy_static::*;
-use log::*;
+use lazy_static::lazy_static;
+use log::{info, trace};
 use switch::__switch;
 
-pub use context::TaskContext;
+pub use context::Context;
 
 struct TaskManager {
     num_app: usize,
@@ -30,7 +30,7 @@ struct TaskPool {
 #[derive(Copy, Clone)]
 struct TaskControlBlock {
     task_status: TaskStatus,
-    task_cx: TaskContext,
+    task_cx: Context,
     user_time: usize,
     kernel_time: usize,
 }
@@ -46,13 +46,13 @@ enum TaskStatus {
 impl TaskPool {
     fn new() -> Self {
         let mut tasks = [TaskControlBlock {
-            task_cx: TaskContext::zero_init(),
+            task_cx: Context::zero_init(),
             task_status: TaskStatus::UnInit,
             user_time: 0,
             kernel_time: 0,
         }; MAX_APP_NUM];
         for (i, task) in tasks.iter_mut().enumerate() {
-            task.task_cx = TaskContext::goto_restore(init_app_cx(i));
+            task.task_cx = Context::goto_restore(init_app_cx(i));
             task.task_status = TaskStatus::Ready;
         }
         Self {
@@ -76,15 +76,17 @@ impl TaskManager {
         let task0 = &mut inner.tasks[0];
 
         task0.task_status = TaskStatus::Running;
-        let next_task_cx_ptr = &task0.task_cx as *const TaskContext;
+        let next_task_cx_ptr = &task0.task_cx as *const Context;
 
         inner.refresh_stop_watch();
 
         drop(inner);
-        let mut _unused = TaskContext::zero_init();
         // before this, we should drop local variables that must be dropped manually
         unsafe {
-            __switch(&mut _unused as *mut TaskContext, next_task_cx_ptr);
+            __switch(
+                core::ptr::from_mut::<Context>(&mut Context::zero_init()),
+                next_task_cx_ptr,
+            );
         }
         panic!("unreachable in run_first_task!");
     }
@@ -108,7 +110,7 @@ impl TaskManager {
     fn find_next_task(&self) -> Option<usize> {
         let inner = self.inner.exclusive_access();
         let current = inner.current_task;
-        (current + 1..current + self.num_app + 1)
+        ((current + 1)..=(current + self.num_app))
             .map(|id| id % self.num_app)
             .find(|id| inner.tasks[*id].task_status == TaskStatus::Ready)
     }
@@ -134,8 +136,8 @@ impl TaskManager {
             trace!("[kernel] Task {} start", current);
             inner.tasks[next].task_status = TaskStatus::Running;
             inner.current_task = next;
-            let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut TaskContext;
-            let next_task_cx_ptr = &inner.tasks[next].task_cx as *const TaskContext;
+            let current_task_cx_ptr = &mut inner.tasks[current].task_cx as *mut Context;
+            let next_task_cx_ptr = &inner.tasks[next].task_cx as *const Context;
             drop(inner);
             // before this, we should drop local variables that must be dropped manually
             unsafe {
@@ -175,7 +177,7 @@ lazy_static! {
 }
 
 /// run first task
-pub fn run_first_task() {
+pub fn run_first() {
     TASK_MANAGER.run_first_task();
 }
 
@@ -193,10 +195,10 @@ pub fn suspend_current_and_run_next() {
 
 // Counting kernel time, starting from now is user time.
 pub fn user_time_start() {
-    TASK_MANAGER.user_time_start()
+    TASK_MANAGER.user_time_start();
 }
 
 // Counting user time, starting from now is kernel time.
 pub fn user_time_end() {
-    TASK_MANAGER.user_time_end()
+    TASK_MANAGER.user_time_end();
 }
