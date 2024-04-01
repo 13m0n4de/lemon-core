@@ -61,8 +61,8 @@ pub type DataBlock = [u8; BLOCK_SIZE];
 /// A disk inode
 #[repr(C)]
 pub struct DiskInode {
+    disk_type: DiskInodeType,
     pub size: u32,
-    _type: DiskInodeType,
     pub direct: [u32; INODE_DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
@@ -72,7 +72,7 @@ impl DiskInode {
     /// Initialize a disk inode
     pub fn initialize(&mut self, inode_type: DiskInodeType) {
         self.size = 0;
-        self._type = inode_type;
+        self.disk_type = inode_type;
         self.direct.fill(0);
         self.indirect1 = 0;
         self.indirect2 = 0;
@@ -80,13 +80,13 @@ impl DiskInode {
 
     /// Whether this inode is a directory
     pub fn is_dir(&self) -> bool {
-        self._type == DiskInodeType::Directory
+        self.disk_type == DiskInodeType::Directory
     }
 
     /// Whether this inode is a file
     #[allow(unused)]
     pub fn is_file(&self) -> bool {
-        self._type == DiskInodeType::File
+        self.disk_type == DiskInodeType::File
     }
 
     /// Get id of block given inner id
@@ -95,19 +95,19 @@ impl DiskInode {
         if inner_id < INODE_DIRECT_COUNT {
             self.direct[inner_id]
         } else if inner_id < INDIRECT1_BOUND {
-            get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+            get_block_cache(self.indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect_block: &IndirectBlock| {
                     indirect_block[inner_id - INODE_DIRECT_COUNT]
                 })
         } else {
             let last = inner_id - INDIRECT1_BOUND;
-            let indirect1 = get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+            let indirect1 = get_block_cache(self.indirect2 as usize, block_device)
                 .lock()
                 .read(0, |indirect2: &IndirectBlock| {
                     indirect2[last / INODE_INDIRECT1_COUNT]
                 });
-            get_block_cache(indirect1 as usize, Arc::clone(block_device))
+            get_block_cache(indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
                     indirect1[last % INODE_INDIRECT1_COUNT]
@@ -178,7 +178,7 @@ impl DiskInode {
             return;
         }
         // fill indirect1
-        get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+        get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
                 let indirect1_fill_count = total_blocks.min(INODE_INDIRECT1_COUNT);
@@ -204,7 +204,7 @@ impl DiskInode {
         let a1 = total_blocks / INODE_INDIRECT1_COUNT;
         let b1 = total_blocks % INODE_INDIRECT1_COUNT;
         // alloc low-level indirect1
-        get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+        get_block_cache(self.indirect2 as usize, block_device)
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
                 while (a0 < a1) || (a0 == a1 && b0 < b1) {
@@ -212,7 +212,7 @@ impl DiskInode {
                         indirect2[a0] = new_blocks.next().unwrap();
                     }
                     // fill current
-                    get_block_cache(indirect2[a0] as usize, Arc::clone(block_device))
+                    get_block_cache(indirect2[a0] as usize, block_device)
                         .lock()
                         .modify(0, |indirect1: &mut IndirectBlock| {
                             indirect1[b0] = new_blocks.next().unwrap();
@@ -258,7 +258,7 @@ impl DiskInode {
             return v;
         }
         // fill indirect1
-        get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+        get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
                 let indirect1_recycle_count = recycled_blocks.min(INODE_INDIRECT1_COUNT);
@@ -285,7 +285,7 @@ impl DiskInode {
         let a1 = recycled_blocks / INODE_INDIRECT1_COUNT;
         let b1 = recycled_blocks % INODE_INDIRECT1_COUNT;
         // alloc low-level indirect1
-        get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+        get_block_cache(self.indirect2 as usize, block_device)
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
                 while (a0 < a1) || (a0 == a1 && b0 < b1) {
@@ -293,7 +293,7 @@ impl DiskInode {
                         v.push(indirect2[a0]);
                     }
                     // fill current
-                    get_block_cache(indirect2[a0] as usize, Arc::clone(block_device))
+                    get_block_cache(indirect2[a0] as usize, block_device)
                         .lock()
                         .modify(0, |indirect1: &mut IndirectBlock| {
                             v.push(indirect1[b0]);
@@ -335,7 +335,7 @@ impl DiskInode {
             return v;
         }
         // indirect1
-        get_block_cache(self.indirect1 as usize, Arc::clone(block_device))
+        get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .read(0, |indirect1: &IndirectBlock| {
                 let indirect1_clear_count = data_blocks.min(INODE_INDIRECT1_COUNT);
@@ -357,22 +357,23 @@ impl DiskInode {
         assert!(data_blocks <= INODE_INDIRECT2_COUNT);
         let a1 = data_blocks / INODE_INDIRECT1_COUNT;
         let b1 = data_blocks % INODE_INDIRECT1_COUNT;
-        get_block_cache(self.indirect2 as usize, Arc::clone(block_device))
+        get_block_cache(self.indirect2 as usize, block_device)
             .lock()
             .read(0, |indirect2: &IndirectBlock| {
                 // full indirect1 blocks
                 indirect2.iter().take(a1).for_each(|&entry| {
                     v.push(entry);
-                    get_block_cache(entry as usize, Arc::clone(block_device))
-                        .lock()
-                        .read(0, |indirect1: &IndirectBlock| {
+                    get_block_cache(entry as usize, block_device).lock().read(
+                        0,
+                        |indirect1: &IndirectBlock| {
                             v.extend(indirect1.iter());
-                        });
+                        },
+                    );
                 });
                 // last indirect1 block
                 if b1 > 0 {
                     v.push(indirect2[a1]);
-                    get_block_cache(indirect2[a1] as usize, Arc::clone(block_device))
+                    get_block_cache(indirect2[a1] as usize, block_device)
                         .lock()
                         .read(0, |indirect1: &IndirectBlock| {
                             v.extend(indirect1.iter().take(b1));
@@ -408,7 +409,7 @@ impl DiskInode {
             let dst = &mut buf[read_size..read_size + block_read_size];
             get_block_cache(
                 self.get_block_id(start_block as u32, block_device) as usize,
-                Arc::clone(block_device),
+                block_device,
             )
             .lock()
             .read(0, |data_block: &DataBlock| {
@@ -450,7 +451,7 @@ impl DiskInode {
             let block_write_size = end_current_block - start;
             get_block_cache(
                 self.get_block_id(start_block as u32, block_device) as usize,
-                Arc::clone(block_device),
+                block_device,
             )
             .lock()
             .modify(0, |data_block: &mut DataBlock| {
@@ -503,12 +504,14 @@ impl DirEntry {
 
     /// Serialize into bytes
     pub fn as_bytes(&self) -> &[u8] {
-        unsafe { core::slice::from_raw_parts(self as *const _ as *const u8, DIRENT_SIZE) }
+        unsafe { core::slice::from_raw_parts(core::ptr::from_ref(self).cast::<u8>(), DIRENT_SIZE) }
     }
 
     /// Serialize into mutable bytes
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
-        unsafe { core::slice::from_raw_parts_mut(self as *mut _ as *mut u8, DIRENT_SIZE) }
+        unsafe {
+            core::slice::from_raw_parts_mut(core::ptr::from_mut(self).cast::<u8>(), DIRENT_SIZE)
+        }
     }
 
     /// Get name of the entry

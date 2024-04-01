@@ -6,7 +6,6 @@ use lazy_static::lazy_static;
 use crate::{drivers::BLOCK_DEVICE, mm::UserBuffer, sync::UPSafeCell};
 
 use super::{File, StatMode};
-
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
 #[allow(clippy::module_name_repetitions)]
@@ -114,7 +113,7 @@ impl File for OSInode {
 
 lazy_static! {
     pub static ref ROOT_INODE: Arc<Inode> = {
-        let efs = EasyFileSystem::open(BLOCK_DEVICE.clone());
+        let efs = EasyFileSystem::open(&BLOCK_DEVICE);
         let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
         root_inode.set_default_dirent(root_inode.inode_id());
         root_inode
