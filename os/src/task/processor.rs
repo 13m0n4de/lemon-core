@@ -58,7 +58,7 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 }
 
 /// The main part of process execution and scheduling.
-/// Loop [`fetch`] to get the process that needs to run, and switch the process through
+/// Loop [`fetch_task`] to get the process that needs to run, and switch the process through
 /// `__switch`
 pub fn run_tasks() {
     loop {
