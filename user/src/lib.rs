@@ -2,6 +2,12 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::must_use_candidate)]
 
 #[macro_use]
 pub mod console;
@@ -11,7 +17,10 @@ mod syscall;
 
 use bitflags::bitflags;
 use heap_allocator::init_heap;
-use syscall::*;
+use syscall::{
+    sys_close, sys_exec, sys_exit, sys_fork, sys_get_time, sys_getpid, sys_open, sys_read,
+    sys_waitpid, sys_write, sys_yield,
+};
 
 #[no_mangle]
 #[link_section = ".text.entry"]
@@ -22,7 +31,7 @@ pub extern "C" fn _start() -> ! {
 
 #[no_mangle]
 #[linkage = "weak"]
-fn main() -> i32 {
+pub extern "Rust" fn main() -> i32 {
     panic!("Cannot find main!");
 }
 
@@ -36,6 +45,7 @@ bitflags! {
     }
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn open(path: &str, flags: OpenFlags) -> isize {
     sys_open(path, flags.bits())
 }
@@ -78,7 +88,7 @@ pub fn exec(path: &str) -> isize {
 
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(-1, exit_code as *mut _) {
+        match sys_waitpid(-1, core::ptr::from_mut(exit_code)) {
             -2 => {
                 yield_();
             }
@@ -90,7 +100,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
 
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(pid as isize, exit_code as *mut _) {
+        match sys_waitpid(pid as isize, core::ptr::from_mut(exit_code)) {
             -2 => {
                 yield_();
             }
