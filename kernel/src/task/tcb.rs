@@ -1,39 +1,38 @@
 use alloc::sync::{Arc, Weak};
 use core::cell::RefMut;
 
-use crate::mm::PhysPageNum;
-use crate::sync::UPSafeCell;
-use crate::trap::TrapContext;
+use super::{
+    context::Context as TaskContext,
+    id::{kstack_alloc, KernelStack, TaskUserRes},
+    pcb::ProcessControlBlock,
+};
+use crate::{mm::PhysPageNum, sync::UPSafeCell, trap::Context as TrapContext};
 
-use super::context::TaskContext;
-use super::id::{kstack_alloc, KernelStack, TaskUserRes};
-use super::pcb::ProcessControlBlock;
-
-pub struct TaskControlBlock {
+pub struct ControlBlock {
     pub process: Weak<ProcessControlBlock>,
     pub kstack: KernelStack,
     inner: UPSafeCell<TaskControlBlockInner>,
 }
 
-impl TaskControlBlock {
+impl ControlBlock {
     pub fn new(
-        process: Arc<ProcessControlBlock>,
+        process: &Arc<ProcessControlBlock>,
         ustack_base: usize,
         alloc_user_res: bool,
     ) -> Self {
-        let res = TaskUserRes::new(Arc::clone(&process), ustack_base, alloc_user_res);
+        let res = TaskUserRes::new(process, ustack_base, alloc_user_res);
         let trap_cx_ppn = res.trap_cx_ppn();
         let kstack = kstack_alloc();
         let kstack_top = kstack.top();
         Self {
-            process: Arc::downgrade(&process),
+            process: Arc::downgrade(process),
             kstack,
             inner: unsafe {
                 UPSafeCell::new(TaskControlBlockInner {
                     res: Some(res),
                     trap_cx_ppn,
-                    task_cx: TaskContext::goto_trap_return(kstack_top),
-                    task_status: TaskStatus::Ready,
+                    task_cx: TaskContext::leave_trap(kstack_top),
+                    task_status: Status::Ready,
                     exit_code: None,
                 })
             },
@@ -55,7 +54,7 @@ pub struct TaskControlBlockInner {
     pub res: Option<TaskUserRes>,
     pub trap_cx_ppn: PhysPageNum,
     pub task_cx: TaskContext,
-    pub task_status: TaskStatus,
+    pub task_status: Status,
     pub exit_code: Option<i32>,
 }
 
@@ -66,7 +65,7 @@ impl TaskControlBlockInner {
 }
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum TaskStatus {
+pub enum Status {
     Ready,
     Running,
     Blocked,

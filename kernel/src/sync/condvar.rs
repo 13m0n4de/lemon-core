@@ -1,14 +1,14 @@
 use alloc::{collections::VecDeque, sync::Arc};
 
-use crate::task::{block_current_and_run_next, current_task, wakeup_task, TaskControlBlock};
+use crate::task::{block_current_and_run_next, current_tcb, wakeup_task, TaskControlBlock};
 
 use super::{Mutex, UPSafeCell};
 
 pub struct Condvar {
-    pub inner: UPSafeCell<CondvarInner>,
+    pub inner: UPSafeCell<Inner>,
 }
 
-pub struct CondvarInner {
+pub struct Inner {
     pub wait_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
@@ -16,7 +16,7 @@ impl Condvar {
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(CondvarInner {
+                UPSafeCell::new(Inner {
                     wait_queue: VecDeque::new(),
                 })
             },
@@ -30,10 +30,10 @@ impl Condvar {
         }
     }
 
-    pub fn wait(&self, mutex: Arc<dyn Mutex>) {
+    pub fn wait(&self, mutex: &Arc<dyn Mutex>) {
         mutex.unlock();
         let mut inner = self.inner.exclusive_access();
-        inner.wait_queue.push_back(current_task().unwrap());
+        inner.wait_queue.push_back(current_tcb().unwrap());
         drop(inner);
         block_current_and_run_next();
         mutex.lock();

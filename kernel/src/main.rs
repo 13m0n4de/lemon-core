@@ -12,6 +12,12 @@
 
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
+#![allow(clippy::missing_panics_doc)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -44,7 +50,7 @@ global_asm!(include_str!("entry.asm"));
 
 /// the rust entrypoint of OS
 #[no_mangle]
-pub fn rust_main() -> ! {
+pub extern "C" fn rust_main() -> ! {
     clear_bss();
     logging::init();
     mm::init();

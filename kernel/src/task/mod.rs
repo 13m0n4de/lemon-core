@@ -11,7 +11,7 @@ mod tcb;
 
 use alloc::{sync::Arc, vec::Vec};
 use lazy_static::lazy_static;
-use log::*;
+use log::info;
 
 use crate::{
     fs::{find_inode, open_file, OpenFlags},
@@ -19,23 +19,23 @@ use crate::{
     timer::remove_timer,
 };
 
-pub use manager::{add_task, pid2process, wakeup_task};
+#[allow(clippy::module_name_repetitions)]
+pub use manager::{
+    add as add_task, fetch as fetch_task, pid2process, remove as remove_task,
+    remove_from_pid2process, wakeup as wakeup_task,
+};
+pub use pcb::ProcessControlBlock;
 pub use processor::{
-    current_process, current_task, current_trap_cx, current_trap_cx_user_va, current_user_token,
+    current_process, current_tcb, current_trap_cx, current_trap_cx_user_va, current_user_token,
     run_tasks,
 };
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
-pub use tcb::TaskControlBlock;
+#[allow(clippy::module_name_repetitions)]
+pub use tcb::{ControlBlock as TaskControlBlock, Status as TaskStatus};
 
-use context::TaskContext;
-use pcb::ProcessControlBlock;
-use processor::{schedule, take_current_task};
-use tcb::TaskStatus;
-
-use self::{
-    id::TaskUserRes,
-    manager::{remove_from_pid2process, remove_task},
-};
+use context::Context;
+use id::TaskUserRes;
+use processor::{schedule, take_current_tcb};
 
 lazy_static! {
     /// Global process that init user shell
@@ -62,11 +62,11 @@ pub const IDLE_PID: usize = 0;
 /// Suspend the current 'Running' task and run the next task in task list
 pub fn suspend_current_and_run_next() {
     // There must be an application running.
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
 
     // --- access current TCB exclusively
     let mut task_inner = task.inner_exclusive_access();
-    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    let task_cx_ptr = &mut task_inner.task_cx as *mut Context;
     // change status to Ready
     task_inner.task_status = TaskStatus::Ready;
     drop(task_inner);
@@ -79,9 +79,9 @@ pub fn suspend_current_and_run_next() {
 }
 
 pub fn block_current_and_run_next() {
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
-    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    let task_cx_ptr = &mut task_inner.task_cx as *mut Context;
     task_inner.task_status = TaskStatus::Blocked;
     drop(task_inner);
     schedule(task_cx_ptr);
@@ -89,7 +89,7 @@ pub fn block_current_and_run_next() {
 
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
     let mut task_inner = task.inner_exclusive_access();
     let process = task.process.upgrade().unwrap();
     let tid = task_inner.res.as_ref().unwrap().tid;
@@ -131,7 +131,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
         {
             // move all child processes under daemon process
             let mut daemon_inner = DAEMON.inner_exclusive_access();
-            for child in process_inner.children.iter() {
+            for child in &process_inner.children {
                 child.inner_exclusive_access().parent = Some(Arc::downgrade(&DAEMON));
                 daemon_inner.children.push(child.clone());
             }
@@ -149,7 +149,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
             // Mention that we do not need to consider Mutex/Semaphore since they
             // are limited in a single process. Therefore, the blocked tasks are
             // removed when the PCB is deallocated.
-            remove_inactive_task(task.clone());
+            remove_inactive(task);
             let mut task_inner = task.inner_exclusive_access();
             if let Some(res) = task_inner.res.take() {
                 recycle_res.push(res);
@@ -176,11 +176,10 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 
     drop(process);
     // we do not have to save task context
-    let mut _unused = TaskContext::zero_init();
-    schedule(&mut _unused as *mut _);
+    schedule(core::ptr::from_mut(&mut Context::zero_init()));
 }
 
-pub fn remove_inactive_task(task: Arc<TaskControlBlock>) {
-    remove_task(task.clone());
-    remove_timer(task.clone());
+pub fn remove_inactive(task: &Arc<TaskControlBlock>) {
+    remove_task(task);
+    remove_timer(task);
 }

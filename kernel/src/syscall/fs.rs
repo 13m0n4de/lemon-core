@@ -199,9 +199,8 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
                         inode.clear();
                         parent_inode.delete(target);
                         return 0;
-                    } else {
-                        return -3; // not empty
                     }
+                    return -3; // not empty
                 }
                 -2 // type not matched
             }
@@ -359,8 +358,10 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     }
     let file = fd_table[fd].clone().unwrap();
     let stat = Stat::from(file);
-    let stat_slice =
-        slice_from_raw_parts(&stat as *const _ as *const u8, core::mem::size_of::<Stat>());
+    let stat_slice = slice_from_raw_parts(
+        core::ptr::from_ref(&stat).cast::<u8>(),
+        core::mem::size_of::<Stat>(),
+    );
 
     for (i, p) in user_buffer.iter_mut().enumerate() {
         unsafe {

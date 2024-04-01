@@ -2,7 +2,7 @@
 
 use crate::sbi::shutdown;
 use core::panic::PanicInfo;
-use log::*;
+use log::error;
 
 #[panic_handler]
 fn panic_handler(info: &PanicInfo) -> ! {

@@ -11,7 +11,7 @@ use crate::{
     sync::UPSafeCell,
 };
 
-const VIRTIO0: usize = 0x10001000;
+const VIRTIO0: usize = 0x1000_1000;
 
 pub struct VirtIOBlock(UPSafeCell<VirtIOBlk<'static, VirtioHal>>);
 

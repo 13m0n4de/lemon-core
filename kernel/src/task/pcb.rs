@@ -1,3 +1,15 @@
+use super::{
+    add_task,
+    id::{pid_alloc, PidHandle, RecycleAllocator},
+    manager::insert_into_pid2process,
+    SignalFlags, TaskControlBlock,
+};
+use crate::{
+    fs::{find_inode, File, Stdin, Stdout},
+    mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
+    sync::{Condvar, Mutex, Semaphore, UPSafeCell},
+    trap::{user_handler, Context as TrapContext},
+};
 use alloc::{
     format,
     string::{String, ToString},
@@ -6,21 +18,6 @@ use alloc::{
     vec::Vec,
 };
 use core::cell::RefMut;
-
-use crate::{
-    fs::{find_inode, File, Stdin, Stdout},
-    mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
-    sync::{Condvar, Mutex, Semaphore, UPSafeCell},
-    trap::{trap_handler, TrapContext},
-};
-
-use super::{
-    add_task,
-    id::{pid_alloc, PidHandle, RecycleAllocator},
-    manager::insert_into_pid2process,
-    tcb::TaskControlBlock,
-    SignalFlags,
-};
 
 pub struct ProcessControlBlock {
     pub pid: PidHandle,
@@ -67,11 +64,7 @@ impl ProcessControlBlock {
         });
 
         // create a main thread, we should allocate ustack and trap_cx here
-        let task = Arc::new(TaskControlBlock::new(
-            Arc::clone(&process),
-            ustack_base,
-            true,
-        ));
+        let task = Arc::new(TaskControlBlock::new(&process, ustack_base, true));
 
         // prepare trap_cx of main thread
         let task_inner = task.inner_exclusive_access();
@@ -84,7 +77,7 @@ impl ProcessControlBlock {
             ustack_top,
             KERNEL_SPACE.exclusive_access().token(),
             kstack_top,
-            trap_handler as usize,
+            user_handler as usize,
         );
 
         // add main thread to the process
@@ -102,6 +95,7 @@ impl ProcessControlBlock {
         self.pid.0
     }
 
+    #[allow(clippy::similar_names)]
     pub fn exec(self: &Arc<Self>, elf_data: &[u8], args: &[String]) {
         // only support processes with a single thread
         assert_eq!(self.inner_exclusive_access().thread_count(), 1);
@@ -156,13 +150,14 @@ impl ProcessControlBlock {
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
             task.kstack.top(),
-            trap_handler as usize,
+            user_handler as usize,
         );
         trap_cx.x[10] = argc;
         trap_cx.x[11] = argv_base;
         *task_inner.trap_cx() = trap_cx;
     }
 
+    #[allow(clippy::similar_names)]
     pub fn fork(self: &Arc<Self>) -> Arc<Self> {
         let mut parent_inner = self.inner_exclusive_access();
         // only support processes with a single thread
@@ -216,7 +211,7 @@ impl ProcessControlBlock {
 
         // create main thread of child process
         let task = Arc::new(TaskControlBlock::new(
-            child.clone(),
+            &child,
             parent_inner
                 .task(0)
                 .inner_exclusive_access()
@@ -269,11 +264,11 @@ impl ProcessControlBlockInner {
     }
 
     pub fn dealloc_tid(&mut self, tid: usize) {
-        self.task_res_allocator.dealloc(tid)
+        self.task_res_allocator.dealloc(tid);
     }
 
     pub fn alloc_fd(&mut self) -> usize {
-        if let Some(idx) = self.fd_table.iter().position(|fd| fd.is_none()) {
+        if let Some(idx) = self.fd_table.iter().position(core::option::Option::is_none) {
             idx
         } else {
             self.fd_table.push(None);
@@ -291,6 +286,7 @@ impl ProcessControlBlockInner {
 }
 
 impl Drop for ProcessControlBlock {
+    #[allow(clippy::similar_names)]
     fn drop(&mut self) {
         let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
         if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {

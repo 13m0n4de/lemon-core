@@ -4,8 +4,8 @@ use alloc::sync::Arc;
 
 use crate::{
     mm::kernel_token,
-    task::{add_task, current_task, TaskControlBlock},
-    trap::{trap_handler, TrapContext},
+    task::{add_task, current_tcb, TaskControlBlock},
+    trap::{user_handler, Context as TrapContext},
 };
 
 /// Creates a new thread within the current process.
@@ -23,12 +23,12 @@ use crate::{
 ///
 /// - The Thread ID (TID) of the newly created thread on success.
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let process = task.process.upgrade().unwrap();
 
     // create a new thread
     let new_task = Arc::new(TaskControlBlock::new(
-        Arc::clone(&process),
+        &process,
         task.inner_exclusive_access()
             .res
             .as_ref()
@@ -55,7 +55,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
         new_task_res.ustack_top(),
         kernel_token(),
         new_task.kstack.top(),
-        trap_handler as usize,
+        user_handler as usize,
     );
     new_task_trap_cx.x[10] = arg;
     new_task_tid as isize
@@ -67,7 +67,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
 ///
 /// The TID of the current thread.
 pub fn sys_gettid() -> isize {
-    current_task()
+    current_tcb()
         .unwrap()
         .inner_exclusive_access()
         .res
@@ -92,7 +92,7 @@ pub fn sys_gettid() -> isize {
 /// - `-1` if the thread attempts to wait on itself or if the specified thread does not exist.
 /// - `-2` if the specified thread has not yet exited.
 pub fn sys_waittid(tid: usize) -> i32 {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let process = task.process.upgrade().unwrap();
     let task_inner = task.inner_exclusive_access();
     let mut process_inner = process.inner_exclusive_access();

@@ -29,6 +29,7 @@ pub fn set_next_trigger() {
     set_timer(get_time() + CLOCK_FREQ / TICKS_PER_SEC);
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub struct TimerCondVar {
     pub expire_ms: usize,
     pub task: Arc<TaskControlBlock>,
@@ -59,11 +60,13 @@ lazy_static! {
         unsafe { UPSafeCell::new(BinaryHeap::<TimerCondVar>::new()) };
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub fn add_timer(expire_ms: usize, task: Arc<TaskControlBlock>) {
     let mut timers = TIMERS.exclusive_access();
     timers.push(TimerCondVar { expire_ms, task });
 }
 
+#[allow(clippy::module_name_repetitions)]
 pub fn check_timer() {
     let current_ms = get_time_ms();
     let mut timers = TIMERS.exclusive_access();
@@ -77,11 +80,12 @@ pub fn check_timer() {
     }
 }
 
-pub fn remove_timer(task: Arc<TaskControlBlock>) {
+#[allow(clippy::module_name_repetitions)]
+pub fn remove_timer(task: &Arc<TaskControlBlock>) {
     let mut timers = TIMERS.exclusive_access();
     let temp = timers
         .drain()
-        .filter(|condvar| !Arc::ptr_eq(&task, &condvar.task))
+        .filter(|condvar| !Arc::ptr_eq(task, &condvar.task))
         .collect::<BinaryHeap<_>>();
     *timers = temp;
 }

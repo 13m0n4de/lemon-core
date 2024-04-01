@@ -4,7 +4,7 @@ use alloc::sync::Arc;
 
 use crate::{
     sync::{Condvar, Mutex, MutexBlocking, MutexSpin, Semaphore},
-    task::{block_current_and_run_next, current_process, current_task},
+    task::{block_current_and_run_next, current_process, current_tcb},
     timer::{add_timer, get_time_ms},
 };
 
@@ -24,7 +24,7 @@ use crate::{
 /// Always returns `0` to indicate successful sleep operation.
 pub fn sys_sleep(ms: usize) -> isize {
     let expire_ms = get_time_ms() + ms;
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     add_timer(expire_ms, task);
     block_current_and_run_next();
     0
@@ -47,16 +47,16 @@ pub fn sys_mutex_create(blocking: bool) -> isize {
     let process = current_process();
     let mut process_inner = process.inner_exclusive_access();
 
-    let mutex: Option<Arc<dyn Mutex>> = if !blocking {
-        Some(Arc::new(MutexSpin::new()))
-    } else {
+    let mutex: Option<Arc<dyn Mutex>> = if blocking {
         Some(Arc::new(MutexBlocking::new()))
+    } else {
+        Some(Arc::new(MutexSpin::new()))
     };
 
     if let Some(idx) = process_inner
         .mutex_list
         .iter()
-        .position(|mutex| mutex.is_none())
+        .position(core::option::Option::is_none)
     {
         process_inner.mutex_list[idx] = mutex;
         idx as isize
@@ -149,7 +149,7 @@ pub fn sys_semaphore_create(res_count: usize) -> isize {
     if let Some(idx) = process_inner
         .semaphore_list
         .iter()
-        .position(|semaphore| semaphore.is_none())
+        .position(core::option::Option::is_none)
     {
         process_inner.semaphore_list[idx] = semaphore;
         idx as isize
@@ -236,7 +236,7 @@ pub fn sys_condvar_create() -> isize {
     if let Some(idx) = process_inner
         .condvar_list
         .iter()
-        .position(|condvar| condvar.is_none())
+        .position(core::option::Option::is_none)
     {
         process_inner.condvar_list[idx] = condvar;
         idx as isize
@@ -277,8 +277,8 @@ pub fn sys_condvar_signal(condvar_id: usize) -> isize {
 
 /// Waits on a specified condition variable.
 ///
-/// Blocks the calling task until the condition variable identified by condvar_id is
-/// signaled. The task automatically re-acquires the mutex identified by mutex_id
+/// Blocks the calling task until the condition variable identified by `condvar_id` is
+/// signaled. The task automatically re-acquires the mutex identified by `mutex_id`
 /// upon waking up.
 ///
 /// # Arguments
@@ -305,7 +305,7 @@ pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
                 let condvar = Arc::clone(condvar);
                 drop(process_inner);
                 drop(process);
-                condvar.wait(mutex);
+                condvar.wait(&mutex);
                 0
             }
             _ => -1,

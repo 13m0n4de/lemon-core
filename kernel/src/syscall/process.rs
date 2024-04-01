@@ -1,8 +1,5 @@
 //! Process Management System Calls
 
-use alloc::{sync::Arc, vec::Vec};
-use log::*;
-
 use crate::{
     fs::{get_full_path, open_file, OpenFlags},
     mm::{translated_mut_ref, translated_ref, translated_str},
@@ -12,6 +9,8 @@ use crate::{
     },
     timer::get_time_ms,
 };
+use alloc::{sync::Arc, vec::Vec};
+use log::trace;
 
 /// Exits the current task and submits an exit code.
 ///
@@ -91,6 +90,7 @@ pub fn sys_fork() -> isize {
 ///
 /// - The number of arguments (`argc`) on success.
 /// - `-1` if the file cannot be opened.
+#[allow(clippy::similar_names)]
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
     let process = current_process();

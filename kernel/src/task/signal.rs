@@ -1,5 +1,5 @@
 use super::current_process;
-use bitflags::*;
+use bitflags::bitflags;
 
 bitflags! {
     #[derive(Clone, Copy, PartialEq, Eq)]
@@ -13,7 +13,7 @@ bitflags! {
 }
 
 impl SignalFlags {
-    pub fn check_error(&self) -> Option<(i32, &'static str)> {
+    pub fn check_error(self) -> Option<(i32, &'static str)> {
         if self.contains(Self::SIGINT) {
             Some((-2, "Killed, SIGINT=2"))
         } else if self.contains(Self::SIGILL) {

@@ -26,9 +26,8 @@ impl File for Stdin {
             if c == 0 {
                 suspend_current_and_run_next();
                 continue;
-            } else {
-                break;
             }
+            break;
         }
         let ch = c as u8;
         unsafe {
@@ -56,7 +55,7 @@ impl File for Stdout {
     }
 
     fn write(&self, user_buf: UserBuffer) -> usize {
-        for buffer in user_buf.buffers.iter() {
+        for buffer in &user_buf.buffers {
             print!("{}", core::str::from_utf8(buffer).unwrap());
         }
         user_buf.len()

@@ -1,14 +1,12 @@
 //! Implementation of [`Processor`]
 
+use super::{
+    context::Context as TaskContext, fetch_task, pcb::ProcessControlBlock, switch::__switch,
+    TaskControlBlock, TaskStatus,
+};
+use crate::{sync::UPSafeCell, trap::Context as TrapContext};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
-
-use crate::{sync::UPSafeCell, trap::TrapContext};
-
-use super::{
-    context::TaskContext, manager::fetch_task, pcb::ProcessControlBlock, switch::__switch,
-    tcb::TaskStatus, TaskControlBlock,
-};
 
 /// Processor management structure
 pub struct Processor {
@@ -36,7 +34,7 @@ impl Processor {
 
     /// Get mutable reference to `idle_task_cx`
     fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
-        &mut self.idle_task_cx as *mut _
+        core::ptr::from_mut(&mut self.idle_task_cx)
     }
 }
 
@@ -45,34 +43,34 @@ lazy_static! {
 }
 
 /// take the thread that the current processor is executing
-pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn take_current_tcb() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
 /// Current TCB
-pub fn current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn current_tcb() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
 /// Current PCB
 pub fn current_process() -> Arc<ProcessControlBlock> {
-    current_task().unwrap().process.upgrade().unwrap()
+    current_tcb().unwrap().process.upgrade().unwrap()
 }
 
 /// Current satp
 pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     task.user_token()
 }
 
 /// Current trap context
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task().unwrap().inner_exclusive_access().trap_cx()
+    current_tcb().unwrap().inner_exclusive_access().trap_cx()
 }
 
 /// Virtual address of current trap context
 pub fn current_trap_cx_user_va() -> usize {
-    current_task()
+    current_tcb()
         .unwrap()
         .inner_exclusive_access()
         .res

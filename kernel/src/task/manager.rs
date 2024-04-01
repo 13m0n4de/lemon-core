@@ -7,15 +7,15 @@ use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
 use super::pcb::ProcessControlBlock;
-use super::tcb::{TaskControlBlock, TaskStatus};
+use super::{TaskControlBlock, TaskStatus};
 
 /// A array of `TaskControlBlock` that is thread-safe
-pub struct TaskManager {
+pub struct Manager {
     ready_queue: VecDeque<Arc<TaskControlBlock>>,
 }
 
 /// A simple FIFO scheduler
-impl TaskManager {
+impl Manager {
     pub fn new() -> Self {
         Self {
             ready_queue: VecDeque::new(),
@@ -32,11 +32,11 @@ impl TaskManager {
         self.ready_queue.pop_front()
     }
 
-    pub fn remove(&mut self, task: Arc<TaskControlBlock>) {
+    pub fn remove(&mut self, task: &Arc<TaskControlBlock>) {
         if let Some(idx) = self
             .ready_queue
             .iter()
-            .position(|t| Arc::as_ptr(t) == Arc::as_ptr(&task))
+            .position(|t| Arc::as_ptr(t) == Arc::as_ptr(task))
         {
             self.ready_queue.remove(idx);
         }
@@ -44,31 +44,30 @@ impl TaskManager {
 }
 
 lazy_static! {
-    static ref TASK_MANAGER: UPSafeCell<TaskManager> =
-        unsafe { UPSafeCell::new(TaskManager::new()) };
+    static ref TASK_MANAGER: UPSafeCell<Manager> = unsafe { UPSafeCell::new(Manager::new()) };
     static ref PID2PCB: UPSafeCell<BTreeMap<usize, Arc<ProcessControlBlock>>> =
         unsafe { UPSafeCell::new(BTreeMap::new()) };
 }
 
 /// Add the thread to the ready queue
-pub fn add_task(task: Arc<TaskControlBlock>) {
+pub fn add(task: Arc<TaskControlBlock>) {
     TASK_MANAGER.exclusive_access().add(task);
 }
 
-pub fn wakeup_task(task: Arc<TaskControlBlock>) {
+pub fn wakeup(task: Arc<TaskControlBlock>) {
     let mut task_inner = task.inner_exclusive_access();
     task_inner.task_status = TaskStatus::Ready;
     drop(task_inner);
-    add_task(task);
+    add(task);
 }
 
 /// Pop a task from the ready queue
-pub fn fetch_task() -> Option<Arc<TaskControlBlock>> {
+pub fn fetch() -> Option<Arc<TaskControlBlock>> {
     TASK_MANAGER.exclusive_access().fetch()
 }
 
 /// Remove the task from the ready queue
-pub fn remove_task(task: Arc<TaskControlBlock>) {
+pub fn remove(task: &Arc<TaskControlBlock>) {
     TASK_MANAGER.exclusive_access().remove(task);
 }
 
@@ -81,9 +80,10 @@ pub fn pid2process(pid: usize) -> Option<Arc<ProcessControlBlock>> {
 /// Remove the PCB based on PID
 pub fn remove_from_pid2process(pid: usize) {
     let mut map = PID2PCB.exclusive_access();
-    if map.remove(&pid).is_none() {
-        panic!("cannot find pid {} in pid2task!", pid);
-    }
+    assert!(
+        map.remove(&pid).is_some(),
+        "cannot find pid {pid} in pid2task!"
+    );
 }
 
 /// Add a pair of PID-PCB mappings

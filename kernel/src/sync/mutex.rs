@@ -1,11 +1,9 @@
-use alloc::{collections::VecDeque, sync::Arc};
-
+use super::UPSafeCell;
 use crate::task::{
-    block_current_and_run_next, current_task, suspend_current_and_run_next, wakeup_task,
+    block_current_and_run_next, current_tcb, suspend_current_and_run_next, wakeup_task,
     TaskControlBlock,
 };
-
-use super::UPSafeCell;
+use alloc::{collections::VecDeque, sync::Arc};
 
 /// A trait for Mutex mechanisms, ensuring thread safety.
 pub trait Mutex: Sync + Send {
@@ -16,6 +14,7 @@ pub trait Mutex: Sync + Send {
 }
 
 /// A spinning mutex implementation.
+#[allow(clippy::module_name_repetitions)]
 pub struct MutexSpin {
     locked: UPSafeCell<bool>,
 }
@@ -38,10 +37,9 @@ impl Mutex for MutexSpin {
                 drop(locked);
                 suspend_current_and_run_next();
                 continue;
-            } else {
-                *locked = true;
-                break;
             }
+            *locked = true;
+            break;
         }
     }
 
@@ -53,11 +51,12 @@ impl Mutex for MutexSpin {
 }
 
 /// A blocking mutex implementation.
+#[allow(clippy::module_name_repetitions)]
 pub struct MutexBlocking {
-    inner: UPSafeCell<MutexBlockingInner>,
+    inner: UPSafeCell<Inner>,
 }
 
-pub struct MutexBlockingInner {
+pub struct Inner {
     locked: bool,
     wait_queue: VecDeque<Arc<TaskControlBlock>>,
 }
@@ -67,7 +66,7 @@ impl MutexBlocking {
     pub fn new() -> Self {
         Self {
             inner: unsafe {
-                UPSafeCell::new(MutexBlockingInner {
+                UPSafeCell::new(Inner {
                     locked: false,
                     wait_queue: VecDeque::new(),
                 })
@@ -81,7 +80,7 @@ impl Mutex for MutexBlocking {
     fn lock(&self) {
         let mut mutex_inner = self.inner.exclusive_access();
         if mutex_inner.locked {
-            mutex_inner.wait_queue.push_back(current_task().unwrap());
+            mutex_inner.wait_queue.push_back(current_tcb().unwrap());
             drop(mutex_inner);
             block_current_and_run_next();
         } else {

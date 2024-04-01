@@ -32,7 +32,6 @@ impl Drop for PidHandle {
         PID_ALLOCATOR.exclusive_access().dealloc(self.0);
     }
 }
-
 impl RecycleAllocator {
     pub fn new() -> Self {
         RecycleAllocator {
@@ -56,8 +55,7 @@ impl RecycleAllocator {
         assert!(id < self.current);
         assert!(
             !self.recycled.iter().any(|recycled_id| *recycled_id == id),
-            "id {} has been deallocated!",
-            id
+            "id {id} has been deallocated!"
         );
         self.recycled.push(id);
     }
@@ -107,7 +105,7 @@ pub struct TaskUserRes {
 
 impl TaskUserRes {
     pub fn new(
-        process: Arc<ProcessControlBlock>,
+        process: &Arc<ProcessControlBlock>,
         ustack_base: usize,
         alloc_user_res: bool,
     ) -> Self {
@@ -115,7 +113,7 @@ impl TaskUserRes {
         let task_user_res = Self {
             tid,
             ustack_base,
-            process: Arc::downgrade(&process),
+            process: Arc::downgrade(process),
         };
         if alloc_user_res {
             task_user_res.alloc_user_res();
