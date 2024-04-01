@@ -71,6 +71,7 @@ bitflags! {
 }
 
 #[repr(C, align(16))]
+#[allow(clippy::module_name_repetitions)]
 pub struct SignalAction {
     pub handler: usize,
     pub mask: SignalFlags,

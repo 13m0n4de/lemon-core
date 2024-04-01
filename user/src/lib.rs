@@ -2,6 +2,13 @@
 #![feature(linkage)]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+#![allow(clippy::cast_possible_truncation)]
 
 extern crate alloc;
 
@@ -20,13 +27,18 @@ use alloc::{
     vec,
     vec::Vec,
 };
-use fs::*;
+use fs::{OpenFlags, Stat};
 use heap_allocator::init_heap;
-use signal::*;
-use syscall::*;
+use signal::{SignalAction, SIGABRT};
+use syscall::{
+    sys_chdir, sys_close, sys_dup, sys_dup2, sys_exec, sys_exit, sys_fork, sys_fstat, sys_get_time,
+    sys_getcwd, sys_getpid, sys_kill, sys_mkdir, sys_open, sys_pipe, sys_read, sys_sigaction,
+    sys_sigprocmask, sys_sigreturn, sys_unlink, sys_waitpid, sys_write, sys_yield,
+};
 
 #[no_mangle]
 #[link_section = ".text.entry"]
+#[allow(clippy::similar_names)]
 pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
     init_heap();
     let args: Vec<&'static str> = (0..argc)
@@ -34,7 +46,7 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
             let str_start = unsafe {
                 ((argv + i * core::mem::size_of::<usize>()) as *const usize).read_volatile()
             };
-            let len = (0usize..)
+            let len = (0usize..usize::MAX)
                 .find(|i| unsafe { ((str_start + *i) as *const u8).read_volatile() == 0 })
                 .unwrap();
             core::str::from_utf8(unsafe {
@@ -48,7 +60,7 @@ pub extern "C" fn _start(argc: usize, argv: usize) -> ! {
 
 #[no_mangle]
 #[linkage = "weak"]
-fn main(_argc: usize, _argv: &[&str]) -> i32 {
+pub extern "Rust" fn main(_argc: usize, _argv: &[&str]) -> i32 {
     panic!("Cannot find main!");
 }
 
@@ -84,6 +96,7 @@ pub fn chdir(path: &str) -> isize {
     sys_chdir(&path)
 }
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn open(path: &str, flags: OpenFlags) -> isize {
     let path = format!("{path}\0");
     sys_open(&path, flags.bits())
@@ -106,7 +119,7 @@ pub fn write(fd: usize, buf: &[u8]) -> isize {
 }
 
 pub fn fstat(fd: usize, stat: &mut Stat) -> isize {
-    sys_fstat(fd, stat as *mut _ as *mut _)
+    sys_fstat(fd, core::ptr::from_mut(stat).cast())
 }
 
 pub fn exit(exit_code: i32) -> ! {
@@ -166,7 +179,7 @@ pub fn exec<T: AsRef<str>>(path: &str, args: &[T]) -> isize {
 
 pub fn wait(exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(-1, exit_code as *mut _) {
+        match sys_waitpid(-1, core::ptr::from_mut(exit_code)) {
             -2 => {
                 yield_();
             }
@@ -178,7 +191,7 @@ pub fn wait(exit_code: &mut i32) -> isize {
 
 pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
     loop {
-        match sys_waitpid(pid as isize, exit_code as *mut _) {
+        match sys_waitpid(pid as isize, core::ptr::from_mut(exit_code)) {
             -2 => {
                 yield_();
             }
