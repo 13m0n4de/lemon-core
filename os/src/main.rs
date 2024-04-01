@@ -8,6 +8,8 @@
 
 #![deny(missing_docs)]
 #![deny(warnings)]
+#![deny(clippy::all)]
+#![deny(clippy::pedantic)]
 #![no_std]
 #![no_main]
 #![feature(panic_info_message)]
@@ -19,13 +21,13 @@ mod logging;
 mod sbi;
 
 use core::arch::global_asm;
-use log::*;
+use log::{debug, info};
 
 global_asm!(include_str!("entry.asm"));
 
 /// the rust entrypoint of OS
 #[no_mangle]
-pub fn rust_main() -> ! {
+pub extern "C" fn rust_main() -> ! {
     /* External Symbols:
      * - `stext`: start addr of text segment
      * - `etext`: end addr of text segment
