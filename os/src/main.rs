@@ -6,7 +6,7 @@
 //! - Initializes logging.
 //! - Displays memory segment layouts (`.text`, `.rodata`, `.data`, `.bss`).
 //! - Initializes trap.
-//! - call [`task::run_first_task`] and for the first time go to userspace.
+//! - call [`task::run_first`] and for the first time go to userspace.
 //!
 //! Submodules:
 //!
