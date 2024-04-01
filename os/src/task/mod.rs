@@ -17,10 +17,10 @@ pub use context::Context;
 
 struct TaskManager {
     num_app: usize,
-    inner: UPSafeCell<TaskInner>,
+    inner: UPSafeCell<TaskManagerInner>,
 }
 
-struct TaskInner {
+struct TaskManagerInner {
     tasks: [TaskControlBlock; MAX_APP_NUM],
     current_task: usize,
 }
@@ -39,7 +39,7 @@ enum TaskStatus {
     Exited,
 }
 
-impl TaskInner {
+impl TaskManagerInner {
     fn new() -> Self {
         let mut tasks = [TaskControlBlock {
             task_cx: Context::zero_init(),
@@ -127,7 +127,7 @@ lazy_static! {
             fn _num_app();
         }
         let num_app = unsafe { (_num_app as usize as *const usize).read_volatile() };
-        let inner = unsafe { UPSafeCell::new(TaskInner::new()) };
+        let inner = unsafe { UPSafeCell::new(TaskManagerInner::new()) };
         TaskManager { num_app, inner }
     };
 }
