@@ -15,13 +15,12 @@ use log::{info, trace};
 use switch::__switch;
 
 pub use context::Context;
-
 struct TaskManager {
     num_app: usize,
-    inner: UPSafeCell<TaskPool>,
+    inner: UPSafeCell<TaskManagerInner>,
 }
 
-struct TaskPool {
+struct TaskManagerInner {
     tasks: [TaskControlBlock; MAX_APP_NUM],
     current_task: usize,
     stop_watch: usize,
@@ -43,7 +42,7 @@ enum TaskStatus {
     Exited,
 }
 
-impl TaskPool {
+impl TaskManagerInner {
     fn new() -> Self {
         let mut tasks = [TaskControlBlock {
             task_cx: Context::zero_init(),
@@ -171,7 +170,7 @@ lazy_static! {
             fn _num_app();
         }
         let num_app = unsafe { (_num_app as usize as *const usize).read_volatile() };
-        let inner = unsafe { UPSafeCell::new(TaskPool::new()) };
+        let inner = unsafe { UPSafeCell::new(TaskManagerInner::new()) };
         TaskManager { num_app, inner }
     };
 }
