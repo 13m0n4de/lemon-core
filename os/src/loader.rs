@@ -3,8 +3,10 @@
 //! Loading user applications into memory
 //! Each application has a [`KernelStack`] and a [`UserStack`]
 
-use crate::config::*;
-use crate::trap::TrapContext;
+use crate::config::{
+    APP_BASE_ADDRESS, APP_SIZE_LIMIT, KERNEL_STACK_SIZE, MAX_APP_NUM, USER_STACK_SIZE,
+};
+use crate::trap::Context as TrapContext;
 use core::arch::asm;
 
 // stack for kernel mode

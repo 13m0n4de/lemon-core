@@ -11,7 +11,7 @@ mod context;
 
 use crate::{syscall::syscall, task::exit_current_and_run_next};
 use core::arch::global_asm;
-use log::*;
+use log::info;
 use riscv::register::{
     mtvec::TrapMode,
     scause::{self, Exception, Trap},
@@ -33,7 +33,7 @@ pub fn init() {
 
 /// handle an interrupt, exception, or system call from user space
 #[no_mangle]
-pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
+pub extern "C" fn user_handler(cx: &mut Context) -> &mut Context {
     let scause = scause::read(); // get trap cause
     let stval = stval::read(); // get extra value
     match scause.cause() {
@@ -41,7 +41,7 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
             cx.sepc += 4;
             cx.x[10] = syscall(cx.x[17], [cx.x[10], cx.x[11], cx.x[12]]) as usize;
         }
-        Trap::Exception(Exception::StoreFault) | Trap::Exception(Exception::StorePageFault) => {
+        Trap::Exception(Exception::StoreFault | Exception::StorePageFault) => {
             info!("[kernel] PageFault in application, bad addr = {:#x}, bad instruction = {:#x}, kernel killed it.", stval, cx.sepc);
             exit_current_and_run_next();
         }
@@ -60,4 +60,4 @@ pub fn trap_handler(cx: &mut TrapContext) -> &mut TrapContext {
     cx
 }
 
-pub use context::TrapContext;
+pub use context::Context;

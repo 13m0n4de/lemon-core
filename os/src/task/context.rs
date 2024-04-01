@@ -3,7 +3,7 @@
 /// Task Context
 #[derive(Copy, Clone)]
 #[repr(C)]
-pub struct TaskContext {
+pub struct Context {
     // return address ( e.g. __restore ) of __switch ASM function
     ra: usize,
     // kernel stack pointer of app
@@ -12,7 +12,7 @@ pub struct TaskContext {
     s: [usize; 12],
 }
 
-impl TaskContext {
+impl Context {
     /// init task context
     pub fn zero_init() -> Self {
         Self {
@@ -22,7 +22,7 @@ impl TaskContext {
         }
     }
 
-    /// set task context {__restore ASM funciton, kernel stack, s_0..12 }
+    /// set task context {__restore ASM funciton, kernel stack, `s_0..12` }
     pub fn goto_restore(kstack_ptr: usize) -> Self {
         extern "C" {
             fn __restore();
