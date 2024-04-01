@@ -237,7 +237,7 @@ impl Inode {
                     self.decrease_size(new_size as u32, dir_inode, &mut fs);
                 }
             }
-        })
+        });
     }
 
     /// Set the default [`DirEntry`] for the current file
@@ -259,7 +259,7 @@ impl Inode {
         });
     }
 
-    /// Get inode_id
+    /// Get `inode_id`
     pub fn inode_id(&self) -> u32 {
         self.fs
             .lock()
@@ -273,11 +273,11 @@ impl Inode {
 
     /// Whether this inode is a directory
     pub fn is_dir(&self) -> bool {
-        self.read_disk_inode(|disk_inode| disk_inode.is_dir())
+        self.read_disk_inode(super::layout::DiskInode::is_dir)
     }
 
     /// Whether this inode is a file
     pub fn is_file(&self) -> bool {
-        self.read_disk_inode(|disk_inode| disk_inode.is_file())
+        self.read_disk_inode(super::layout::DiskInode::is_file)
     }
 }

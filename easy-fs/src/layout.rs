@@ -227,7 +227,7 @@ impl DiskInode {
             });
     }
 
-    ///
+    /// Decrease the size
     pub fn decrease_size(
         &mut self,
         new_size: u32,
