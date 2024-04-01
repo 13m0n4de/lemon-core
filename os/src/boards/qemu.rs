@@ -1,4 +1,4 @@
-pub const CLOCK_FREQ: usize = 10000000;
+pub const CLOCK_FREQ: usize = 10_000_000;
 pub const MEMORY_END: usize = 0x8800_0000;
 
 // https://github.com/qemu/qemu/blob/master/hw/riscv/virt.c

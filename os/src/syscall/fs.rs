@@ -2,11 +2,11 @@
 
 use crate::fs::{open_file, OpenFlags};
 use crate::mm::{translated_byte_buffer, translated_str, UserBuffer};
-use crate::task::{current_task, current_user_token};
+use crate::task::{current_tcb, current_user_token};
 
 /// write buf of length `len`  to a file with `fd`
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let token = current_user_token();
     let inner = task.inner_exclusive_access();
 
@@ -28,7 +28,7 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 }
 
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let token = current_user_token();
     let inner = task.inner_exclusive_access();
 
@@ -50,7 +50,7 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 }
 
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let token = current_user_token();
     let path = translated_str(token, path);
 
@@ -65,7 +65,7 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
 }
 
 pub fn sys_close(fd: usize) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let mut inner = task.inner_exclusive_access();
 
     if fd >= inner.fd_table.len() {

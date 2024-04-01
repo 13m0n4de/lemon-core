@@ -1,14 +1,12 @@
 //! Implementation of [`Processor`]
 
+use super::{
+    context::Context as TaskContext, manager::fetch, switch::__switch, tcb::TaskControlBlock,
+    Status,
+};
+use crate::{sync::UPSafeCell, trap::Context as TrapContext};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
-
-use crate::{sync::UPSafeCell, trap::TrapContext};
-
-use super::{
-    context::TaskContext, control_block::TaskControlBlock, manager::fetch_task, switch::__switch,
-    TaskStatus,
-};
 
 /// Processor management structure
 pub struct Processor {
@@ -36,7 +34,7 @@ impl Processor {
 
     /// Get mutable reference to `idle_task_cx`
     fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
-        &mut self.idle_task_cx as *mut _
+        core::ptr::from_mut(&mut self.idle_task_cx)
     }
 }
 
@@ -44,22 +42,22 @@ lazy_static! {
     static ref PROCESSOR: UPSafeCell<Processor> = unsafe { UPSafeCell::new(Processor::new()) };
 }
 
-pub fn take_current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn take_current_tcb() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().take_current()
 }
 
-pub fn current_task() -> Option<Arc<TaskControlBlock>> {
+pub fn current_tcb() -> Option<Arc<TaskControlBlock>> {
     PROCESSOR.exclusive_access().current()
 }
 
 pub fn current_user_token() -> usize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     let token = task.inner_exclusive_access().user_token();
     token
 }
 
 pub fn current_trap_cx() -> &'static mut TrapContext {
-    current_task().unwrap().inner_exclusive_access().trap_cx()
+    current_tcb().unwrap().inner_exclusive_access().trap_cx()
 }
 
 /// The main part of process execution and scheduling.
@@ -67,14 +65,14 @@ pub fn current_trap_cx() -> &'static mut TrapContext {
 /// `__switch`
 pub fn run_tasks() {
     loop {
-        if let Some(task) = fetch_task() {
+        if let Some(task) = fetch() {
             let mut processor = PROCESSOR.exclusive_access();
             let idle_task_cx_ptr = processor.idle_task_cx_ptr();
 
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
             let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
-            task_inner.task_status = TaskStatus::Running;
+            task_inner.task_status = Status::Running;
             drop(task_inner);
 
             // release coming task TCB manually

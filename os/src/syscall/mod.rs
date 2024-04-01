@@ -15,8 +15,8 @@ const SYSCALL_WAITPID: usize = 260;
 mod fs;
 mod process;
 
-use fs::*;
-use process::*;
+use fs::{sys_close, sys_open, sys_read, sys_write};
+use process::{sys_exec, sys_exit, sys_fork, sys_get_time, sys_getpid, sys_waitpid, sys_yield};
 
 /// handle syscall exception with `syscall_id` and other arguments
 pub fn syscall(syscall_id: usize, args: [usize; 3]) -> isize {

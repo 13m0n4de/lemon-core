@@ -1,8 +1,3 @@
-use alloc::vec::Vec;
-use easy_fs::BlockDevice;
-use lazy_static::lazy_static;
-use virtio_drivers::{Hal, VirtIOBlk, VirtIOHeader};
-
 use crate::{
     mm::{
         frame_alloc, frame_dealloc, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum,
@@ -10,8 +5,12 @@ use crate::{
     },
     sync::UPSafeCell,
 };
+use alloc::vec::Vec;
+use easy_fs::BlockDevice;
+use lazy_static::lazy_static;
+use virtio_drivers::{Hal, VirtIOBlk, VirtIOHeader};
 
-const VIRTIO0: usize = 0x10001000;
+const VIRTIO0: usize = 0x1000_1000;
 
 pub struct VirtIOBlock(UPSafeCell<VirtIOBlk<'static, VirtioHal>>);
 

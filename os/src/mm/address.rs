@@ -126,20 +126,20 @@ impl From<VirtPageNum> for usize {
 */
 impl PhysAddr {
     /// Get the pgae offset
-    pub fn page_offset(&self) -> usize {
+    pub fn page_offset(self) -> usize {
         self.0 & (PAGE_SIZE - 1)
     }
 
     /// Checks if the address is page-aligned.
-    pub fn is_aligned(&self) -> bool {
+    pub fn is_aligned(self) -> bool {
         self.page_offset() == 0
     }
 
-    pub fn as_ppn_by_floor(&self) -> PhysPageNum {
+    pub fn as_ppn_by_floor(self) -> PhysPageNum {
         PhysPageNum(self.0 / PAGE_SIZE)
     }
 
-    pub fn as_ppn_by_ceil(&self) -> PhysPageNum {
+    pub fn as_ppn_by_ceil(self) -> PhysPageNum {
         if self.0 == 0 {
             PhysPageNum(0)
         } else {
@@ -174,20 +174,20 @@ impl From<PhysPageNum> for PhysAddr {
 */
 impl VirtAddr {
     /// Get the pgae offset
-    pub fn page_offset(&self) -> usize {
+    pub fn page_offset(self) -> usize {
         self.0 & (PAGE_SIZE - 1)
     }
 
     /// Checks if the address is page-aligned.
-    pub fn is_aligned(&self) -> bool {
+    pub fn is_aligned(self) -> bool {
         self.page_offset() == 0
     }
 
-    pub fn as_vpn_by_floor(&self) -> VirtPageNum {
+    pub fn as_vpn_by_floor(self) -> VirtPageNum {
         VirtPageNum(self.0 / PAGE_SIZE)
     }
 
-    pub fn as_vpn_by_ceil(&self) -> VirtPageNum {
+    pub fn as_vpn_by_ceil(self) -> VirtPageNum {
         if self.0 == 0 {
             VirtPageNum(0)
         } else {
@@ -236,16 +236,16 @@ impl VirtPageNum {
     /// - `id[0]`: VPN[38..=30]
     /// - `id[1]`: VPN[29..=21]
     /// - `id[2]`: VPN[20..=12]
-    pub fn indexes(&self) -> [usize; 3] {
+    pub fn indexes(self) -> [usize; 3] {
         [
-            (self.0 >> 18) & 0b111111111,
-            (self.0 >> 9) & 0b111111111,
-            self.0 & 0b111111111,
+            (self.0 >> 18) & 0b1_1111_1111,
+            (self.0 >> 9) & 0b1_1111_1111,
+            self.0 & 0b1_1111_1111,
         ]
     }
 }
 
-/// StepByOne
+/// `StepByOne`
 pub trait StepByOne {
     fn step(&mut self);
 }
@@ -277,7 +277,7 @@ where
     T: StepByOne + Copy + PartialEq + PartialOrd + Debug,
 {
     pub fn new(start: T, end: T) -> Self {
-        assert!(start <= end, "start {:?} > end {:?}!", start, end);
+        assert!(start <= end, "start {start:?} > end {end:?}!");
         Self { start, end }
     }
 

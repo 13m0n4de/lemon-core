@@ -9,13 +9,14 @@ use super::File;
 
 /// A wrapper around a filesystem inode
 /// to implement File trait atop
+#[allow(clippy::module_name_repetitions)]
 pub struct OSInode {
     readable: bool,
     writable: bool,
     inner: UPSafeCell<OSInodeInner>,
 }
 
-/// The OS inode inner in 'UPSafeCell'
+/// The OS inode inner in '`UPSafeCell`'
 pub struct OSInodeInner {
     offset: usize,
     inode: Arc<Inode>,
@@ -60,7 +61,7 @@ impl File for OSInode {
     fn read(&self, mut buf: UserBuffer) -> usize {
         let mut inner = self.inner.exclusive_access();
         let mut total_read_size = 0usize;
-        for slice in buf.buffers.iter_mut() {
+        for slice in &mut buf.buffers {
             let read_size = inner.inode.read_at(inner.offset, slice);
             if read_size == 0 {
                 break;
@@ -74,7 +75,7 @@ impl File for OSInode {
     fn write(&self, buf: UserBuffer) -> usize {
         let mut inner = self.inner.exclusive_access();
         let mut total_write_size = 0usize;
-        for slice in buf.buffers.iter() {
+        for slice in &buf.buffers {
             let write_size = inner.inode.write_at(inner.offset, slice);
             assert_eq!(write_size, slice.len());
             inner.offset += write_size;
@@ -117,6 +118,7 @@ pub fn list_apps() {
 }
 
 /// Open file with flags
+#[allow(clippy::needless_pass_by_value)]
 pub fn open_file(name: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let readable = flags.contains(OpenFlags::RDONLY) || flags.contains(OpenFlags::RDWR);
     let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);

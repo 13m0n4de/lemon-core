@@ -1,13 +1,13 @@
 //! Process management syscalls
 
 use alloc::sync::Arc;
-use log::*;
+use log::trace;
 
 use crate::{
     fs::{open_file, OpenFlags},
     mm::{translated_mut_ref, translated_str},
     task::{
-        add_task, current_task, current_user_token, exit_current_and_run_next,
+        add_task, current_tcb, current_user_token, exit_current_and_run_next,
         suspend_current_and_run_next,
     },
     timer::get_time_ms,
@@ -32,11 +32,11 @@ pub fn sys_get_time() -> isize {
 }
 
 pub fn sys_getpid() -> isize {
-    current_task().unwrap().pid.0 as isize
+    current_tcb().unwrap().pid.0 as isize
 }
 
 pub fn sys_fork() -> isize {
-    let current_task = current_task().unwrap();
+    let current_task = current_tcb().unwrap();
     let new_task = current_task.fork();
     let new_pid = new_task.pid.0;
     // modify trap context of new_task, because it returns immediately after switching
@@ -54,7 +54,7 @@ pub fn sys_exec(path: *const u8) -> isize {
     let path = translated_str(token, path);
     if let Some(app_inode) = open_file(path.as_str(), OpenFlags::RDONLY) {
         let data = app_inode.read_all();
-        let task = current_task().unwrap();
+        let task = current_tcb().unwrap();
         task.exec(data.as_slice());
         0
     } else {
@@ -65,7 +65,7 @@ pub fn sys_exec(path: *const u8) -> isize {
 /// If there is not a child process whose pid is same as given, return -1.
 /// Else if there is a child process but it is still running, return -2.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
-    let task = current_task().unwrap();
+    let task = current_tcb().unwrap();
     // find a child process
 
     // ---- access current TCB exclusively

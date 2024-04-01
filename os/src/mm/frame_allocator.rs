@@ -4,7 +4,7 @@ use super::{PhysAddr, PhysPageNum};
 use crate::{config::MEMORY_END, sync::UPSafeCell};
 use alloc::vec::Vec;
 use core::fmt::{self, Debug, Formatter};
-use lazy_static::*;
+use lazy_static::lazy_static;
 
 /// Manage a frame which has the same lifecycle as the tracker
 pub struct FrameTracker {
@@ -27,7 +27,7 @@ impl Debug for FrameTracker {
 
 impl Drop for FrameTracker {
     fn drop(&mut self) {
-        frame_dealloc(self.ppn);
+        dealloc(self.ppn);
     }
 }
 
@@ -38,6 +38,7 @@ trait FrameAllocator {
 }
 
 /// An implementation for frame allocator
+#[allow(clippy::module_name_repetitions)]
 pub struct StackFrameAllocator {
     current: usize,
     end: usize,
@@ -74,9 +75,10 @@ impl FrameAllocator for StackFrameAllocator {
     fn dealloc(&mut self, ppn: PhysPageNum) {
         let ppn = ppn.0;
         // validity check
-        if ppn >= self.current || self.recycled.iter().any(|&v| v == ppn) {
-            panic!("Frame ppn={:#x} has not been allocated!", ppn);
-        }
+        assert!(
+            !(ppn >= self.current || self.recycled.iter().any(|&v| v == ppn)),
+            "Frame ppn={ppn:#x} has not been allocated!"
+        );
         // recycle
         self.recycled.push(ppn);
     }
@@ -91,7 +93,7 @@ lazy_static! {
 }
 
 /// Initiate the frame allocator using `ekernel` and [`MEMORY_END`]
-pub fn init_frame_allocator() {
+pub fn init() {
     extern "C" {
         fn ekernel();
     }
@@ -103,7 +105,7 @@ pub fn init_frame_allocator() {
 }
 
 /// Allocate a frame
-pub fn frame_alloc() -> Option<FrameTracker> {
+pub fn alloc() -> Option<FrameTracker> {
     FRAME_ALLOCATOR
         .exclusive_access()
         .alloc()
@@ -111,24 +113,24 @@ pub fn frame_alloc() -> Option<FrameTracker> {
 }
 
 /// Deallocate a frame
-pub fn frame_dealloc(ppn: PhysPageNum) {
+pub fn dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
 /// A simple test for frame allocator
 #[allow(unused)]
-pub fn frame_allocator_test() {
+pub fn test() {
     let mut v: Vec<FrameTracker> = Vec::new();
 
     for i in 0..5 {
-        let frame = frame_alloc().unwrap();
+        let frame = alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }
     v.clear();
 
     for i in 0..5 {
-        let frame = frame_alloc().unwrap();
+        let frame = alloc().unwrap();
         println!("{:?}", frame);
         v.push(frame);
     }

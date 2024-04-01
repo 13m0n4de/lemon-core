@@ -1,30 +1,29 @@
 //! # Task Management
 
 mod context;
-mod control_block;
 mod manager;
 mod pid;
 mod processor;
 mod switch;
-
-use alloc::sync::Arc;
-use lazy_static::lazy_static;
-use log::*;
+mod tcb;
 
 use crate::{
     fs::{open_file, OpenFlags},
     sbi::shutdown,
 };
-use context::TaskContext;
-use processor::{schedule, take_current_task};
+use alloc::sync::Arc;
+use context::Context;
+use lazy_static::lazy_static;
+use log::info;
+use processor::{schedule, take_current_tcb};
+use tcb::TaskControlBlock;
 
-pub use manager::add_task;
-pub use processor::{current_task, current_trap_cx, current_user_token, run_tasks};
-
-use self::control_block::TaskControlBlock;
+#[allow(clippy::module_name_repetitions)]
+pub use manager::add as add_task;
+pub use processor::{current_tcb, current_trap_cx, current_user_token, run_tasks};
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum TaskStatus {
+pub enum Status {
     Ready,
     Running,
     Zombie,
@@ -50,13 +49,13 @@ pub const IDLE_PID: usize = 0;
 /// Suspend the current 'Running' task and run the next task in task list
 pub fn suspend_current_and_run_next() {
     // There must be an application running.
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
 
     // --- access current TCB exclusively
     let mut task_inner = task.inner_exclusive_access();
-    let task_cx_ptr = &mut task_inner.task_cx as *mut TaskContext;
+    let task_cx_ptr = &mut task_inner.task_cx as *mut Context;
     // change status to Ready
-    task_inner.task_status = TaskStatus::Ready;
+    task_inner.task_status = Status::Ready;
     drop(task_inner);
     // --- release current TCB
 
@@ -69,7 +68,7 @@ pub fn suspend_current_and_run_next() {
 /// Exit the current 'Running' task and run the next task in task list.
 pub fn exit_current_and_run_next(exit_code: i32) {
     // take from Processor
-    let task = take_current_task().unwrap();
+    let task = take_current_tcb().unwrap();
 
     let pid = task.getpid();
     if pid == IDLE_PID {
@@ -87,7 +86,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // **** access current TCB exclusively
     let mut inner = task.inner_exclusive_access();
     // Change status to Zombie
-    inner.task_status = TaskStatus::Zombie;
+    inner.task_status = Status::Zombie;
     // Record exit code
     inner.exit_code = exit_code;
     // do not move to its parent but under initproc
@@ -95,7 +94,7 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // ++++++ access initproc TCB exclusively
     {
         let mut initproc_inner = INITPROC.inner_exclusive_access();
-        for child in inner.children.iter() {
+        for child in &inner.children {
             child.inner_exclusive_access().parent = Some(Arc::downgrade(&INITPROC));
             initproc_inner.children.push(child.clone());
         }
@@ -110,6 +109,5 @@ pub fn exit_current_and_run_next(exit_code: i32) {
     // drop task manually to maintain rc correctly
     drop(task);
     // we do not have to save task context
-    let mut _unused = TaskContext::zero_init();
-    schedule(&mut _unused as *mut _);
+    schedule(core::ptr::from_mut(&mut Context::zero_init()));
 }

@@ -16,7 +16,7 @@ mod memory_set;
 mod page_table;
 
 pub use address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
-pub use frame_allocator::{frame_alloc, frame_dealloc, FrameTracker};
+pub use frame_allocator::{alloc as frame_alloc, dealloc as frame_dealloc, FrameTracker};
 pub use memory_set::{kernel_token, MapPermission, MemorySet, KERNEL_SPACE};
 pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 
@@ -25,8 +25,8 @@ use alloc::{string::String, vec::Vec};
 
 /// Initiate heap allocator, frame allocator, kernel space.
 pub fn init() {
-    heap_allocator::init_heap();
-    frame_allocator::init_frame_allocator();
+    heap_allocator::init();
+    frame_allocator::init();
     KERNEL_SPACE.exclusive_access().activate();
 }
 
@@ -48,7 +48,7 @@ pub fn translated_byte_buffer(token: usize, ptr: *const u8, len: usize) -> Vec<&
         if end_va.page_offset() == 0 {
             v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..]);
         } else {
-            v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..end_va.page_offset()])
+            v.push(&mut ppn.as_mut_bytes_array()[start_va.page_offset()..end_va.page_offset()]);
         }
 
         start = end_va.into();
@@ -109,13 +109,13 @@ impl UserBuffer {
     pub fn iter(&self) -> impl Iterator<Item = *const u8> + '_ {
         self.buffers
             .iter()
-            .flat_map(|buffer| buffer.iter().map(|b| b as *const _))
+            .flat_map(|buffer| buffer.iter().map(core::ptr::from_ref))
     }
 
     #[allow(unused)]
     pub fn iter_mut(&mut self) -> impl Iterator<Item = *mut u8> + '_ {
         self.buffers
             .iter_mut()
-            .flat_map(|buffer| buffer.iter_mut().map(|b| b as *mut _))
+            .flat_map(|buffer| buffer.iter_mut().map(core::ptr::from_mut))
     }
 }
