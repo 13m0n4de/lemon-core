@@ -4,7 +4,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-Book-v3](https://githu
 
 🚧 Working In Progress
 
-## Features && TODOs
+## Features & TODOs
 
 - [x] Architecture: RISC-V 64
 - [x] Platform: QEMU
@@ -18,6 +18,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-Book-v3](https://githu
 - [ ] RR/MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
 - [ ] Test framework #2
+- [ ] A detailed documentation or step-by-step tutorial
 
 ## Difference With rCore-Tutorial-v3
 
@@ -38,10 +39,34 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-Book-v3](https://githu
     - User programs and test cases are separated from `user_lib`.
 - No need to manually append `\0` to strings.
 - Adoption of newer crates and RustSBI versions.
-- Use of [Clap](https://docs.rs/clap/latest/clap/) for command-line argument parsing in [easy-fs-tool](./easy-fs-tool/).
+- Use of [clap](https://docs.rs/clap/latest/clap/) for command-line argument parsing in [easy-fs-tool](./easy-fs-tool/).
 - More comprehensive shell application featuring:
     - Command input and output redirection.
     - Prompt displaying the current path.
     - Entering the directory name allows for direct navigation to the directory.
     - ...
 - [More command-line applications](./apps/src/bin/).
+
+## Project Structure
+
+```
+.
+├── apps                # User Applications
+├── bootloader          # RustSBI
+├── easy-fs-tool        # Command-line tool to create EFS image
+├── easy-fs             # Easy File System
+├── kernel              # OS Kernel
+│   ├── assets          # Static data, images, fonts, or other binary assets
+│   └── src             # Source code of the kernel
+│       ├── boards      # Board Support Packages (BSPs) for different hardware platforms
+│       ├── drivers     # Device drivers
+│       ├── fs          # File System management
+│       ├── mm          # Memory Management
+│       ├── sync        # Synchronization primitives
+│       ├── syscall     # System Calls
+│       ├── task        # Task Management
+│       └── trap        # Trap handling
+├── tests               # Test cases
+├── user                # User library
+└── ...
+```
