@@ -1,6 +1,6 @@
 # LemonCore
 
-A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-Book-v3](https://github.com/rcore-os/rCore-Tutorial-v3).
+A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com/rcore-os/rCore-Tutorial-v3).
 
 🚧 Working In Progress
 
@@ -17,7 +17,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-Book-v3](https://githu
 - [x] VirtIO blk/input/gpu drivers
 - [ ] RR/MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
-- [ ] Test framework #2
+- [ ] Test framework [#2](https://github.com/13m0n4de/lemon-core/issues/2)
 - [ ] A detailed documentation or step-by-step tutorial
 
 ## Difference With rCore-Tutorial-v3
@@ -69,4 +69,43 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-Book-v3](https://githu
 ├── tests               # Test cases
 ├── user                # User library
 └── ...
+```
+
+## Build & Run
+
+### Install Rust
+
+[Rust](https://www.rust-lang.org/tools/install) is a prerequisite for this project. Install it by following the official guide.
+This will also install `cargo`, Rust's package manager, which is used for dependency management and project building.
+
+### Install Just
+
+[Just](https://github.com/casey/just) is a handy command runner that simplifies the execution of project-specific commands.
+Install it by following the instructions on its GitHub page. This tool is used for setting up the environment, building, and
+running the project with predefined commands.
+
+### Setup Environment
+
+Run the following command to set up the required environment for the project. This command adds the necessary Rust targets,
+installs essential Rust tools, and sets up other required components.
+
+```
+just env
+```
+
+### Install QEMU
+
+QEMU is a generic and open source machine emulator and virtualizer. Install QEMU to emulate the hardware environment for this project.
+The installation instructions can vary depending on your operating system. Please refer to the QEMU Documentation for detailed installation instructions.
+
+### Quick Run
+
+```
+just run
+```
+
+If you need to enable GPU support for the project, you can run:
+
+```
+just run on
 ```
