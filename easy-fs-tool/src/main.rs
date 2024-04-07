@@ -3,7 +3,7 @@
 
 use block_file::BlockFile;
 use clap::Parser;
-use easy_fs::{BlockDevice, EasyFileSystem};
+use easy_fs::{BlockDevice, EasyFileSystem, Inode};
 use std::fs::{read_dir, File, OpenOptions};
 use std::io::Read;
 use std::path::Path;
@@ -14,18 +14,23 @@ mod block_file;
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(short, long)]
-    source: String,
+    #[arg(short, long, default_value = "easy-fs-root")]
+    root: String,
 
-    #[arg(short, long)]
-    target: String,
+    #[arg(short, long, default_value = "fs.img")]
+    output: String,
 }
 
 fn main() -> std::io::Result<()> {
     let cli = Cli::parse();
-    let source_path = Path::new(&cli.source);
-    let target_path = Path::new(&cli.target);
-    let image_path = target_path.join("fs.img");
+    let root_path = Path::new(&cli.root);
+    let output_path = Path::new(&cli.output);
+
+    let image_path = if output_path.is_dir() {
+        output_path.join("fs.img")
+    } else {
+        output_path.to_path_buf()
+    };
 
     println!("Initializing the easy-fs image...");
     let block_file: Arc<dyn BlockDevice> = Arc::new(BlockFile(Mutex::new({
@@ -44,33 +49,34 @@ fn main() -> std::io::Result<()> {
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     root_inode.set_default_dirent(root_inode.inode_id());
 
-    // bin
-    let bin_inode = root_inode.create_dir("bin").unwrap();
-    bin_inode.set_default_dirent(root_inode.inode_id());
-
-    println!("Packing files from {source_path:?} into the easy-fs image...");
-    for entry in read_dir(source_path)? {
-        let path = entry?.path();
-        if path.is_file() {
-            let file_stem = path.file_stem().unwrap().to_str().unwrap();
-            let app_file_path = target_path.join(file_stem);
-            println!("Processing file: {}", app_file_path.display());
-
-            let mut app_file = File::open(app_file_path)?;
-            let mut app_data = Vec::new();
-            app_file.read_to_end(&mut app_data)?;
-
-            // create a file in easy-fs
-            let inode = bin_inode.create(file_stem).unwrap();
-            // write data to easy-fs
-            inode.write_at(0, app_data.as_slice());
-        }
-    }
+    println!("Packing files from {root_path:?} into the easy-fs image...");
+    pack_directory(&root_inode, root_path)?;
 
     println!(
         "The easy-fs image has been saved to: {}",
         image_path.display()
     );
+
+    Ok(())
+}
+
+fn pack_directory(parent_inode: &Arc<Inode>, path: &Path) -> std::io::Result<()> {
+    for entry in read_dir(path)? {
+        let entry_path = entry?.path();
+        let entry_name = entry_path.file_name().unwrap().to_str().unwrap();
+
+        if entry_path.is_dir() {
+            let dir_inode = parent_inode.create_dir(entry_name).unwrap();
+            pack_directory(&dir_inode, &entry_path)?;
+        } else if entry_path.is_file() {
+            let mut file = File::open(&entry_path)?;
+            let mut data = Vec::new();
+            file.read_to_end(&mut data)?;
+
+            let inode = parent_inode.create(entry_name).unwrap();
+            inode.write_at(0, data.as_slice());
+        }
+    }
 
     Ok(())
 }

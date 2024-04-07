@@ -13,6 +13,7 @@ bootloader := "bootloader" / sbi + "-" + board + ".bin"
 # Directories for user applications, EasyFS-CLI, kernel, test cases and user lib
 apps_dir := "apps"
 efs_dir := "easy-fs"
+efs_root_dir := "easy-fs-root"
 efs_tool_dir := "easy-fs-tool"
 kernel_dir := "kernel"
 tests_dir := "tests"
@@ -25,14 +26,14 @@ kernel_bin := kernel_elf + ".bin"
 
 # User applications
 apps_source_dir := apps_dir / "src/bin"
-apps_target_dir := "apps" / "target" / target / mode
+apps_target_dir := apps_dir / "target" / target / mode
 
 # Test cases
 tests_source_dir := tests_dir / "src/bin"
 tests_target_dir := tests_dir / "target" / target / mode
 
 # File system image
-fs_img := apps_target_dir / "fs.img"
+fs_img := efs_tool_dir / "target" / mode / "fs.img"
 
 # Tools for handling object files
 objdump := "rust-objdump --arch-name=riscv64"
@@ -77,7 +78,12 @@ build-apps:
 
 # Build the filesystem image
 build-efs: 
-    cd {{efs_tool_dir}} && just run ../{{apps_source_dir}} ../{{apps_target_dir}}
+    mkdir -p {{efs_root_dir}}/bin/
+    for app in `find {{apps_source_dir}} -name "*.rs"`; do \
+        app_name=`basename $app .rs`; \
+        cp "{{apps_target_dir}}/$app_name" {{efs_root_dir}}/bin/; \
+    done
+    cd {{efs_tool_dir}} && just run ../{{efs_root_dir}}/ ../{{efs_tool_dir}}/target/{{mode}}/
 
 # Build the kernel
 build-kernel:
@@ -116,6 +122,7 @@ gdbclient:
 clean:
     cd {{apps_dir}} && just clean
     cd {{efs_tool_dir}} && just clean
+    rm {{efs_root_dir}}/* -rf
     cd {{kernel_dir}} && just clean
     cd {{tests_dir}} && just clean
     cd {{user_dir}} && just clean

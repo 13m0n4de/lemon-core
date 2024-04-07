@@ -7,8 +7,8 @@ build:
     cargo build --release
 
 # Create a image
-run source target:
-    cargo run --release -- -s {{source}} -t {{target}}
+run root output:
+    cargo run --release -- -r {{root}} -o {{output}}
 
 # Clean build artifacts
 clean:
