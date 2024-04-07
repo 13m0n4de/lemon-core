@@ -2,3 +2,5 @@ debug/
 target/
 Cargo.lock
 **/*.rs.bk
+
+easy-fs-root/
