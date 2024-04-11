@@ -6,7 +6,7 @@ use crate::{
     block_cache::{block_cache_sync_all, get_block_cache},
     block_dev::BlockDevice,
     config::BLOCK_SIZE,
-    layout::{DataBlock, DiskInode, DiskInodeType, SuperBlock},
+    layout::{DataBlock, DiskInode, DiskInodeKind, SuperBlock},
     vfs::Inode,
 };
 
@@ -80,7 +80,7 @@ impl EasyFileSystem {
         get_block_cache(root_inode_block_id as usize, block_device)
             .lock()
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
-                disk_inode.initialize(DiskInodeType::Directory);
+                disk_inode.init(DiskInodeKind::Directory);
             });
         block_cache_sync_all();
 
