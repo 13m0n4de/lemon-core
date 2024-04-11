@@ -40,12 +40,12 @@ fn main() -> std::io::Result<()> {
             .create(true)
             .truncate(true)
             .open(&image_path)?;
-        f.set_len(16 * 2048 * 512)?;
+        f.set_len(32 * 2048 * 512)?;
         f
     })));
 
     // 16 MiB, at most 4095 files
-    let efs = EasyFileSystem::create(&block_file, 16 * 2048, 1);
+    let efs = EasyFileSystem::create(&block_file, 32 * 2048, 1);
     let root_inode = Arc::new(EasyFileSystem::root_inode(&efs));
     root_inode.set_default_dirent(root_inode.inode_id());
 
