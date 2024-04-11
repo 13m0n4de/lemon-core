@@ -5,7 +5,7 @@ use crate::{
     block_cache::{block_cache_sync_all, get_block_cache},
     block_dev::BlockDevice,
     efs::EasyFileSystem,
-    layout::{DirEntry, DiskInode, DiskInodeType, DIRENT_SIZE},
+    layout::{DirEntry, DiskInode, DiskInodeKind, DIRENT_SIZE},
 };
 
 /// Virtual filesystem layer over easy-fs
@@ -115,7 +115,7 @@ impl Inode {
     }
 
     /// Create inode under current inode by name
-    pub fn create_inode(&self, name: &str, inode_type: DiskInodeType) -> Option<Arc<Inode>> {
+    pub fn create_inode(&self, name: &str, kind: DiskInodeKind) -> Option<Arc<Inode>> {
         let mut fs = self.fs.lock();
 
         let op = |dir_inode: &DiskInode| {
@@ -136,7 +136,7 @@ impl Inode {
         get_block_cache(new_inode_block_id as usize, &self.block_device)
             .lock()
             .modify(new_inode_block_offset, |new_inode: &mut DiskInode| {
-                new_inode.initialize(inode_type);
+                new_inode.init(kind);
             });
 
         self.modify_disk_inode(|dir_inode| {
@@ -169,12 +169,12 @@ impl Inode {
 
     /// Create regular file under current inode
     pub fn create(&self, name: &str) -> Option<Arc<Inode>> {
-        self.create_inode(name, DiskInodeType::File)
+        self.create_inode(name, DiskInodeKind::File)
     }
 
     /// Create directory under current inode
     pub fn create_dir(&self, name: &str) -> Option<Arc<Inode>> {
-        let inode = self.create_inode(name, DiskInodeType::Directory)?;
+        let inode = self.create_inode(name, DiskInodeKind::Directory)?;
         inode.set_default_dirent(self.inode_id());
         Some(inode)
     }
