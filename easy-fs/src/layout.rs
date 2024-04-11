@@ -5,7 +5,7 @@ use crate::{
     block_dev::BlockDevice,
     config::{
         BLOCK_SIZE, DIRECT_BOUND, DIRECT_COUNT, EFS_MAGIC, INDIRECT1_BOUND, INDIRECT1_COUNT,
-        INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
+        INDIRECT2_BOUND, INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
     },
 };
 
@@ -66,6 +66,7 @@ pub struct DiskInode {
     pub direct: [u32; DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
+    pub indirect3: u32,
 }
 
 impl DiskInode {
@@ -76,6 +77,7 @@ impl DiskInode {
         self.direct.fill(0);
         self.indirect1 = 0;
         self.indirect2 = 0;
+        self.indirect3 = 0;
     }
 
     /// Whether this inode is a directory
@@ -100,7 +102,7 @@ impl DiskInode {
                 .read(0, |indirect_block: &IndirectBlock| {
                     indirect_block[block_index - DIRECT_BOUND]
                 })
-        } else {
+        } else if block_index < INDIRECT2_BOUND {
             let index = block_index - INDIRECT1_BOUND;
             let indirect1 = get_block_cache(self.indirect2 as usize, block_device)
                 .lock()
@@ -111,6 +113,23 @@ impl DiskInode {
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
                     indirect1[index % INDIRECT1_COUNT]
+                })
+        } else {
+            let index = block_index - INDIRECT2_BOUND;
+            let indirect2 = get_block_cache(self.indirect3 as usize, block_device)
+                .lock()
+                .read(0, |indirect3: &IndirectBlock| {
+                    indirect3[index / INDIRECT2_COUNT]
+                });
+            let indirect1 = get_block_cache(indirect2 as usize, block_device)
+                .lock()
+                .read(0, |indirect2: &IndirectBlock| {
+                    indirect2[index % INDIRECT2_COUNT / INDIRECT1_COUNT]
+                });
+            get_block_cache(indirect1 as usize, block_device)
+                .lock()
+                .read(0, |indirect1: &IndirectBlock| {
+                    indirect1[index % INDIRECT2_COUNT % INDIRECT1_COUNT]
                 })
         }
     }
@@ -130,10 +149,19 @@ impl DiskInode {
         // indirect2
         if data_blocks > INDIRECT1_BOUND {
             total += 1;
-            let indirect1_needed =
-                (data_blocks - INDIRECT1_BOUND + INDIRECT1_COUNT - 1) / INDIRECT1_COUNT;
-            total += indirect1_needed;
+            let remaining = data_blocks - INDIRECT1_BOUND;
+            let indirect1_needed = remaining.div_ceil(INDIRECT1_COUNT);
+            total += indirect1_needed.min(INDIRECT1_COUNT);
         }
+
+        if data_blocks > INDIRECT2_BOUND {
+            total += 1;
+            let remaining = data_blocks - INDIRECT2_BOUND;
+            let indirect2_needed = remaining.div_ceil(INDIRECT2_COUNT);
+            let indirect3_needed = remaining.div_ceil(INDIRECT1_COUNT);
+            total += indirect2_needed + indirect3_needed;
+        }
+
         total as u32
     }
 
@@ -144,82 +172,146 @@ impl DiskInode {
     }
 
     /// Increase the size of current disk inode
+    #[allow(clippy::too_many_lines)]
     pub fn increase_size(
         &mut self,
         new_size: u32,
         new_blocks: Vec<u32>,
         block_device: &Arc<dyn BlockDevice>,
     ) {
-        let mut current_blocks = Self::count_data_block(self.size) as usize;
+        let mut block_index = Self::count_data_block(self.size) as usize;
         self.size = new_size;
-        let mut total_blocks = Self::count_data_block(self.size) as usize;
+        let mut new_total_blocks = Self::count_data_block(self.size) as usize;
         let mut new_blocks = new_blocks.into_iter();
 
-        // fill direct
-        let direct_fill_count = total_blocks.min(DIRECT_COUNT);
-        while current_blocks < direct_fill_count {
-            self.direct[current_blocks] = new_blocks.next().unwrap();
-            current_blocks += 1;
+        // -------------------- Direct Blocks --------------------
+        let direct_end = new_total_blocks.min(DIRECT_COUNT);
+        while block_index < direct_end {
+            self.direct[block_index] = new_blocks.next().unwrap();
+            block_index += 1;
         }
+        // ----------------- End of Direct Blocks ----------------
 
-        // alloc indirect1
-        if total_blocks > DIRECT_COUNT {
-            if current_blocks == DIRECT_COUNT {
-                self.indirect1 = new_blocks.next().unwrap();
-            }
-            current_blocks -= DIRECT_COUNT;
-            total_blocks -= DIRECT_COUNT;
-        } else {
+        if new_total_blocks <= DIRECT_COUNT {
             return;
         }
-        // fill indirect1
+
+        // -------------------- Indirect Level 1 -----------------
+        if block_index == DIRECT_COUNT {
+            self.indirect1 = new_blocks.next().unwrap();
+        }
+        block_index -= DIRECT_COUNT;
+        new_total_blocks -= DIRECT_COUNT;
+
         get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
-                let indirect1_fill_count = total_blocks.min(INDIRECT1_COUNT);
-                while current_blocks < indirect1_fill_count {
-                    indirect1[current_blocks] = new_blocks.next().unwrap();
-                    current_blocks += 1;
+                let indirect1_end = new_total_blocks.min(INDIRECT1_COUNT);
+                while block_index < indirect1_end {
+                    indirect1[block_index] = new_blocks.next().unwrap();
+                    block_index += 1;
                 }
             });
+        // ----------------- End of Indirect Level 1 ------------
 
-        // alloc indirect2
-        if total_blocks > INDIRECT1_COUNT {
-            if current_blocks == INDIRECT1_COUNT {
-                self.indirect2 = new_blocks.next().unwrap();
-            }
-            current_blocks -= INDIRECT1_COUNT;
-            total_blocks -= INDIRECT1_COUNT;
-        } else {
+        if new_total_blocks <= INDIRECT1_COUNT {
             return;
         }
-        // fill indirect2 from (a0, b0) -> (a1, b1)
-        let mut a0 = current_blocks / INDIRECT1_COUNT;
-        let mut b0 = current_blocks % INDIRECT1_COUNT;
-        let a1 = total_blocks / INDIRECT1_COUNT;
-        let b1 = total_blocks % INDIRECT1_COUNT;
-        // alloc low-level indirect1
+
+        // -------------------- Indirect Level 2 -----------------
+        if block_index == INDIRECT1_COUNT {
+            self.indirect2 = new_blocks.next().unwrap();
+        }
+        block_index -= INDIRECT1_COUNT;
+        new_total_blocks -= INDIRECT1_COUNT;
+
+        let mut index2 = block_index / INDIRECT1_COUNT;
+        let mut index1 = block_index % INDIRECT1_COUNT;
+        let end2 = new_total_blocks / INDIRECT1_COUNT;
+        let end1 = new_total_blocks % INDIRECT1_COUNT;
+
         get_block_cache(self.indirect2 as usize, block_device)
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
-                while (a0 < a1) || (a0 == a1 && b0 < b1) {
-                    if b0 == 0 {
-                        indirect2[a0] = new_blocks.next().unwrap();
+                while block_index < INDIRECT2_COUNT
+                    && ((index2 < end2) || (index2 == end2 && index1 < end1))
+                {
+                    if index1 == 0 {
+                        indirect2[index2] = new_blocks.next().unwrap();
+                        block_index += 1;
                     }
-                    // fill current
-                    get_block_cache(indirect2[a0] as usize, block_device)
+
+                    get_block_cache(indirect2[index2] as usize, block_device)
                         .lock()
                         .modify(0, |indirect1: &mut IndirectBlock| {
-                            indirect1[b0] = new_blocks.next().unwrap();
+                            indirect1[index1] = new_blocks.next().unwrap();
+                            block_index += 1;
                         });
-                    // move to next
-                    b0 += 1;
-                    if b0 == INDIRECT1_COUNT {
-                        b0 = 0;
-                        a0 += 1;
+
+                    index1 += 1;
+                    if index1 == INDIRECT1_COUNT {
+                        index1 = 0;
+                        index2 += 1;
                     }
                 }
             });
+        // ----------------- End of Indirect Level 2 ------------
+
+        if new_total_blocks <= INDIRECT2_COUNT {
+            return;
+        }
+
+        // -------------------- Indirect Level 3 -----------------
+        if block_index == INDIRECT2_COUNT {
+            self.indirect3 = new_blocks.next().unwrap();
+        }
+        block_index -= INDIRECT2_COUNT;
+        new_total_blocks -= INDIRECT2_COUNT;
+
+        let mut index3 = block_index / INDIRECT2_COUNT;
+        let mut index2 = block_index % INDIRECT2_COUNT / INDIRECT1_COUNT;
+        let mut index1 = block_index % INDIRECT1_COUNT;
+        let end3 = new_total_blocks / INDIRECT2_COUNT;
+        let end2 = new_total_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
+        let end1 = new_total_blocks % INDIRECT1_COUNT;
+
+        get_block_cache(self.indirect3 as usize, block_device)
+            .lock()
+            .modify(0, |indirect3: &mut IndirectBlock| {
+                while (index3 < end3)
+                    || (index3 == end3 && index2 < end2)
+                    || (index3 == end3 && index2 == end2 && index1 < end1)
+                {
+                    if index2 == 0 && index1 == 0 {
+                        indirect3[index3] = new_blocks.next().unwrap();
+                    }
+
+                    get_block_cache(indirect3[index3] as usize, block_device)
+                        .lock()
+                        .modify(0, |indirect2: &mut IndirectBlock| {
+                            if index1 == 0 {
+                                indirect2[index2] = new_blocks.next().unwrap();
+                            }
+
+                            get_block_cache(indirect2[index2] as usize, block_device)
+                                .lock()
+                                .modify(0, |indirect1: &mut IndirectBlock| {
+                                    indirect1[index1] = new_blocks.next().unwrap();
+                                });
+
+                            index1 += 1;
+                            if index1 == INDIRECT1_COUNT {
+                                index1 = 0;
+                                index2 += 1;
+                                if index2 == INDIRECT2_COUNT {
+                                    index2 = 0;
+                                    index3 += 1;
+                                }
+                            }
+                        });
+                }
+            });
+        // ----------------- End of Indirect Level 3 ------------
     }
 
     /// Decrease the size
