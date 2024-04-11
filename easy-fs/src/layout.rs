@@ -90,27 +90,27 @@ impl DiskInode {
     }
 
     /// Get id of block given inner id
-    pub fn get_block_id(&self, inner_id: u32, block_device: &Arc<dyn BlockDevice>) -> u32 {
-        let inner_id = inner_id as usize;
-        if inner_id < DIRECT_COUNT {
-            self.direct[inner_id]
-        } else if inner_id < INDIRECT1_BOUND {
+    pub fn block_id(&self, block_index: u32, block_device: &Arc<dyn BlockDevice>) -> u32 {
+        let block_index = block_index as usize;
+        if block_index < DIRECT_BOUND {
+            self.direct[block_index]
+        } else if block_index < INDIRECT1_BOUND {
             get_block_cache(self.indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect_block: &IndirectBlock| {
-                    indirect_block[inner_id - DIRECT_COUNT]
+                    indirect_block[block_index - DIRECT_BOUND]
                 })
         } else {
-            let last = inner_id - INDIRECT1_BOUND;
+            let index = block_index - INDIRECT1_BOUND;
             let indirect1 = get_block_cache(self.indirect2 as usize, block_device)
                 .lock()
                 .read(0, |indirect2: &IndirectBlock| {
-                    indirect2[last / INDIRECT1_COUNT]
+                    indirect2[index / INDIRECT1_COUNT]
                 });
             get_block_cache(indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
-                    indirect1[last % INDIRECT1_COUNT]
+                    indirect1[index % INDIRECT1_COUNT]
                 })
         }
     }
@@ -408,7 +408,7 @@ impl DiskInode {
             let block_read_size = end_current_block - start;
             let dst = &mut buf[read_size..read_size + block_read_size];
             get_block_cache(
-                self.get_block_id(start_block as u32, block_device) as usize,
+                self.block_id(start_block as u32, block_device) as usize,
                 block_device,
             )
             .lock()
@@ -450,7 +450,7 @@ impl DiskInode {
             // write and update write size
             let block_write_size = end_current_block - start;
             get_block_cache(
-                self.get_block_id(start_block as u32, block_device) as usize,
+                self.block_id(start_block as u32, block_device) as usize,
                 block_device,
             )
             .lock()
