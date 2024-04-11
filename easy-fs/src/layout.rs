@@ -48,7 +48,7 @@ impl SuperBlock {
 
 /// Type of a disk inode
 #[derive(PartialEq)]
-pub enum DiskInodeType {
+pub enum DiskInodeKind {
     File,
     Directory,
 }
@@ -61,7 +61,7 @@ pub type DataBlock = [u8; BLOCK_SIZE];
 /// A disk inode
 #[repr(C)]
 pub struct DiskInode {
-    disk_type: DiskInodeType,
+    kind: DiskInodeKind,
     pub size: u32,
     pub direct: [u32; DIRECT_COUNT],
     pub indirect1: u32,
@@ -70,9 +70,9 @@ pub struct DiskInode {
 
 impl DiskInode {
     /// Initialize a disk inode
-    pub fn initialize(&mut self, inode_type: DiskInodeType) {
+    pub fn init(&mut self, kind: DiskInodeKind) {
+        self.kind = kind;
         self.size = 0;
-        self.disk_type = inode_type;
         self.direct.fill(0);
         self.indirect1 = 0;
         self.indirect2 = 0;
@@ -80,13 +80,13 @@ impl DiskInode {
 
     /// Whether this inode is a directory
     pub fn is_dir(&self) -> bool {
-        self.disk_type == DiskInodeType::Directory
+        self.kind == DiskInodeKind::Directory
     }
 
     /// Whether this inode is a file
     #[allow(unused)]
     pub fn is_file(&self) -> bool {
-        self.disk_type == DiskInodeType::File
+        self.kind == DiskInodeKind::File
     }
 
     /// Get id of block given inner id
