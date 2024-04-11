@@ -11,7 +11,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 - [x] Colorful logging
 - [x] FIFO scheduler
 - [x] SV39 3-level page table
-- [x] Easy File System
+- [x] Easy File System (3-level indirect blocks)
 - [x] Multi-thread
 - [x] Synchronization
 - [x] VirtIO blk/input/gpu drivers
@@ -109,3 +109,14 @@ If you need to enable GPU support for the project, you can run:
 ```
 just run on
 ```
+
+## Reference
+
+- [github.com/rcore-os/rCore-Tutorial-v3](https://github.com/rcore-os/rCore-Tutorial-v3)
+- [github.com/rcore-os/rCore-Tutorial-Book-v3](https://github.com/rcore-os/rCore-Tutorial-Book-v3)
+- [Operating Systems: Three Easy Pieces](http://pages.cs.wisc.edu/~remzi/OSTEP/)
+- [github.com/TD-Sky/rCore](https://github.com/TD-Sky/rCore)
+- [github.com/CelestialMelody/fs-rs](https://github.com/CelestialMelody/fs-rs)
+- [github.com/Direktor799/rusted_os](https://github.com/Direktor799/rusted_os)
+- [Just's user manual](https://just.systems/man/zh/)
+- [Linux kernel system calls for all architectures](https://gpages.juszkiewicz.com.pl/syscalls-table/syscalls.html)
