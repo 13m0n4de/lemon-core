@@ -115,19 +115,14 @@ impl DiskInode {
         }
     }
 
-    fn _data_blocks(size: u32) -> u32 {
+    fn count_data_block(size: u32) -> u32 {
         (size + BLOCK_SIZE as u32 - 1) / BLOCK_SIZE as u32
     }
 
-    /// Return block number correspond to size.
-    pub fn data_blocks(&self) -> u32 {
-        Self::_data_blocks(self.size)
-    }
-
     /// Return number of blocks needed include indirect1/2.
-    pub fn total_blocks(size: u32) -> u32 {
-        let data_blocks = Self::_data_blocks(size) as usize;
-        let mut total = Self::_data_blocks(size) as usize;
+    pub fn count_total_block(size: u32) -> u32 {
+        let data_blocks = Self::count_data_block(size) as usize;
+        let mut total = Self::count_data_block(size) as usize;
         // indirect1
         if data_blocks > DIRECT_BOUND {
             total += 1;
@@ -145,7 +140,7 @@ impl DiskInode {
     /// Get the number of data blocks that have to be allocated given the new size of data
     pub fn blocks_num_needed(&self, new_size: u32) -> u32 {
         assert!(new_size >= self.size);
-        Self::total_blocks(new_size) - Self::total_blocks(self.size)
+        Self::count_total_block(new_size) - Self::count_total_block(self.size)
     }
 
     /// Increase the size of current disk inode
@@ -155,9 +150,9 @@ impl DiskInode {
         new_blocks: Vec<u32>,
         block_device: &Arc<dyn BlockDevice>,
     ) {
-        let mut current_blocks = self.data_blocks() as usize;
+        let mut current_blocks = Self::count_data_block(self.size) as usize;
         self.size = new_size;
-        let mut total_blocks = self.data_blocks() as usize;
+        let mut total_blocks = Self::count_data_block(self.size) as usize;
         let mut new_blocks = new_blocks.into_iter();
 
         // fill direct
@@ -234,9 +229,9 @@ impl DiskInode {
         block_device: &Arc<dyn BlockDevice>,
     ) -> Vec<u32> {
         let mut v: Vec<u32> = Vec::new();
-        let mut current_blocks = self.data_blocks() as usize;
+        let mut current_blocks = Self::count_data_block(self.size) as usize;
         self.size = new_size;
-        let mut recycled_blocks = self.data_blocks() as usize;
+        let mut recycled_blocks = Self::count_data_block(self.size) as usize;
 
         // recycle direct
         let direct_recycle_count = current_blocks.min(DIRECT_COUNT);
@@ -314,7 +309,7 @@ impl DiskInode {
     /// We will clear the block contents to zero later.
     pub fn clear_size(&mut self, block_device: &Arc<dyn BlockDevice>) -> Vec<u32> {
         let mut v: Vec<u32> = Vec::new();
-        let mut data_blocks = self.data_blocks() as usize;
+        let mut data_blocks = Self::count_data_block(self.size) as usize;
         self.size = 0;
         let mut current_blocks = 0usize;
 

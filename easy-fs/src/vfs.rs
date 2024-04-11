@@ -185,7 +185,7 @@ impl Inode {
         self.modify_disk_inode(|disk_inode| {
             let size = disk_inode.size;
             let data_blocks_dealloc = disk_inode.clear_size(&self.block_device);
-            assert!(data_blocks_dealloc.len() == DiskInode::total_blocks(size) as usize);
+            assert!(data_blocks_dealloc.len() == DiskInode::count_total_block(size) as usize);
             for &data_block in &data_blocks_dealloc {
                 fs.dealloc_data(data_block);
             }
