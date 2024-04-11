@@ -4,8 +4,8 @@ use crate::{
     block_cache::get_block_cache,
     block_dev::BlockDevice,
     config::{
-        BLOCK_SIZE, DIRECT_BOUND, EFS_MAGIC, INDIRECT1_BOUND, INODE_DIRECT_COUNT,
-        INODE_INDIRECT1_COUNT, INODE_INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
+        BLOCK_SIZE, DIRECT_BOUND, DIRECT_COUNT, EFS_MAGIC, INDIRECT1_BOUND, INDIRECT1_COUNT,
+        INDIRECT2_COUNT, NAME_LENGTH_LIMIT,
     },
 };
 
@@ -63,7 +63,7 @@ pub type DataBlock = [u8; BLOCK_SIZE];
 pub struct DiskInode {
     disk_type: DiskInodeType,
     pub size: u32,
-    pub direct: [u32; INODE_DIRECT_COUNT],
+    pub direct: [u32; DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
 }
@@ -92,25 +92,25 @@ impl DiskInode {
     /// Get id of block given inner id
     pub fn get_block_id(&self, inner_id: u32, block_device: &Arc<dyn BlockDevice>) -> u32 {
         let inner_id = inner_id as usize;
-        if inner_id < INODE_DIRECT_COUNT {
+        if inner_id < DIRECT_COUNT {
             self.direct[inner_id]
         } else if inner_id < INDIRECT1_BOUND {
             get_block_cache(self.indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect_block: &IndirectBlock| {
-                    indirect_block[inner_id - INODE_DIRECT_COUNT]
+                    indirect_block[inner_id - DIRECT_COUNT]
                 })
         } else {
             let last = inner_id - INDIRECT1_BOUND;
             let indirect1 = get_block_cache(self.indirect2 as usize, block_device)
                 .lock()
                 .read(0, |indirect2: &IndirectBlock| {
-                    indirect2[last / INODE_INDIRECT1_COUNT]
+                    indirect2[last / INDIRECT1_COUNT]
                 });
             get_block_cache(indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
-                    indirect1[last % INODE_INDIRECT1_COUNT]
+                    indirect1[last % INDIRECT1_COUNT]
                 })
         }
     }
@@ -136,7 +136,7 @@ impl DiskInode {
         if data_blocks > INDIRECT1_BOUND {
             total += 1;
             let indirect1_needed =
-                (data_blocks - INDIRECT1_BOUND + INODE_INDIRECT1_COUNT - 1) / INODE_INDIRECT1_COUNT;
+                (data_blocks - INDIRECT1_BOUND + INDIRECT1_COUNT - 1) / INDIRECT1_COUNT;
             total += indirect1_needed;
         }
         total as u32
@@ -161,19 +161,19 @@ impl DiskInode {
         let mut new_blocks = new_blocks.into_iter();
 
         // fill direct
-        let direct_fill_count = total_blocks.min(INODE_DIRECT_COUNT);
+        let direct_fill_count = total_blocks.min(DIRECT_COUNT);
         while current_blocks < direct_fill_count {
             self.direct[current_blocks] = new_blocks.next().unwrap();
             current_blocks += 1;
         }
 
         // alloc indirect1
-        if total_blocks > INODE_DIRECT_COUNT {
-            if current_blocks == INODE_DIRECT_COUNT {
+        if total_blocks > DIRECT_COUNT {
+            if current_blocks == DIRECT_COUNT {
                 self.indirect1 = new_blocks.next().unwrap();
             }
-            current_blocks -= INODE_DIRECT_COUNT;
-            total_blocks -= INODE_DIRECT_COUNT;
+            current_blocks -= DIRECT_COUNT;
+            total_blocks -= DIRECT_COUNT;
         } else {
             return;
         }
@@ -181,7 +181,7 @@ impl DiskInode {
         get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
-                let indirect1_fill_count = total_blocks.min(INODE_INDIRECT1_COUNT);
+                let indirect1_fill_count = total_blocks.min(INDIRECT1_COUNT);
                 while current_blocks < indirect1_fill_count {
                     indirect1[current_blocks] = new_blocks.next().unwrap();
                     current_blocks += 1;
@@ -189,20 +189,20 @@ impl DiskInode {
             });
 
         // alloc indirect2
-        if total_blocks > INODE_INDIRECT1_COUNT {
-            if current_blocks == INODE_INDIRECT1_COUNT {
+        if total_blocks > INDIRECT1_COUNT {
+            if current_blocks == INDIRECT1_COUNT {
                 self.indirect2 = new_blocks.next().unwrap();
             }
-            current_blocks -= INODE_INDIRECT1_COUNT;
-            total_blocks -= INODE_INDIRECT1_COUNT;
+            current_blocks -= INDIRECT1_COUNT;
+            total_blocks -= INDIRECT1_COUNT;
         } else {
             return;
         }
         // fill indirect2 from (a0, b0) -> (a1, b1)
-        let mut a0 = current_blocks / INODE_INDIRECT1_COUNT;
-        let mut b0 = current_blocks % INODE_INDIRECT1_COUNT;
-        let a1 = total_blocks / INODE_INDIRECT1_COUNT;
-        let b1 = total_blocks % INODE_INDIRECT1_COUNT;
+        let mut a0 = current_blocks / INDIRECT1_COUNT;
+        let mut b0 = current_blocks % INDIRECT1_COUNT;
+        let a1 = total_blocks / INDIRECT1_COUNT;
+        let b1 = total_blocks % INDIRECT1_COUNT;
         // alloc low-level indirect1
         get_block_cache(self.indirect2 as usize, block_device)
             .lock()
@@ -219,7 +219,7 @@ impl DiskInode {
                         });
                     // move to next
                     b0 += 1;
-                    if b0 == INODE_INDIRECT1_COUNT {
+                    if b0 == INDIRECT1_COUNT {
                         b0 = 0;
                         a0 += 1;
                     }
@@ -239,7 +239,7 @@ impl DiskInode {
         let mut recycled_blocks = self.data_blocks() as usize;
 
         // recycle direct
-        let direct_recycle_count = current_blocks.min(INODE_DIRECT_COUNT);
+        let direct_recycle_count = current_blocks.min(DIRECT_COUNT);
         while recycled_blocks < direct_recycle_count {
             v.push(self.direct[recycled_blocks]);
             self.direct[recycled_blocks] = 0;
@@ -247,13 +247,13 @@ impl DiskInode {
         }
 
         // recycle indirect1
-        if recycled_blocks > INODE_DIRECT_COUNT {
-            if current_blocks == INODE_DIRECT_COUNT {
+        if recycled_blocks > DIRECT_COUNT {
+            if current_blocks == DIRECT_COUNT {
                 v.push(self.indirect1);
                 self.indirect1 = 0;
             }
-            current_blocks -= INODE_DIRECT_COUNT;
-            recycled_blocks -= INODE_DIRECT_COUNT;
+            current_blocks -= DIRECT_COUNT;
+            recycled_blocks -= DIRECT_COUNT;
         } else {
             return v;
         }
@@ -261,7 +261,7 @@ impl DiskInode {
         get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
-                let indirect1_recycle_count = recycled_blocks.min(INODE_INDIRECT1_COUNT);
+                let indirect1_recycle_count = recycled_blocks.min(INDIRECT1_COUNT);
                 while current_blocks < indirect1_recycle_count {
                     v.push(indirect1[current_blocks]);
                     current_blocks += 1;
@@ -269,21 +269,21 @@ impl DiskInode {
             });
 
         // alloc indirect2
-        if recycled_blocks > INODE_INDIRECT1_COUNT {
-            if current_blocks == INODE_INDIRECT1_COUNT {
+        if recycled_blocks > INDIRECT1_COUNT {
+            if current_blocks == INDIRECT1_COUNT {
                 v.push(self.indirect2);
                 self.indirect2 = 0;
             }
-            current_blocks -= INODE_INDIRECT1_COUNT;
-            recycled_blocks -= INODE_INDIRECT1_COUNT;
+            current_blocks -= INDIRECT1_COUNT;
+            recycled_blocks -= INDIRECT1_COUNT;
         } else {
             return v;
         }
         // fill indirect2 from (a0, b0) -> (a1, b1)
-        let mut a0 = current_blocks / INODE_INDIRECT1_COUNT;
-        let mut b0 = current_blocks % INODE_INDIRECT1_COUNT;
-        let a1 = recycled_blocks / INODE_INDIRECT1_COUNT;
-        let b1 = recycled_blocks % INODE_INDIRECT1_COUNT;
+        let mut a0 = current_blocks / INDIRECT1_COUNT;
+        let mut b0 = current_blocks % INDIRECT1_COUNT;
+        let a1 = recycled_blocks / INDIRECT1_COUNT;
+        let b1 = recycled_blocks % INDIRECT1_COUNT;
         // alloc low-level indirect1
         get_block_cache(self.indirect2 as usize, block_device)
             .lock()
@@ -300,7 +300,7 @@ impl DiskInode {
                         });
                     // move to next
                     b0 += 1;
-                    if b0 == INODE_INDIRECT1_COUNT {
+                    if b0 == INDIRECT1_COUNT {
                         b0 = 0;
                         a0 += 1;
                     }
@@ -319,7 +319,7 @@ impl DiskInode {
         let mut current_blocks = 0usize;
 
         // direct
-        let direct_clear_count = data_blocks.min(INODE_DIRECT_COUNT);
+        let direct_clear_count = data_blocks.min(DIRECT_COUNT);
         while current_blocks < direct_clear_count {
             v.push(self.direct[current_blocks]);
             self.direct[current_blocks] = 0;
@@ -327,9 +327,9 @@ impl DiskInode {
         }
 
         // indirect1 block
-        if data_blocks > INODE_DIRECT_COUNT {
+        if data_blocks > DIRECT_COUNT {
             v.push(self.indirect1);
-            data_blocks -= INODE_DIRECT_COUNT;
+            data_blocks -= DIRECT_COUNT;
             current_blocks = 0;
         } else {
             return v;
@@ -338,7 +338,7 @@ impl DiskInode {
         get_block_cache(self.indirect1 as usize, block_device)
             .lock()
             .read(0, |indirect1: &IndirectBlock| {
-                let indirect1_clear_count = data_blocks.min(INODE_INDIRECT1_COUNT);
+                let indirect1_clear_count = data_blocks.min(INDIRECT1_COUNT);
                 while current_blocks < indirect1_clear_count {
                     v.push(indirect1[current_blocks]);
                     current_blocks += 1;
@@ -347,16 +347,16 @@ impl DiskInode {
         self.indirect1 = 0;
 
         // indirect2 block
-        if data_blocks > INODE_INDIRECT1_COUNT {
+        if data_blocks > INDIRECT1_COUNT {
             v.push(self.indirect2);
-            data_blocks -= INODE_INDIRECT1_COUNT;
+            data_blocks -= INDIRECT1_COUNT;
         } else {
             return v;
         }
         // indirect2
-        assert!(data_blocks <= INODE_INDIRECT2_COUNT);
-        let a1 = data_blocks / INODE_INDIRECT1_COUNT;
-        let b1 = data_blocks % INODE_INDIRECT1_COUNT;
+        assert!(data_blocks <= INDIRECT2_COUNT);
+        let a1 = data_blocks / INDIRECT1_COUNT;
+        let b1 = data_blocks % INDIRECT1_COUNT;
         get_block_cache(self.indirect2 as usize, block_device)
             .lock()
             .read(0, |indirect2: &IndirectBlock| {
