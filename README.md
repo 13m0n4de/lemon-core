@@ -32,14 +32,13 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
     - ...
 - Module naming and organization changes, such as:
     - `os` module has been renamed to [kernel](./kernel/).
-    - `easy-fs-fuse` has been renamed to [easy-fs-tool](./easy-fs-tool/).
     - `TaskControlBlock` is located in `tcb.rs` instead of `task.rs` to avoid using `#[allow(clippy::module_inception)]`.
     - `ProcessControlBlock` is placed in `pcb.rs` rather than `process.rs`.
     - User library modules are named consistently with kernel modules.
     - User programs and test cases are separated from `user_lib`.
 - No need to manually append `\0` to strings.
 - Adoption of newer crates and RustSBI versions.
-- Use of [clap](https://docs.rs/clap/latest/clap/) for command-line argument parsing in [easy-fs-tool](./easy-fs-tool/).
+- Use of [clap](https://docs.rs/clap/latest/clap/) for command-line argument parsing in [easy-fs-fuse](./easy-fs-fuse/).
 - More comprehensive shell application featuring:
     - Command input and output redirection.
     - Prompt displaying the current path.
@@ -53,7 +52,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 .
 ├── apps                # User Applications
 ├── bootloader          # RustSBI
-├── easy-fs-tool        # Command-line tool to create EFS image
+├── easy-fs-fuse        # Command-line tool to create EFS image
 ├── easy-fs             # Easy File System
 ├── kernel              # OS Kernel
 │   ├── assets          # Static data, images, fonts, or other binary assets
