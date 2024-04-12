@@ -12,7 +12,9 @@ bootloader := "bootloader" / sbi + "-" + board + ".bin"
 
 # Directories for user applications, EasyFS-CLI, kernel, test cases and user lib
 apps_dir := "apps"
-efs_tool_dir := "easy-fs-tool"
+efs_dir := "easy-fs"
+efs_root_dir := "easy-fs-root"
+efs_fuse_dir := "easy-fs-fuse"
 kernel_dir := "kernel"
 tests_dir := "tests"
 user_dir := "user"
@@ -64,7 +66,7 @@ build-apps:
 
 # Build the filesystem image
 build-efs: 
-    cd {{efs_tool_dir}} && just run ../{{apps_source_dir}} ../{{apps_target_dir}}
+    cd {{efs_fuse_dir}} && just run ../{{apps_source_dir}} ../{{apps_target_dir}}
 
 # Build the kernel
 build-kernel:
@@ -102,7 +104,7 @@ gdbclient:
 # Clean build artifacts
 clean:
     cd {{apps_dir}} && just clean
-    cd {{efs_tool_dir}} && just clean
+    cd {{efs_fuse_dir}} && just clean
     cd {{kernel_dir}} && just clean
     cd {{tests_dir}} && just clean
     cd {{user_dir}} && just clean
@@ -110,7 +112,7 @@ clean:
 # Checks packages to catch common mistakes and improve code.
 clippy:
     cd {{apps_dir}} && just clippy 
-    cd {{efs_tool_dir}} && just clippy
+    cd {{efs_fuse_dir}} && just clippy
     cd {{kernel_dir}} && just clippy
     cd {{tests_dir}} && just clippy
     cd {{user_dir}} && just clippy
