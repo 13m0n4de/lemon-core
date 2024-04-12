@@ -64,7 +64,7 @@ impl EasyFileSystem {
         get_block_cache(0, block_device)
             .lock()
             .modify(0, |super_block: &mut SuperBlock| {
-                super_block.initialize(
+                super_block.init(
                     total_blocks,
                     inode_bitmap_blocks,
                     inode_area_blocks,
@@ -139,17 +139,20 @@ impl EasyFileSystem {
     }
 
     /// Allocate a new inode
+    #[inline]
     pub fn alloc_inode(&mut self) -> u32 {
         self.inode_bitmap.alloc(&self.block_device).unwrap() as u32
     }
 
     /// Deallocate a inode
+    #[inline]
     pub fn dealloc_inode(&mut self, inode_id: u32) {
         self.inode_bitmap
             .dealloc(&self.block_device, inode_id as usize);
     }
 
     /// Allocate a data block
+    #[inline]
     pub fn alloc_data(&mut self) -> u32 {
         self.data_bitmap.alloc(&self.block_device).unwrap() as u32 + self.data_area_start_block
     }
