@@ -1,5 +1,5 @@
 [package]
-name = "easy-fs-tool"
+name = "easy-fs-fuse"
 version = "0.1.0"
 edition = "2021"
 

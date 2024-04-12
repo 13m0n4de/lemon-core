@@ -14,7 +14,7 @@ bootloader := "bootloader" / sbi + "-" + board + ".bin"
 apps_dir := "apps"
 efs_dir := "easy-fs"
 efs_root_dir := "easy-fs-root"
-efs_tool_dir := "easy-fs-tool"
+efs_fuse_dir := "easy-fs-fuse"
 kernel_dir := "kernel"
 tests_dir := "tests"
 user_dir := "user"
@@ -33,7 +33,7 @@ tests_source_dir := tests_dir / "src/bin"
 tests_target_dir := tests_dir / "target" / target / mode
 
 # File system image
-fs_img := efs_tool_dir / "target" / mode / "fs.img"
+fs_img := efs_fuse_dir / "target" / mode / "fs.img"
 
 # Tools for handling object files
 objdump := "rust-objdump --arch-name=riscv64"
@@ -83,7 +83,7 @@ build-efs:
         app_name=`basename $app .rs`; \
         cp "{{apps_target_dir}}/$app_name" {{efs_root_dir}}/bin/; \
     done
-    cd {{efs_tool_dir}} && just run ../{{efs_root_dir}}/ ../{{efs_tool_dir}}/target/{{mode}}/
+    cd {{efs_fuse_dir}} && just run ../{{efs_root_dir}}/ ../{{efs_fuse_dir}}/target/{{mode}}/
 
 # Build the kernel
 build-kernel:
@@ -121,7 +121,7 @@ gdbclient:
 # Clean build artifacts
 clean:
     cd {{apps_dir}} && just clean
-    cd {{efs_tool_dir}} && just clean
+    cd {{efs_fuse_dir}} && just clean
     rm {{efs_root_dir}}/* -rf
     cd {{kernel_dir}} && just clean
     cd {{tests_dir}} && just clean
@@ -131,7 +131,7 @@ clean:
 clippy:
     cd {{apps_dir}} && just clippy 
     cd {{efs_dir}} && just clippy
-    cd {{efs_tool_dir}} && just clippy
+    cd {{efs_fuse_dir}} && just clippy
     cd {{kernel_dir}} && just clippy
     cd {{tests_dir}} && just clippy
     cd {{user_dir}} && just clippy
