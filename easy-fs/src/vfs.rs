@@ -18,6 +18,7 @@ pub struct Inode {
 
 impl Inode {
     /// Create a Inode
+    #[inline]
     pub fn new(
         block_id: u32,
         block_offset: usize,
@@ -260,6 +261,7 @@ impl Inode {
     }
 
     /// Get `inode_id`
+    #[inline]
     pub fn inode_id(&self) -> u32 {
         self.fs
             .lock()
@@ -267,16 +269,19 @@ impl Inode {
     }
 
     /// Get file size
+    #[inline]
     pub fn file_size(&self) -> u32 {
         self.read_disk_inode(|disk_inode| disk_inode.size)
     }
 
     /// Whether this inode is a directory
+    #[inline]
     pub fn is_dir(&self) -> bool {
         self.read_disk_inode(super::layout::DiskInode::is_dir)
     }
 
     /// Whether this inode is a file
+    #[inline]
     pub fn is_file(&self) -> bool {
         self.read_disk_inode(super::layout::DiskInode::is_file)
     }

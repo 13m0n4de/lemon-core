@@ -22,7 +22,8 @@ pub struct SuperBlock {
 
 impl SuperBlock {
     /// Initialize a super block
-    pub fn initialize(
+    #[inline]
+    pub fn init(
         &mut self,
         total_blocks: u32,
         inode_bitmap_blocks: u32,
@@ -41,6 +42,7 @@ impl SuperBlock {
     }
 
     /// Check if a super block is valid using efs magic
+    #[inline]
     pub fn is_valid(&self) -> bool {
         self.magic == EFS_MAGIC
     }
@@ -71,6 +73,7 @@ pub struct DiskInode {
 
 impl DiskInode {
     /// Initialize a disk inode
+    #[inline]
     pub fn init(&mut self, kind: DiskInodeKind) {
         self.kind = kind;
         self.size = 0;
@@ -81,12 +84,14 @@ impl DiskInode {
     }
 
     /// Whether this inode is a directory
+    #[inline]
     pub fn is_dir(&self) -> bool {
         self.kind == DiskInodeKind::Directory
     }
 
     /// Whether this inode is a file
     #[allow(unused)]
+    #[inline]
     pub fn is_file(&self) -> bool {
         self.kind == DiskInodeKind::File
     }
@@ -134,8 +139,9 @@ impl DiskInode {
         }
     }
 
+    #[inline]
     fn count_data_block(size: u32) -> u32 {
-        (size + BLOCK_SIZE as u32 - 1) / BLOCK_SIZE as u32
+        size.div_ceil(BLOCK_SIZE as u32)
     }
 
     /// Return number of blocks needed include indirect1/2.
@@ -693,6 +699,7 @@ pub const DIRENT_SIZE: usize = core::mem::size_of::<DirEntry>();
 
 impl DirEntry {
     /// Crate a directory entry from name and inode number
+    #[inline]
     pub fn new(name: &str, inode_number: u32) -> Self {
         let mut bytes = [0u8; NAME_LENGTH_LIMIT + 1];
         bytes[..name.len()].copy_from_slice(name.as_bytes());
@@ -703,6 +710,7 @@ impl DirEntry {
     }
 
     /// Create an empty directory entry
+    #[inline]
     pub fn empty() -> Self {
         Self {
             name: [0u8; NAME_LENGTH_LIMIT + 1],
@@ -711,11 +719,13 @@ impl DirEntry {
     }
 
     /// Serialize into bytes
+    #[inline]
     pub fn as_bytes(&self) -> &[u8] {
         unsafe { core::slice::from_raw_parts(core::ptr::from_ref(self).cast::<u8>(), DIRENT_SIZE) }
     }
 
     /// Serialize into mutable bytes
+    #[inline]
     pub fn as_mut_bytes(&mut self) -> &mut [u8] {
         unsafe {
             core::slice::from_raw_parts_mut(core::ptr::from_mut(self).cast::<u8>(), DIRENT_SIZE)
@@ -733,6 +743,7 @@ impl DirEntry {
     }
 
     /// Get inode number of the entry
+    #[inline]
     pub fn inode_number(&self) -> u32 {
         self.inode_number
     }
