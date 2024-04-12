@@ -94,7 +94,7 @@ impl BlockCacheManager {
         Self { queue: Vec::new() }
     }
 
-    pub fn get_block_cache(
+    pub fn get(
         &mut self,
         block_id: usize,
         block_device: &Arc<dyn BlockDevice>,
@@ -128,18 +128,13 @@ lazy_static! {
     static ref BLOCK_CACHE_MANAGER: Mutex<BlockCacheManager> = Mutex::new(BlockCacheManager::new());
 }
 
-#[allow(clippy::module_name_repetitions)]
-pub fn get_block_cache(
-    block_id: usize,
-    block_device: &Arc<dyn BlockDevice>,
-) -> Arc<Mutex<BlockCache>> {
-    BLOCK_CACHE_MANAGER
-        .lock()
-        .get_block_cache(block_id, block_device)
+#[inline]
+pub fn get(block_id: usize, block_device: &Arc<dyn BlockDevice>) -> Arc<Mutex<BlockCache>> {
+    BLOCK_CACHE_MANAGER.lock().get(block_id, block_device)
 }
 
-#[allow(clippy::module_name_repetitions)]
-pub fn block_cache_sync_all() {
+#[inline]
+pub fn sync_all() {
     let manager = BLOCK_CACHE_MANAGER.lock();
     for (_, cache) in &manager.queue {
         cache.lock().sync();
