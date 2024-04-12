@@ -2,7 +2,7 @@ use alloc::{sync::Arc, vec::Vec};
 use spin::{Mutex, MutexGuard};
 
 use crate::{
-    block_cache::{block_cache_sync_all, get_block_cache},
+    block_cache,
     block_dev::BlockDevice,
     efs::EasyFileSystem,
     layout::{DirEntry, DiskInode, DiskInodeKind, DIRENT_SIZE},
@@ -35,14 +35,14 @@ impl Inode {
 
     /// Call a function over a disk inode to read it
     fn read_disk_inode<V>(&self, f: impl FnOnce(&DiskInode) -> V) -> V {
-        get_block_cache(self.block_id, &self.block_device)
+        block_cache::get(self.block_id, &self.block_device)
             .lock()
             .read(self.block_offset, f)
     }
 
     /// Call a function over a disk inode to modify it
     fn modify_disk_inode<V>(&self, f: impl FnOnce(&mut DiskInode) -> V) -> V {
-        get_block_cache(self.block_id, &self.block_device)
+        block_cache::get(self.block_id, &self.block_device)
             .lock()
             .modify(self.block_offset, f)
     }
@@ -134,7 +134,7 @@ impl Inode {
         let new_inode_id = fs.alloc_inode();
         // initialize inode
         let (new_inode_block_id, new_inode_block_offset) = fs.disk_inode_position(new_inode_id);
-        get_block_cache(new_inode_block_id as usize, &self.block_device)
+        block_cache::get(new_inode_block_id as usize, &self.block_device)
             .lock()
             .modify(new_inode_block_offset, |new_inode: &mut DiskInode| {
                 new_inode.init(kind);
@@ -156,7 +156,7 @@ impl Inode {
         });
 
         let (block_id, block_offset) = fs.disk_inode_position(new_inode_id);
-        block_cache_sync_all();
+        block_cache::sync_all();
 
         // return inode
         Some(Arc::new(Self::new(
@@ -191,7 +191,7 @@ impl Inode {
                 fs.dealloc_data(data_block);
             }
         });
-        block_cache_sync_all();
+        block_cache::sync_all();
     }
 
     /// Read data from current inode
@@ -208,7 +208,7 @@ impl Inode {
             self.increase_size((offset + buf.len()) as u32, disk_inode, &mut fs);
             disk_inode.write_at(offset, buf, &self.block_device)
         });
-        block_cache_sync_all();
+        block_cache::sync_all();
         size
     }
 

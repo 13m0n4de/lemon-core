@@ -1,7 +1,7 @@
 use alloc::{sync::Arc, vec::Vec};
 
 use crate::{
-    block_cache::get_block_cache,
+    block_cache,
     block_dev::BlockDevice,
     config::{
         BLOCK_SIZE, DIRECT_BOUND, DIRECT_COUNT, EFS_MAGIC, INDIRECT1_BOUND, INDIRECT1_COUNT,
@@ -102,36 +102,36 @@ impl DiskInode {
         if block_index < DIRECT_BOUND {
             self.direct[block_index]
         } else if block_index < INDIRECT1_BOUND {
-            get_block_cache(self.indirect1 as usize, block_device)
+            block_cache::get(self.indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect_block: &IndirectBlock| {
                     indirect_block[block_index - DIRECT_BOUND]
                 })
         } else if block_index < INDIRECT2_BOUND {
             let index = block_index - INDIRECT1_BOUND;
-            let indirect1 = get_block_cache(self.indirect2 as usize, block_device)
+            let indirect1 = block_cache::get(self.indirect2 as usize, block_device)
                 .lock()
                 .read(0, |indirect2: &IndirectBlock| {
                     indirect2[index / INDIRECT1_COUNT]
                 });
-            get_block_cache(indirect1 as usize, block_device)
+            block_cache::get(indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
                     indirect1[index % INDIRECT1_COUNT]
                 })
         } else {
             let index = block_index - INDIRECT2_BOUND;
-            let indirect2 = get_block_cache(self.indirect3 as usize, block_device)
+            let indirect2 = block_cache::get(self.indirect3 as usize, block_device)
                 .lock()
                 .read(0, |indirect3: &IndirectBlock| {
                     indirect3[index / INDIRECT2_COUNT]
                 });
-            let indirect1 = get_block_cache(indirect2 as usize, block_device)
+            let indirect1 = block_cache::get(indirect2 as usize, block_device)
                 .lock()
                 .read(0, |indirect2: &IndirectBlock| {
                     indirect2[index % INDIRECT2_COUNT / INDIRECT1_COUNT]
                 });
-            get_block_cache(indirect1 as usize, block_device)
+            block_cache::get(indirect1 as usize, block_device)
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
                     indirect1[index % INDIRECT2_COUNT % INDIRECT1_COUNT]
@@ -209,7 +209,7 @@ impl DiskInode {
         block_index -= DIRECT_COUNT;
         new_total_blocks -= DIRECT_COUNT;
 
-        get_block_cache(self.indirect1 as usize, block_device)
+        block_cache::get(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
                 let indirect1_end = new_total_blocks.min(INDIRECT1_COUNT);
@@ -236,7 +236,7 @@ impl DiskInode {
         let end2 = new_total_blocks / INDIRECT1_COUNT;
         let end1 = new_total_blocks % INDIRECT1_COUNT;
 
-        get_block_cache(self.indirect2 as usize, block_device)
+        block_cache::get(self.indirect2 as usize, block_device)
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
                 while block_index < INDIRECT2_COUNT
@@ -247,7 +247,7 @@ impl DiskInode {
                         block_index += 1;
                     }
 
-                    get_block_cache(indirect2[index2] as usize, block_device)
+                    block_cache::get(indirect2[index2] as usize, block_device)
                         .lock()
                         .modify(0, |indirect1: &mut IndirectBlock| {
                             indirect1[index1] = new_blocks.next().unwrap();
@@ -281,7 +281,7 @@ impl DiskInode {
         let end2 = new_total_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
         let end1 = new_total_blocks % INDIRECT1_COUNT;
 
-        get_block_cache(self.indirect3 as usize, block_device)
+        block_cache::get(self.indirect3 as usize, block_device)
             .lock()
             .modify(0, |indirect3: &mut IndirectBlock| {
                 while (index3 < end3)
@@ -292,14 +292,14 @@ impl DiskInode {
                         indirect3[index3] = new_blocks.next().unwrap();
                     }
 
-                    get_block_cache(indirect3[index3] as usize, block_device)
+                    block_cache::get(indirect3[index3] as usize, block_device)
                         .lock()
                         .modify(0, |indirect2: &mut IndirectBlock| {
                             if index1 == 0 {
                                 indirect2[index2] = new_blocks.next().unwrap();
                             }
 
-                            get_block_cache(indirect2[index2] as usize, block_device)
+                            block_cache::get(indirect2[index2] as usize, block_device)
                                 .lock()
                                 .modify(0, |indirect1: &mut IndirectBlock| {
                                     indirect1[index1] = new_blocks.next().unwrap();
@@ -353,7 +353,7 @@ impl DiskInode {
         block_index -= DIRECT_COUNT;
         recycled_blocks -= DIRECT_COUNT;
 
-        get_block_cache(self.indirect1 as usize, block_device)
+        block_cache::get(self.indirect1 as usize, block_device)
             .lock()
             .modify(0, |indirect1: &mut IndirectBlock| {
                 let indirect1_recycle_count = recycled_blocks.min(INDIRECT1_COUNT);
@@ -381,7 +381,7 @@ impl DiskInode {
         let end2 = recycled_blocks / INDIRECT1_COUNT;
         let end1 = recycled_blocks % INDIRECT1_COUNT;
 
-        get_block_cache(self.indirect2 as usize, block_device)
+        block_cache::get(self.indirect2 as usize, block_device)
             .lock()
             .modify(0, |indirect2: &mut IndirectBlock| {
                 while (index2 < end2) || (index2 == end2 && index1 < end1) {
@@ -389,7 +389,7 @@ impl DiskInode {
                         drop_data_blocks.push(indirect2[index2]);
                     }
 
-                    get_block_cache(indirect2[index2] as usize, block_device)
+                    block_cache::get(indirect2[index2] as usize, block_device)
                         .lock()
                         .modify(0, |indirect1: &mut IndirectBlock| {
                             drop_data_blocks.push(indirect1[index1]);
@@ -422,7 +422,7 @@ impl DiskInode {
         let end2 = recycled_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
         let end1 = recycled_blocks % INDIRECT1_COUNT;
 
-        get_block_cache(self.indirect3 as usize, block_device)
+        block_cache::get(self.indirect3 as usize, block_device)
             .lock()
             .modify(0, |indirect3: &mut IndirectBlock| {
                 while (index3 < end3)
@@ -433,14 +433,14 @@ impl DiskInode {
                         drop_data_blocks.push(indirect3[index3]);
                     }
 
-                    get_block_cache(indirect3[index3] as usize, block_device)
+                    block_cache::get(indirect3[index3] as usize, block_device)
                         .lock()
                         .modify(0, |indirect2: &mut IndirectBlock| {
                             if index1 == 0 {
                                 drop_data_blocks.push(indirect2[index2]);
                             }
 
-                            get_block_cache(indirect2[index2] as usize, block_device)
+                            block_cache::get(indirect2[index2] as usize, block_device)
                                 .lock()
                                 .modify(0, |indirect1: &mut IndirectBlock| {
                                     drop_data_blocks.push(indirect1[index1]);
@@ -484,7 +484,7 @@ impl DiskInode {
         drop_data_blocks.push(self.indirect1);
         data_blocks -= DIRECT_COUNT;
 
-        get_block_cache(self.indirect1 as usize, block_device)
+        block_cache::get(self.indirect1 as usize, block_device)
             .lock()
             .read(0, |indirect1: &IndirectBlock| {
                 drop_data_blocks.extend_from_slice(&indirect1[..data_blocks.min(INDIRECT1_COUNT)]);
@@ -507,12 +507,12 @@ impl DiskInode {
         };
         let index1 = data_blocks % INDIRECT1_COUNT;
 
-        get_block_cache(self.indirect2 as usize, block_device)
+        block_cache::get(self.indirect2 as usize, block_device)
             .lock()
             .read(0, |indirect2: &IndirectBlock| {
                 indirect2.iter().take(index2).for_each(|&block| {
                     drop_data_blocks.push(block);
-                    get_block_cache(block as usize, block_device).lock().read(
+                    block_cache::get(block as usize, block_device).lock().read(
                         0,
                         |indirect1: &IndirectBlock| {
                             drop_data_blocks.extend_from_slice(indirect1);
@@ -522,7 +522,7 @@ impl DiskInode {
 
                 if index1 > 0 && index2 != INDIRECT_COUNT {
                     drop_data_blocks.push(indirect2[index2]);
-                    get_block_cache(indirect2[index2] as usize, block_device)
+                    block_cache::get(indirect2[index2] as usize, block_device)
                         .lock()
                         .read(0, |indirect1: &IndirectBlock| {
                             drop_data_blocks.extend_from_slice(&indirect1[..index1]);
@@ -545,17 +545,17 @@ impl DiskInode {
         let index2 = data_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
         let index1 = data_blocks % INDIRECT1_COUNT;
 
-        get_block_cache(self.indirect3 as usize, block_device)
+        block_cache::get(self.indirect3 as usize, block_device)
             .lock()
             .read(0, |indirect3: &IndirectBlock| {
                 for &block in indirect3.iter().take(index3) {
                     drop_data_blocks.push(block);
-                    get_block_cache(block as usize, block_device).lock().read(
+                    block_cache::get(block as usize, block_device).lock().read(
                         0,
                         |indirect2: &IndirectBlock| {
                             for &block in indirect2 {
                                 drop_data_blocks.push(block);
-                                get_block_cache(block as usize, block_device).lock().read(
+                                block_cache::get(block as usize, block_device).lock().read(
                                     0,
                                     |indirect1: &IndirectBlock| {
                                         drop_data_blocks.extend_from_slice(indirect1);
@@ -568,12 +568,12 @@ impl DiskInode {
 
                 if index2 > 0 {
                     drop_data_blocks.push(indirect3[index3]);
-                    get_block_cache(indirect3[index3] as usize, block_device)
+                    block_cache::get(indirect3[index3] as usize, block_device)
                         .lock()
                         .read(0, |indirect2: &IndirectBlock| {
                             for &block in indirect2.iter().take(index2) {
                                 drop_data_blocks.push(block);
-                                get_block_cache(block as usize, block_device).lock().read(
+                                block_cache::get(block as usize, block_device).lock().read(
                                     0,
                                     |indirect1: &IndirectBlock| {
                                         drop_data_blocks.extend_from_slice(indirect1);
@@ -583,7 +583,7 @@ impl DiskInode {
 
                             if index1 > 0 {
                                 drop_data_blocks.push(indirect2[index2]);
-                                get_block_cache(indirect2[index2] as usize, block_device)
+                                block_cache::get(indirect2[index2] as usize, block_device)
                                     .lock()
                                     .read(0, |indirect1: &IndirectBlock| {
                                         drop_data_blocks.extend_from_slice(&indirect1[..index1]);
@@ -621,7 +621,7 @@ impl DiskInode {
             // read and update read size
             let block_read_size = end_current_block - start;
             let dst = &mut buf[read_size..read_size + block_read_size];
-            get_block_cache(
+            block_cache::get(
                 self.block_id(start_block as u32, block_device) as usize,
                 block_device,
             )
@@ -663,7 +663,7 @@ impl DiskInode {
 
             // write and update write size
             let block_write_size = end_current_block - start;
-            get_block_cache(
+            block_cache::get(
                 self.block_id(start_block as u32, block_device) as usize,
                 block_device,
             )

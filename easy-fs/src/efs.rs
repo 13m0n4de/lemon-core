@@ -3,7 +3,7 @@ use spin::Mutex;
 
 use crate::{
     bitmap::Bitmap,
-    block_cache::{block_cache_sync_all, get_block_cache},
+    block_cache,
     block_dev::BlockDevice,
     config::BLOCK_SIZE,
     layout::{DataBlock, DiskInode, DiskInodeKind, SuperBlock},
@@ -52,7 +52,7 @@ impl EasyFileSystem {
 
         // clear all blocks
         (0..total_blocks as usize).for_each(|block_id| {
-            get_block_cache(block_id, block_device).lock().modify(
+            block_cache::get(block_id, block_device).lock().modify(
                 0,
                 |data_block: &mut DataBlock| {
                     data_block.fill(0);
@@ -61,7 +61,7 @@ impl EasyFileSystem {
         });
 
         // initialize SuperBlock
-        get_block_cache(0, block_device)
+        block_cache::get(0, block_device)
             .lock()
             .modify(0, |super_block: &mut SuperBlock| {
                 super_block.init(
@@ -77,12 +77,12 @@ impl EasyFileSystem {
         // create a inode for root node "/"
         assert_eq!(efs.alloc_inode(), 0);
         let (root_inode_block_id, root_inode_offset) = efs.disk_inode_position(0);
-        get_block_cache(root_inode_block_id as usize, block_device)
+        block_cache::get(root_inode_block_id as usize, block_device)
             .lock()
             .modify(root_inode_offset, |disk_inode: &mut DiskInode| {
                 disk_inode.init(DiskInodeKind::Directory);
             });
-        block_cache_sync_all();
+        block_cache::sync_all();
 
         Arc::new(Mutex::new(efs))
     }
@@ -90,7 +90,7 @@ impl EasyFileSystem {
     /// Open a block device as a filesystem
     pub fn open(block_device: &Arc<dyn BlockDevice>) -> Arc<Mutex<Self>> {
         // read SuperBlock
-        get_block_cache(0, block_device)
+        block_cache::get(0, block_device)
             .lock()
             .read(0, |super_block: &SuperBlock| {
                 assert!(super_block.is_valid(), "Error loading EFS!");
@@ -159,7 +159,7 @@ impl EasyFileSystem {
 
     /// Deallocate a data block
     pub fn dealloc_data(&mut self, block_id: u32) {
-        get_block_cache(block_id as usize, &self.block_device)
+        block_cache::get(block_id as usize, &self.block_device)
             .lock()
             .modify(0, |data_block: &mut DataBlock| {
                 data_block.fill(0);
