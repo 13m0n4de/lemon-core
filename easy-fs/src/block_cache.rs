@@ -33,6 +33,7 @@ impl BlockCache {
     }
 
     /// Get the address of an offset inside the cached block data
+    #[inline]
     fn addr_of_offset(&self, offset: usize) -> usize {
         core::ptr::from_ref(&self.cache[offset]) as usize
     }
@@ -65,10 +66,12 @@ impl BlockCache {
         }
     }
 
+    #[inline]
     pub fn read<T, V>(&self, offset: usize, f: impl FnOnce(&T) -> V) -> V {
         f(self.as_ref(offset))
     }
 
+    #[inline]
     pub fn modify<T, V>(&mut self, offset: usize, f: impl FnOnce(&mut T) -> V) -> V {
         f(self.as_mut_ref(offset))
     }
@@ -85,6 +88,7 @@ pub struct BlockCacheManager {
 }
 
 impl BlockCacheManager {
+    #[inline]
     pub fn new() -> Self {
         Self { queue: Vec::new() }
     }
