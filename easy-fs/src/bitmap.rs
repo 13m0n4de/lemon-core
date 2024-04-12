@@ -1,6 +1,6 @@
 use alloc::sync::Arc;
 
-use crate::{block_cache::get_block_cache, block_dev::BlockDevice, config::BLOCK_BITS};
+use crate::{block_cache, block_dev::BlockDevice, config::BLOCK_BITS};
 
 /// A bitmap block
 type BitmapBlock = [u64; 64];
@@ -22,7 +22,7 @@ impl Bitmap {
     /// Allocate a new block from a block device
     pub fn alloc(&self, block_device: &Arc<dyn BlockDevice>) -> Option<usize> {
         for block_id in 0..self.blocks {
-            let id = get_block_cache(self.start_block_id + block_id, block_device)
+            let id = block_cache::get(self.start_block_id + block_id, block_device)
                 .lock()
                 .modify(0, |bitmap_block: &mut BitmapBlock| {
                     match bitmap_block
@@ -48,7 +48,7 @@ impl Bitmap {
     /// Deallocate a block
     pub fn dealloc(&self, block_device: &Arc<dyn BlockDevice>, bit: usize) {
         let (block_id, bits64_id, inner_id) = decomposition(bit);
-        get_block_cache(self.start_block_id + block_id, block_device)
+        block_cache::get(self.start_block_id + block_id, block_device)
             .lock()
             .modify(0, |bitmap_block: &mut BitmapBlock| {
                 assert!(bitmap_block[bits64_id] & (1u64 << inner_id) > 0);
