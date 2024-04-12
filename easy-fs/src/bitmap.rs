@@ -11,6 +11,7 @@ pub struct Bitmap {
 }
 
 impl Bitmap {
+    #[inline]
     pub fn new(start_block_id: usize, blocks: usize) -> Self {
         Self {
             start_block_id,
