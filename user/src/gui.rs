@@ -2,7 +2,7 @@ use crate::syscall::{sys_framebuffer, sys_framebuffer_flush};
 use embedded_graphics::{
     draw_target::DrawTarget,
     geometry::{OriginDimensions, Point},
-    pixelcolor::{IntoStorage, Rgb888},
+    pixelcolor::{Rgb888, RgbColor},
     prelude::Size,
     Pixel,
 };
@@ -58,8 +58,9 @@ impl DrawTarget for Display {
         pixels.into_iter().for_each(|Pixel(Point { x, y }, color)| {
             let idx = (y * VIRTGPU_XRES as i32 + x) as usize * 4;
             if idx + 2 < self.fb.len() {
-                let bgr = color.into_storage().to_be_bytes();
-                self.fb[idx..idx + 2].copy_from_slice(&bgr);
+                self.fb[idx] = color.b();
+                self.fb[idx + 1] = color.g();
+                self.fb[idx + 2] = color.r();
             }
         });
         framebuffer_flush();
