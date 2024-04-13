@@ -18,6 +18,7 @@ mod lang_items;
 pub mod console;
 pub mod fs;
 pub mod gui;
+pub mod input;
 pub mod process;
 pub mod signal;
 pub mod sync;

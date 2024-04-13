@@ -70,11 +70,18 @@ fn pack_directory(parent_inode: &Arc<Inode>, path: &Path) -> std::io::Result<()>
             pack_directory(&dir_inode, &entry_path)?;
         } else if entry_path.is_file() {
             let mut file = File::open(&entry_path)?;
-            let mut data = Vec::new();
-            file.read_to_end(&mut data)?;
-
             let inode = parent_inode.create(entry_name).unwrap();
-            inode.write_at(0, data.as_slice());
+
+            let mut buffer = vec![0; 65536];
+            let mut offset = 0;
+            loop {
+                let bytes_read = file.read(&mut buffer)?;
+                if bytes_read == 0 {
+                    break;
+                }
+                inode.write_at(offset, &buffer[..bytes_read]);
+                offset += bytes_read;
+            }
         }
     }
 
