@@ -11,13 +11,14 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 - [x] Colorful logging
 - [x] FIFO scheduler
 - [x] SV39 3-level page table
-- [x] Easy File System (3-level indirect blocks)
+- [x] Easy File System
 - [x] Multi-thread
 - [x] Synchronization
 - [x] VirtIO blk/input/gpu drivers
 - [ ] RR/MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
 - [ ] Test framework [#2](https://github.com/13m0n4de/lemon-core/issues/2)
+- [ ] 3-level indirect blocks
 - [ ] A detailed documentation or step-by-step tutorial
 
 ## Difference With rCore-Tutorial-v3
