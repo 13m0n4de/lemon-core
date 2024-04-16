@@ -5,7 +5,7 @@ use super::{
     SignalFlags, TaskControlBlock,
 };
 use crate::{
-    fs::{find_inode, File, Stdin, Stdout},
+    fs::{find_inode, File, Stdin, Stdout, PROC_INODE},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPSafeCell},
     trap::{user_handler, Context as TrapContext},
@@ -104,7 +104,12 @@ impl ProcessControlBlock {
         let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
 
-        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0))
+        // write cmdline
+        let proc_inode = PROC_INODE
+            .find(&self.pid.0.to_string())
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/'", self.pid.0));
+        let cmdline_inode = proc_inode
+            .find("cmdline")
             .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'", self.pid.0));
         cmdline_inode.clear();
         cmdline_inode.write_at(0, args.join(" ").as_bytes());
@@ -144,6 +149,8 @@ impl ProcessControlBlock {
             *translated_mut_ref(new_token, p as *mut u8) = 0;
         }
 
+        // make the user_sp aligned to 8B for k210 platform
+        user_sp -= user_sp % core::mem::size_of::<usize>();
         // initialize trap_cx
         let mut trap_cx = TrapContext::app_init_context(
             entry_point,
@@ -167,18 +174,18 @@ impl ProcessControlBlock {
         let memory_set = parent_inner.memory_set.clone();
         // alloc a pid
         let pid = pid_alloc();
+        let pid_str = pid.0.to_string();
         // copy fd table
         let new_fd_table = parent_inner.fd_table.clone();
 
         // write proc info
-        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
-        let proc_inode = procs_inode
-            .create_dir(&pid.0.to_string())
-            .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid.0));
-        proc_inode.set_default_dirent(procs_inode.inode_id());
+        let proc_inode = PROC_INODE
+            .create_dir(&pid_str)
+            .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid_str));
+        proc_inode.set_default_dirent(PROC_INODE.inode_id());
         let cmdline_inode = proc_inode
             .create("cmdline")
-            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid.0));
+            .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid_str));
         if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
             let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
             parent_cmdline_inode.read_at(0, &mut cmdline);
@@ -288,10 +295,9 @@ impl ProcessControlBlockInner {
 impl Drop for ProcessControlBlock {
     #[allow(clippy::similar_names)]
     fn drop(&mut self) {
-        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
-        if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {
+        if let Some(proc_inode) = PROC_INODE.find(&self.pid.0.to_string()) {
             proc_inode.delete("cmdline");
-            procs_inode.delete(&self.pid.0.to_string());
+            PROC_INODE.delete(&self.pid.0.to_string());
         }
     }
 }

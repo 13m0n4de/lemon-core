@@ -7,7 +7,7 @@ mod stdio;
 use crate::mm::UserBuffer;
 use alloc::sync::Arc;
 use bitflags::bitflags;
-pub use inode::{find as find_inode, get_full_path, open_file, OpenFlags};
+pub use inode::{find as find_inode, get_full_path, open_file, OpenFlags, PROC_INODE};
 pub use pipe::make as make_pipe;
 pub use stdio::{Stdin, Stdout};
 
