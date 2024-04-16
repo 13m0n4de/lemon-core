@@ -6,7 +6,7 @@ target := "riscv64gc-unknown-none-elf"
 mode := "release"
 
 # Board and bootloader
-board := "qemu"
+board := "k210"
 sbi := "rustsbi"
 bootloader := "bootloader" / sbi + "-" + board + ".bin"
 
@@ -48,6 +48,13 @@ drive_option := "-drive file=" + fs_img + ",if=none,format=raw,id=x0"
 device_option := "-device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0"
 qemu_args := machine_option + " " + display_option + " " + bootloader_option + " " + loader_option + " " + drive_option + " " + device_option
 
+# K210
+k210_serialport := "/dev/ttyUSB0"
+k210_bootloader_size := "131072"
+
+# SDCard
+sdcard := "/dev/sda"
+
 
 # List available recipes
 default:
@@ -79,9 +86,27 @@ build-tests:
 # Build App, EFS and Kernel
 build: build-apps build-efs build-kernel
 
-# Run the kernel in QEMU
+# Build the filesystem image and write it to the sdcard
+sdcard: build-efs
+	@echo "Are you sure write to {{sdcard}} ? [y/N] " && read ans && [ ${ans:-N} = y ]
+	sudo dd if=/dev/zero of={{sdcard}} bs=1048576 count=32
+	sudo dd if={{fs_img}} of={{sdcard}}
+
+
+# Run the kernel
 run: build
-    qemu-system-riscv64 {{qemu_args}}
+    #!/usr/bin/env bash
+    if [[ "{{board}}" == "qemu" ]]; then
+        qemu-system-riscv64 {{qemu_args}};
+    elif [[ "{{board}}" == "k210" ]]; then
+        cp {{bootloader}} {{bootloader}}.copy;
+        dd if={{kernel_bin}} of={{bootloader}}.copy bs={{k210_bootloader_size}} seek=1;
+        mv {{bootloader}}.copy {{kernel_bin}};
+        sudo kflash -p {{k210_serialport}} -b 1500000 {{kernel_bin}};
+        # sudo python3 -m serial.tools.miniterm --eol LF --dtr 0 --rts 0 --filter direct {{k210_serialport}} 115200
+        # sudo picocom {{k210_serialport}} --baud 115200 --flow n --lower-dtr --lower-rts --imap lfcrlf;
+        sudo tio -b 115200 --script "toggle(DTR); toggle(RTS);" -m INLCRNL {{k210_serialport}}
+    fi
 
 run-with-tests: build-tests build-efs build-kernel
     # todo!
