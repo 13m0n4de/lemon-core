@@ -1,4 +1,7 @@
-mod virtio_blk;
+#![allow(unused)]
+
+pub mod sdcard;
+pub mod virtio_blk;
 
 use alloc::sync::Arc;
 use easy_fs::BlockDevice;
@@ -6,14 +9,10 @@ use lazy_static::lazy_static;
 
 use crate::board::BlockDeviceImpl;
 
-#[allow(clippy::module_name_repetitions)]
-pub use virtio_blk::VirtIOBlock;
-
 lazy_static! {
     pub static ref BLOCK_DEVICE: Arc<dyn BlockDevice> = Arc::new(BlockDeviceImpl::new());
 }
 
-#[allow(unused)]
 pub fn test() {
     let block_device = BLOCK_DEVICE.clone();
     let mut write_buffer = [0u8; 512];
