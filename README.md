@@ -7,7 +7,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 ## Features & TODOs
 
 - [x] Architecture: RISC-V 64
-- [x] Platform: QEMU
+- [x] Platform: QEMU, K210
 - [x] Colorful logging
 - [x] FIFO scheduler
 - [x] SV39 3-level page table
@@ -19,6 +19,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 - [ ] VirtIO net drivers
 - [ ] Test framework [#2](https://github.com/13m0n4de/lemon-core/issues/2)
 - [ ] 3-level indirect blocks
+- [ ] K210 platform support for `ch1` - `ch7`
 - [ ] A detailed documentation or step-by-step tutorial
 
 ## Difference With rCore-Tutorial-v3
@@ -98,7 +99,7 @@ just env
 QEMU is a generic and open source machine emulator and virtualizer. Install QEMU to emulate the hardware environment for this project.
 The installation instructions can vary depending on your operating system. Please refer to the QEMU Documentation for detailed installation instructions.
 
-### Quick Run
+### Run on QEMU
 
 ```
 just run
@@ -108,6 +109,15 @@ If you need to enable GPU support for the project, you can run:
 
 ```
 just run on
+```
+
+### Run on K210
+
+The current adaptation work for the K210 platform is in the [feature/k210](https://github.com/13m0n4de/lemon-core/tree/feature/k210) branch, which was created from the [ch8](https://github.com/13m0n4de/lemon-core/tree/feature/ch8) branch.
+
+```
+git switch feature/k210
+just run
 ```
 
 ## Reference
