@@ -23,6 +23,9 @@
 #![no_main]
 #![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
+#![feature(custom_test_frameworks)]
+#![test_runner(test::test_runner)]
+#![reexport_test_harness_main = "test_main"]
 
 extern crate alloc;
 
@@ -42,6 +45,8 @@ mod sbi;
 mod sync;
 mod syscall;
 mod task;
+#[macro_use]
+mod test;
 mod timer;
 mod trap;
 
@@ -73,6 +78,10 @@ pub extern "C" fn rust_main() -> ! {
     timer::set_next_trigger();
     board::init();
     task::init();
+
+    #[cfg(test)]
+    test_main();
+
     *DEV_NON_BLOCKING_ACCESS.exclusive_access() = true;
     task::run_tasks();
     panic!("unreachable in rust_main!");
