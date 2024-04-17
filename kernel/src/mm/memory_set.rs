@@ -399,30 +399,75 @@ impl MemorySet {
     }
 }
 
-#[allow(unused)]
-pub fn remap_test() {
-    let mut kernel_space = KERNEL_SPACE.exclusive_access();
-    let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
-    let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
-    let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{test, test_assert};
 
-    assert!(!kernel_space
-        .page_table
-        .translate(mid_text.as_vpn_by_floor())
-        .unwrap()
-        .is_writable(),);
+    test!(test_memory_set_kernel, {
+        for vpn in VPNRange::new(
+            VirtAddr::from(stext as usize).as_vpn_by_ceil(),
+            VirtAddr::from(MEMORY_END).as_vpn_by_ceil(),
+        ) {
+            let pte_option = KERNEL_SPACE.exclusive_access().translate(vpn);
+            test_assert!(matches!(pte_option, Some(pte) if pte.ppn().0 == vpn.0 ));
+        }
+        Ok("passed")
+    });
 
-    assert!(!kernel_space
-        .page_table
-        .translate(mid_rodata.as_vpn_by_floor())
-        .unwrap()
-        .is_writable(),);
+    test!(test_memory_set_remap, {
+        let kernel_space = KERNEL_SPACE.exclusive_access();
+        let mid_text: VirtAddr = ((stext as usize + etext as usize) / 2).into();
+        let mid_rodata: VirtAddr = ((srodata as usize + erodata as usize) / 2).into();
+        let mid_data: VirtAddr = ((sdata as usize + edata as usize) / 2).into();
 
-    assert!(!kernel_space
-        .page_table
-        .translate(mid_data.as_vpn_by_floor())
-        .unwrap()
-        .is_executable(),);
+        test_assert!(!kernel_space
+            .page_table
+            .translate(mid_text.as_vpn_by_floor())
+            .unwrap()
+            .is_writable());
 
-    println!("remap_test passed!");
+        test_assert!(!kernel_space
+            .page_table
+            .translate(mid_rodata.as_vpn_by_floor())
+            .unwrap()
+            .is_writable());
+
+        test_assert!(!kernel_space
+            .page_table
+            .translate(mid_data.as_vpn_by_floor())
+            .unwrap()
+            .is_executable());
+
+        Ok("passed")
+    });
+
+    test!(test_memory_set_clone, {
+        let mut memory_set = MemorySet::new_bare();
+        let data = [u8::MAX; PAGE_SIZE];
+        memory_set.push(
+            MapArea::new(
+                VirtPageNum(0).into(),
+                VirtPageNum(2).into(),
+                MapType::Framed,
+                MapPermission::R | MapPermission::W,
+            ),
+            Some(&data),
+        );
+
+        let new_memory_set = memory_set.clone();
+        let pte_option = new_memory_set.translate(VirtPageNum(0));
+        test_assert!(pte_option.is_some());
+        for byte in pte_option.unwrap().ppn().as_mut_bytes_array() {
+            test_assert!(*byte == u8::MAX);
+        }
+
+        let pte_option = new_memory_set.translate(VirtPageNum(1));
+        test_assert!(pte_option.is_some());
+        for byte in pte_option.unwrap().ppn().as_mut_bytes_array() {
+            test_assert!(*byte == 0);
+        }
+
+        Ok("passed")
+    });
 }
