@@ -12,7 +12,7 @@ extern crate user_lib;
 use alloc::format;
 use user_lib::process::{exec, fork, waitpid};
 
-static TESTS: &[(&str, i32)] = &[("huge_write", 0)];
+static TESTS: &[(&str, i32)] = &[("huge_write", 0), ("priv_csr", -4), ("priv_inst", -4)];
 
 #[no_mangle]
 pub extern "Rust" fn main() -> i32 {
