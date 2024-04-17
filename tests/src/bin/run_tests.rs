@@ -17,6 +17,7 @@ static TESTS: &[(&str, i32)] = &[
     ("priv_csr", -4),
     ("priv_inst", -4),
     ("stack_overflow", -11),
+    ("store_fault", -11),
 ];
 
 #[no_mangle]
