@@ -22,6 +22,13 @@ build board="qemu":
     @ rm src/linker.ld
     {{objcopy}} {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
 
+# Build the unit tests binary
+build-tests board="qemu":
+    @ cp "src/linker-{{board}}.ld" "src/linker.ld"
+    cargo build --tests --{{mode}} --features "board_{{board}}"
+    @ rm src/linker.ld
+    {{objcopy}} $(ls -t target/{{target}}/{{mode}}/deps/kernel-* | head -1) --strip-all -O binary {{kernel_bin}}
+
 # Clean build artifacts
 clean:
     cargo clean

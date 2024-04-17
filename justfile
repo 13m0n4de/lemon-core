@@ -89,9 +89,8 @@ build-efs:
 build-kernel:
     cd {{kernel_dir}} && just build {{board}}
 
-# Build the test cases
-build-tests:
-    cd {{tests_dir}} && just build
+build-kernel-tests:
+    cd {{kernel_dir}} && just build-tests {{board}}
 
 # Build App, EFS and Kernel
 build: build-apps build-efs build-kernel
@@ -100,10 +99,10 @@ build: build-apps build-efs build-kernel
 run gpu="off": build
 	qemu-system-riscv64 {{qemu_args}} -display {{ if gpu == "on" { "sdl" } else { "none" } }}
 
-run-with-tests: build-tests build-efs build-kernel
-    # todo!
-    qemu-system-riscv64 {{qemu_args}}
-
+# Run the unit tests in QEMU
+test: build-efs build-kernel-tests
+    qemu-system-riscv64 {{qemu_args}} -display "none" 
+    
 # Debug the kernel in QEMU using tmux
 debug: build
     tmux new-session -d "qemu-system-riscv64 {{qemu_args}} -s -S"
