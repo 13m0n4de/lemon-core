@@ -4,7 +4,6 @@ export LOG := "DEBUG"
 # Target architecture
 target := "riscv64gc-unknown-none-elf"
 mode := "release"
-
 # Board and bootloader
 board := "qemu"
 sbi := "rustsbi"
@@ -76,8 +75,8 @@ env:
 build-apps:
     cd {{apps_dir}} && just build
 
-# Build the filesystem image
-build-efs: 
+# Build the filesystem image with apps
+build-efs-apps: clean-efs-root
     mkdir -p {{efs_root_dir}}/bin/
     for app in `find {{apps_source_dir}} -name "*.rs"`; do \
         app_name=`basename $app .rs`; \
@@ -85,22 +84,63 @@ build-efs:
     done
     cd {{efs_fuse_dir}} && just run ../{{efs_root_dir}}/ ../{{efs_fuse_dir}}/target/{{mode}}/
 
+# Build the filesystem image with integration tests
+build-efs-tests: clean-efs-root
+    mkdir -p {{efs_root_dir}}/bin/
+    mkdir -p {{efs_root_dir}}/tests/
+    for test in `find {{tests_source_dir}} -name "*.rs"`; do \
+        test_name=`basename $test .rs`; \
+        cp "{{tests_target_dir}}/$test_name" {{efs_root_dir}}/tests/; \
+    done
+    mv "{{efs_root_dir}}/tests/run_tests" "{{efs_root_dir}}/bin/daemon"
+    cd {{efs_fuse_dir}} && just run ../{{efs_root_dir}}/ ../{{efs_fuse_dir}}/target/{{mode}}/
+
+# Build the filesystem image with apps and integration tests
+build-efs-apps-tests: clean-efs-root
+    mkdir -p {{efs_root_dir}}/bin/
+    mkdir -p {{efs_root_dir}}/tests/
+
+    for app in `find {{apps_source_dir}} -name "*.rs"`; do \
+        app_name=`basename $app .rs`; \
+        cp "{{apps_target_dir}}/$app_name" {{efs_root_dir}}/bin/; \
+    done
+
+    for test in `find {{tests_source_dir}} -name "*.rs"`; do \
+        test_name=`basename $test .rs`; \
+        cp "{{tests_target_dir}}/$test_name" {{efs_root_dir}}/tests/; \
+    done
+
+    cd {{efs_fuse_dir}} && just run ../{{efs_root_dir}}/ ../{{efs_fuse_dir}}/target/{{mode}}/
+
 # Build the kernel
 build-kernel:
     cd {{kernel_dir}} && just build {{board}}
 
-build-kernel-tests:
-    cd {{kernel_dir}} && just build-tests {{board}}
+# Build the kernel's unit tests:
+build-kernel-test:
+    cd {{kernel_dir}} && just build-test {{board}}
+
+# Build the integration tests
+build-tests:
+    cd {{tests_dir}} && just build
 
 # Build App, EFS and Kernel
-build: build-apps build-efs build-kernel
+build: build-apps build-efs-apps build-kernel
 
 # Run the kernel in QEMU
 run gpu="off": build
 	qemu-system-riscv64 {{qemu_args}} -display {{ if gpu == "on" { "sdl" } else { "none" } }}
 
+# Run the kernel in QEMU with tests
+run-with-tests gpu="off": build-apps build-tests build-efs-apps-tests build-kernel
+	qemu-system-riscv64 {{qemu_args}} -display {{ if gpu == "on" { "sdl" } else { "none" } }}
+
 # Run the unit tests in QEMU
-test: build-efs build-kernel-tests
+unit-tests: build-apps build-efs-apps build-kernel-test
+    qemu-system-riscv64 {{qemu_args}} -display "none" 
+
+# Run the integration tests in QEMU
+integration-tests: build-tests build-efs-tests build-kernel
     qemu-system-riscv64 {{qemu_args}} -display "none" 
     
 # Debug the kernel in QEMU using tmux
@@ -117,11 +157,14 @@ gdbserver: build
 gdbclient:
     gdb-multiarch -ex "file {{kernel_elf}}" -ex "target remote localhost:1234"
 
+# Clear the efs root directory
+clean-efs-root:
+    rm {{efs_root_dir}}/* -rf
+
 # Clean build artifacts
-clean:
+clean: clean-efs-root
     cd {{apps_dir}} && just clean
     cd {{efs_fuse_dir}} && just clean
-    rm {{efs_root_dir}}/* -rf
     cd {{kernel_dir}} && just clean
     cd {{tests_dir}} && just clean
     cd {{user_dir}} && just clean
