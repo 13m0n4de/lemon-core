@@ -117,24 +117,45 @@ pub fn dealloc(ppn: PhysPageNum) {
     FRAME_ALLOCATOR.exclusive_access().dealloc(ppn);
 }
 
-/// A simple test for frame allocator
-#[allow(unused)]
-pub fn test() {
-    let mut v: Vec<FrameTracker> = Vec::new();
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{test, test_assert};
 
-    for i in 0..5 {
-        let frame = alloc().unwrap();
-        println!("{:?}", frame);
-        v.push(frame);
-    }
-    v.clear();
+    test!(test_frame_allocator, {
+        let start_ppn = FRAME_ALLOCATOR.exclusive_access().current;
+        let f1 = alloc().expect("No space");
+        test_assert!(f1.ppn == PhysPageNum(start_ppn), "Wrong frame allocated");
 
-    for i in 0..5 {
-        let frame = alloc().unwrap();
-        println!("{:?}", frame);
-        v.push(frame);
-    }
-    drop(v);
+        {
+            let f2 = alloc().expect("No space");
+            test_assert!(
+                f2.ppn == PhysPageNum(start_ppn + 1),
+                "Wrong frame allocated"
+            );
+            test_assert!(
+                FRAME_ALLOCATOR.exclusive_access().current == start_ppn + 2
+                    && FRAME_ALLOCATOR.exclusive_access().recycled.is_empty(),
+                "Alloc error"
+            );
+        }
+        test_assert!(
+            FRAME_ALLOCATOR.exclusive_access().current == start_ppn + 2
+                && FRAME_ALLOCATOR.exclusive_access().recycled.len() == 1,
+            "Dealloc error"
+        );
 
-    println!("frame_allocator_test passed!");
+        let f2 = alloc().expect("No space");
+        test_assert!(
+            f2.ppn == PhysPageNum(start_ppn + 1),
+            "Wrong frame allocated"
+        );
+        test_assert!(
+            FRAME_ALLOCATOR.exclusive_access().current == start_ppn + 2
+                && FRAME_ALLOCATOR.exclusive_access().recycled.is_empty(),
+            "Alloc error"
+        );
+
+        Ok("passed")
+    });
 }
