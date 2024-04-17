@@ -15,9 +15,9 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 - [x] Multi-thread
 - [x] Synchronization
 - [x] VirtIO blk/input/gpu drivers
+- [x] Test framework (unit test and integration test)
 - [ ] RR/MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
-- [ ] Test framework [#2](https://github.com/13m0n4de/lemon-core/issues/2)
 - [ ] 3-level indirect blocks
 - [ ] K210 platform support for `ch1` - `ch7`
 - [ ] A detailed documentation or step-by-step tutorial
@@ -28,6 +28,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
 - Stricter code style enforced with `#[deny(clippy::all, clippy::pedantic)]`.
 - Replaces `Makefile` and `build.rs` with [Just](https://github.com/casey/just/) for build automation.
 - Implementation of multi-level directories, file deletion, and file metadata.
+- Test framework (unit test and integration test)
 - Data structure design enhancements, such as:
     - `MapArea`'s `data_frames` are designed to be placed directly in the `PageTable`.
     - `BlockCacheManager` uses `Vec` instead of `VecDeque`.
@@ -38,6 +39,7 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
     - `ProcessControlBlock` is placed in `pcb.rs` rather than `process.rs`.
     - User library modules are named consistently with kernel modules.
     - User programs and test cases are separated from `user_lib`.
+    - ...
 - No need to manually append `\0` to strings.
 - Adoption of newer crates and RustSBI versions.
 - Use of [clap](https://docs.rs/clap/latest/clap/) for command-line argument parsing in [easy-fs-fuse](./easy-fs-fuse/).
@@ -47,28 +49,30 @@ A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com
     - Entering the directory name allows for direct navigation to the directory.
     - ...
 - [More command-line applications](./apps/src/bin/).
+- ...
 
 ## Project Structure
 
 ```
 .
-├── apps                # User Applications
+├── apps                # user applications
 ├── bootloader          # RustSBI
-├── easy-fs-fuse        # Command-line tool to create EFS image
-├── easy-fs             # Easy File System
-├── kernel              # OS Kernel
-│   ├── assets          # Static data, images, fonts, or other binary assets
-│   └── src             # Source code of the kernel
-│       ├── boards      # Board Support Packages (BSPs) for different hardware platforms
-│       ├── drivers     # Device drivers
-│       ├── fs          # File System management
-│       ├── mm          # Memory Management
-│       ├── sync        # Synchronization primitives
-│       ├── syscall     # System Calls
-│       ├── task        # Task Management
-│       └── trap        # Trap handling
-├── tests               # Test cases
-├── user                # User library
+├── easy-fs-fuse        # command-line tool to create EFS image
+├── easy-fs-root        # Root directory structure for the EFS image
+├── easy-fs             # easy file system
+├── kernel              # os kernel
+│   ├── assets          # static data, images, fonts, or other binary assets
+│   └── src             # source code of the kernel
+│       ├── boards      # board support Packages (BSPs) for different hardware platforms
+│       ├── drivers     # device drivers
+│       ├── fs          # file system management
+│       ├── mm          # memory management
+│       ├── sync        # synchronization primitives
+│       ├── syscall     # system calls
+│       ├── task        # task management
+│       └── trap        # trap handling
+├── tests               # integration tests 
+├── user                # user library
 └── ...
 ```
 
@@ -118,6 +122,20 @@ The current adaptation work for the K210 platform is in the [feature/k210](https
 ```
 git switch feature/k210
 just run
+```
+
+## Test
+
+### Unit test
+
+```
+just unit-tests
+```
+
+### Integration Test
+
+```
+just integration-tests
 ```
 
 ## Reference
