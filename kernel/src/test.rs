@@ -22,7 +22,11 @@ pub fn test_runner(tests: &[&dyn Fn() -> Result<&'static str, &'static str>]) {
     crate::sbi::shutdown(false);
 }
 
+/// Defines a test function that wraps a given block of code into a test case.
 ///
+/// # Usages
+///
+/// `test!(function_name, { test_code })`
 #[macro_export]
 macro_rules! test {
     ($func_name: ident, $func: block) => {
@@ -34,8 +38,14 @@ macro_rules! test {
     };
 }
 
+/// Asserts a condition within a test, returning an error message on failure.
 ///
+/// # Usages
+///
+/// - `test_assert!(expression, "error message")`: Asserts with a custom message.
+/// 0 `test_assert!(expression)`: Asserts with a default failure message.
 #[macro_export]
+#[allow(clippy::module_name_repetitions)]
 macro_rules! test_assert {
     ($assert_expr: expr, $info: literal) => {
         if !$assert_expr {
