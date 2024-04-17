@@ -25,32 +25,35 @@ pub fn init() {
     }
 }
 
-/// A simple test for heap allocator
-#[allow(unused)]
-pub fn heap_test() {
-    use alloc::boxed::Box;
-    use alloc::vec::Vec;
+#[cfg(test)]
+mod test {
+    use crate::{test, test_assert};
 
-    extern "C" {
-        fn sbss();
-        fn ebss();
-    }
+    test!(test_heap_allocator, {
+        use alloc::boxed::Box;
+        use alloc::vec::Vec;
 
-    let bss_range = sbss as usize..ebss as usize;
-    let a = Box::new(5);
-    assert_eq!(*a, 5);
-    assert!(bss_range.contains(&(core::ptr::from_ref(a.as_ref()) as usize)));
-    drop(a);
+        extern "C" {
+            fn sbss();
+            fn ebss();
+        }
 
-    let mut v: Vec<usize> = Vec::new();
-    for i in 0..500 {
-        v.push(i);
-    }
-    for (i, val) in v.iter().take(500).enumerate() {
-        assert_eq!(*val, i);
-    }
-    assert!(bss_range.contains(&(v.as_ptr() as usize)));
-    drop(v);
+        let bss_range = sbss as usize..ebss as usize;
+        let a = Box::new(5);
+        test_assert!(*a == 5);
+        test_assert!(bss_range.contains(&(core::ptr::from_ref(a.as_ref()) as usize)));
+        drop(a);
 
-    println!("heap_test passed!");
+        let mut v: Vec<usize> = Vec::new();
+        for i in 0..500 {
+            v.push(i);
+        }
+        for (i, val) in v.iter().take(500).enumerate() {
+            test_assert!(*val == i);
+        }
+        test_assert!(bss_range.contains(&(v.as_ptr() as usize)));
+        drop(v);
+
+        Ok("passed")
+    });
 }
