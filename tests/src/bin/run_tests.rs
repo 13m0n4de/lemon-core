@@ -6,13 +6,11 @@
 #![allow(clippy::missing_panics_doc)]
 
 extern crate alloc;
+#[macro_use]
 extern crate user_lib;
 
 use alloc::format;
-use user_lib::{
-    println,
-    process::{exec, fork, waitpid},
-};
+use user_lib::process::{exec, fork, waitpid};
 
 static TESTS: &[(&str, i32)] = &[("huge_write", 0)];
 
