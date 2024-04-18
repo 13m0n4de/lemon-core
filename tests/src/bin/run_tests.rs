@@ -12,14 +12,15 @@ extern crate user_lib;
 use alloc::format;
 use user_lib::process::{exec, fork, waitpid};
 
-static TESTS: &[(&str, i32)] = &[
-    ("huge_write", 0),
-    ("priv_csr", -4),
-    ("priv_inst", -4),
-    ("race_addr", -6),
-    ("race_addr_loop", -6),
-    ("stack_overflow", -11),
-    ("store_fault", -11),
+static TESTS: &[(&str, &[&str], i32)] = &[
+    ("huge_write", &["huge_write"], 0),
+    ("priv_csr", &["priv_csr"], -4),
+    ("priv_inst", &["priv_inst"], -4),
+    ("race_addr", &["race_addr"], -6),
+    ("race_addr_loop", &["race_addr_loop"], -6),
+    ("stack_overflow", &["stack_overflow"], -11),
+    ("store_fault", &["store_fault"], -11),
+    ("exit", &["exit"], 0),
 ];
 
 #[no_mangle]
@@ -27,13 +28,13 @@ pub extern "Rust" fn main() -> i32 {
     let mut num_passed_tests = 0;
     println!("Running {} tests...", TESTS.len());
 
-    for (test_name, expected_exit_code) in TESTS {
+    for (test_name, arguments, expected_exit_code) in TESTS {
         println!("\x1b[4;37m{}\x1b[0m running...", test_name);
 
         let pid = fork();
         if pid == 0 {
             let test_executable_path = format!("/tests/{test_name}");
-            exec(&test_executable_path, &[&test_executable_path]);
+            exec(&test_executable_path, arguments);
             unreachable!();
         }
 
