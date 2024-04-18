@@ -16,9 +16,10 @@ static TESTS: &[(&str, i32)] = &[
     ("huge_write", 0),
     ("priv_csr", -4),
     ("priv_inst", -4),
+    ("race_addr", -6),
+    ("race_addr_loop", -6),
     ("stack_overflow", -11),
     ("store_fault", -11),
-    ("race_addr", -6),
 ];
 
 #[no_mangle]
