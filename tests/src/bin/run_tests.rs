@@ -13,7 +13,6 @@ use alloc::format;
 use user_lib::process::{exec, fork, waitpid};
 
 static TESTS: &[(&str, &[&str], i32)] = &[
-    ("huge_write", &["huge_write"], 0),
     ("priv_csr", &["priv_csr"], -4),
     ("priv_inst", &["priv_inst"], -4),
     ("race_addr", &["race_addr"], -6),
@@ -21,6 +20,12 @@ static TESTS: &[(&str, &[&str], i32)] = &[
     ("stack_overflow", &["stack_overflow"], -11),
     ("store_fault", &["store_fault"], -11),
     ("exit", &["exit"], 0),
+    ("huge_write", &["huge_write"], 0),
+    (
+        "process_timeout",
+        &["process_timeout", "2000", "/tests/loop_infinity"],
+        0,
+    ),
 ];
 
 #[no_mangle]
