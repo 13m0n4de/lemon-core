@@ -23,7 +23,7 @@ pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 use address::VPNRange;
 use alloc::{string::String, vec::Vec};
 
-/// Initiate heap allocator, frame allocator, kernel space.
+/// Initialize heap allocator, frame allocator, kernel space.
 pub fn init() {
     heap_allocator::init();
     frame_allocator::init();
