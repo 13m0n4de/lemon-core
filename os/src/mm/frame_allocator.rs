@@ -92,7 +92,7 @@ lazy_static! {
         unsafe { UPSafeCell::new(FrameAllocatorImpl::new()) };
 }
 
-/// Initiate the frame allocator using `ekernel` and [`MEMORY_END`]
+/// Initialize the frame allocator with `ekernel` and [`MEMORY_END`]
 pub fn init() {
     extern "C" {
         fn ekernel();
