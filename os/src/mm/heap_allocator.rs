@@ -16,7 +16,7 @@ pub fn handle_alloc_error(layout: core::alloc::Layout) -> ! {
     panic!("Headp allocation error, layout = {:?}", layout);
 }
 
-/// Initiate heap allocator
+/// Initialize heap allocator
 pub fn init() {
     unsafe {
         HEAP_ALLOCATOR
