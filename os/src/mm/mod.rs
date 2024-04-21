@@ -23,7 +23,7 @@ pub use page_table::{translated_byte_buffer, translated_mut_ref, translated_str,
 use address::{StepByOne, VPNRange};
 use page_table::{PTEFlags, PageTable};
 
-/// Initiate heap allocator, fream allocator, kernel space.
+/// Initialize heap allocator, frame allocator, kernel space.
 pub fn init() {
     heap_allocator::init();
     frame_allocator::init();
