@@ -1,28 +1,28 @@
 # LemonCore
 
-A Simple RISC-V OS Kernel, Reference From [rCore-Tutorial-v3](https://github.com/rcore-os/rCore-Tutorial-v3).
+A Simple RISC-V OS Kernel, Inspired by [rCore-Tutorial-v3](https://github.com/rcore-os/rCore-Tutorial-v3).
 
-🚧 Working In Progress
+🚧 Work In Progress
 
 ## Features & TODOs
 
 - [x] Architecture: RISC-V 64
 - [x] Platform: QEMU, K210
 - [x] Colorful logging
-- [x] FIFO scheduler
+- [x] FIFO / RR scheduler
 - [x] SV39 3-level page table
 - [x] Easy File System
 - [x] Multi-thread
 - [x] Synchronization
 - [x] VirtIO blk/input/gpu drivers
 - [x] Test framework (unit test and integration test)
-- [ ] RR/MLFQ/CFS scheduler
+- [ ] MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
 - [ ] 3-level indirect blocks
 - [ ] K210 platform support for `ch1` - `ch7`
 - [ ] A detailed documentation or step-by-step tutorial
 
-## Difference With rCore-Tutorial-v3
+## Difference with rCore-Tutorial-v3
 
 - Fully documented, with `#[deny(missing_docs)]`.
 - Stricter code style enforced with `#[deny(clippy::all, clippy::pedantic)]`.
@@ -117,7 +117,7 @@ just run on
 
 ### Run on K210
 
-The current adaptation work for the K210 platform is in the [feature/k210](https://github.com/13m0n4de/lemon-core/tree/feature/k210) branch, which was created from the [ch8](https://github.com/13m0n4de/lemon-core/tree/feature/ch8) branch.
+For the latest updates and adaptations for the K210 platform, switch to the [feature/k210](https://github.com/13m0n4de/lemon-core/tree/feature/k210), which is based on the updates from the [ch8](https://github.com/13m0n4de/lemon-core/tree/feature/ch8) branch.
 
 ```
 git switch feature/k210
@@ -138,7 +138,7 @@ just unit-tests
 just integration-tests
 ```
 
-## Reference
+## References
 
 - [github.com/rcore-os/rCore-Tutorial-v3](https://github.com/rcore-os/rCore-Tutorial-v3)
 - [github.com/rcore-os/rCore-Tutorial-Book-v3](https://github.com/rcore-os/rCore-Tutorial-Book-v3)
