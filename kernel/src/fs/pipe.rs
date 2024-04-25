@@ -41,8 +41,9 @@ impl File for Pipe {
 
     fn read(&self, mut buf: UserBuffer) -> usize {
         assert!(self.is_readable());
-        let mut buf_iter = buf.iter_mut();
+        let want_to_read = buf.len();
         let mut already_read = 0usize;
+        let mut buf_iter = buf.iter_mut();
 
         loop {
             let mut ring_buffer = self.buffer.exclusive_access();
@@ -61,6 +62,9 @@ impl File for Pipe {
                 if let Some(byte_ref) = buf_iter.next() {
                     unsafe { *byte_ref = ring_buffer.read_byte() };
                     already_read += 1;
+                    if already_read == want_to_read {
+                        return already_read;
+                    }
                 } else {
                     return already_read;
                 }
@@ -70,8 +74,9 @@ impl File for Pipe {
 
     fn write(&self, mut buf: UserBuffer) -> usize {
         assert!(self.is_writable());
-        let mut buf_iter = buf.iter_mut();
+        let want_to_write = buf.len();
         let mut already_write = 0usize;
+        let mut buf_iter = buf.iter_mut();
 
         loop {
             let mut ring_buffer = self.buffer.exclusive_access();
@@ -87,6 +92,9 @@ impl File for Pipe {
                 if let Some(byte_ref) = buf_iter.next() {
                     ring_buffer.write_byte(unsafe { *byte_ref });
                     already_write += 1;
+                    if already_write == want_to_write {
+                        return already_write;
+                    }
                 } else {
                     return already_write;
                 }
