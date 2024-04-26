@@ -18,13 +18,12 @@ A Simple RISC-V OS Kernel, Inspired by [rCore-Tutorial-v3](https://github.com/rc
 - [x] Test framework (unit test and integration test)
 - [ ] MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
-- [ ] 3-level indirect blocks
+- [ ] Triple indirect pointer
 - [ ] K210 platform support for `ch1` - `ch7`
 - [ ] A detailed documentation or step-by-step tutorial
 
 ## Difference with rCore-Tutorial-v3
 
-- Fully documented, with `#[deny(missing_docs)]`.
 - Stricter code style enforced with `#[deny(clippy::all, clippy::pedantic)]`.
 - Replaces `Makefile` and `build.rs` with [Just](https://github.com/casey/just/) for build automation.
 - Implementation of multi-level directories, file deletion, and file metadata.
