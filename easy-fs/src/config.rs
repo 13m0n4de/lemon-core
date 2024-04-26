@@ -12,7 +12,7 @@ pub const EFS_MAGIC: u32 = 0x3b80_0001;
 pub const INDIRECT_COUNT: usize = BLOCK_SIZE / 4;
 
 /// The max number of direct inodes
-pub const DIRECT_COUNT: usize = 27;
+pub const DIRECT_COUNT: usize = 28;
 /// The max number of indirect1 inodes
 pub const INDIRECT1_COUNT: usize = INDIRECT_COUNT;
 /// The max number of indirect2 inodes
