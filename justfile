@@ -50,7 +50,7 @@ qemu_args := machine_option + " " + display_option + " " + bootloader_option + "
 
 # K210
 k210_serialport := "/dev/ttyUSB0"
-k210_bootloader_size := "131072"
+k210_bootloader_entry_offset := "131072" # 0x20000
 
 # SDCard
 sdcard := "/dev/sda"
@@ -100,7 +100,7 @@ run: build
         qemu-system-riscv64 {{qemu_args}};
     elif [[ "{{board}}" == "k210" ]]; then
         cp {{bootloader}} {{bootloader}}.copy;
-        dd if={{kernel_bin}} of={{bootloader}}.copy bs={{k210_bootloader_size}} seek=1;
+        dd if={{kernel_bin}} of={{bootloader}}.copy bs={{k210_bootloader_entry_offset}} seek=1;
         mv {{bootloader}}.copy {{kernel_bin}};
         sudo kflash -p {{k210_serialport}} -b 1500000 {{kernel_bin}};
         # sudo python3 -m serial.tools.miniterm --eol LF --dtr 0 --rts 0 --filter direct {{k210_serialport}} 115200
