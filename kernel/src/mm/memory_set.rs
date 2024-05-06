@@ -1,8 +1,8 @@
 //! Implementation of [`MapArea`] and [`MemorySet`].
 
 use super::{
-    frame_alloc, PTEFlags, PageTable, PageTableEntry, PhysAddr, PhysPageNum, StepByOne, VPNRange,
-    VirtAddr, VirtPageNum,
+    frame_allocator, PTEFlags, PageTable, PageTableEntry, PhysAddr, PhysPageNum, StepByOne,
+    VPNRange, VirtAddr, VirtPageNum,
 };
 use crate::{
     config::MMIO,
@@ -98,7 +98,7 @@ impl MapArea {
         let ppn = match self.map_type {
             MapType::Identical => PhysPageNum(vpn.0),
             MapType::Framed => {
-                let frame = frame_alloc().unwrap();
+                let frame = frame_allocator::alloc().unwrap();
                 let frame_ppn = frame.ppn;
                 page_table.insert(vpn, frame);
                 frame_ppn
