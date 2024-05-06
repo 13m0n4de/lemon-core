@@ -1,24 +1,24 @@
 //! Implementation of [`Processor`]
 
 use super::{
-    context::Context as TaskContext, fetch_task, pcb::ProcessControlBlock, switch::__switch,
-    Status, TaskControlBlock,
+    context::Context, manager, pcb::ProcessControlBlock, switch::__switch, tcb::TaskControlBlock,
+    Status,
 };
-use crate::{sync::UPSafeCell, trap::Context as TrapContext};
+use crate::{sync::UPSafeCell, trap};
 use alloc::sync::Arc;
 use lazy_static::lazy_static;
 
 /// Processor management structure
 pub struct Processor {
     current: Option<Arc<TaskControlBlock>>,
-    idle_task_cx: TaskContext,
+    idle_task_cx: Context,
 }
 
 impl Processor {
     pub fn new() -> Self {
         Self {
             current: None,
-            idle_task_cx: TaskContext::zero_init(),
+            idle_task_cx: Context::zero_init(),
         }
     }
 
@@ -33,7 +33,7 @@ impl Processor {
     }
 
     /// Get mutable reference to `idle_task_cx`
-    fn idle_task_cx_ptr(&mut self) -> *mut TaskContext {
+    fn idle_task_cx_ptr(&mut self) -> *mut Context {
         core::ptr::from_mut(&mut self.idle_task_cx)
     }
 }
@@ -64,7 +64,7 @@ pub fn current_user_token() -> usize {
 }
 
 /// Current trap context
-pub fn current_trap_cx() -> &'static mut TrapContext {
+pub fn current_trap_cx() -> &'static mut trap::Context {
     current_tcb().unwrap().inner_exclusive_access().trap_cx()
 }
 
@@ -84,13 +84,13 @@ pub fn current_trap_cx_user_va() -> usize {
 /// `__switch`
 pub fn run_tasks() {
     loop {
-        if let Some(task) = fetch_task() {
+        if let Some(task) = manager::fetch() {
             let mut processor = PROCESSOR.exclusive_access();
             let idle_task_cx_ptr = processor.idle_task_cx_ptr();
 
             // access coming task TCB exclusively
             let mut task_inner = task.inner_exclusive_access();
-            let next_task_cx_ptr = &task_inner.task_cx as *const TaskContext;
+            let next_task_cx_ptr = &task_inner.task_cx as *const Context;
             task_inner.task_status = Status::Running;
             drop(task_inner);
 
@@ -105,7 +105,7 @@ pub fn run_tasks() {
 }
 
 /// Return to idle control flow for new scheduling
-pub fn schedule(switched_task_cx_ptr: *mut TaskContext) {
+pub fn schedule(switched_task_cx_ptr: *mut Context) {
     let mut processor = PROCESSOR.exclusive_access();
     let idle_task_cx_ptr = processor.idle_task_cx_ptr();
     drop(processor);

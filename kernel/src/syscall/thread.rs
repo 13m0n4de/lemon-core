@@ -4,8 +4,8 @@ use alloc::sync::Arc;
 
 use crate::{
     mm::kernel_token,
-    task::{add_task, current_tcb, TaskControlBlock},
-    trap::{user_handler, Context as TrapContext},
+    task::{current_tcb, manager, tcb::TaskControlBlock},
+    trap::{user_handler, Context},
 };
 
 /// Creates a new thread within the current process.
@@ -38,7 +38,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     ));
 
     // add new task to scheduler
-    add_task(new_task.clone());
+    manager::add(new_task.clone());
     let new_task_inner = new_task.inner_exclusive_access();
     let new_task_res = new_task_inner.res.as_ref().unwrap();
     let new_task_tid = new_task_res.tid;
@@ -50,7 +50,7 @@ pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     tasks[new_task_tid] = Some(new_task.clone());
 
     let new_task_trap_cx = new_task_inner.trap_cx();
-    *new_task_trap_cx = TrapContext::app_init_context(
+    *new_task_trap_cx = Context::app_init_context(
         entry,
         new_task_res.ustack_top(),
         kernel_token(),

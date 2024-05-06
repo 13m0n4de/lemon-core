@@ -2,12 +2,12 @@
 
 mod context;
 mod id;
-mod manager;
-mod pcb;
+pub mod manager;
+pub mod pcb;
 mod processor;
 mod signal;
 mod switch;
-mod tcb;
+pub mod tcb;
 
 use alloc::{sync::Arc, vec::Vec};
 use lazy_static::lazy_static;
@@ -19,22 +19,17 @@ use crate::{
     timer::remove_timer,
 };
 
-#[allow(clippy::module_name_repetitions)]
-pub use manager::{
-    add as add_task, fetch as fetch_task, pid2process, remove as remove_task,
-    remove_from_pid2process, wakeup as wakeup_task,
-};
-pub use pcb::ProcessControlBlock;
+pub use manager::{pid2process, remove_from_pid2process};
 pub use processor::{
     current_pcb, current_tcb, current_trap_cx, current_trap_cx_user_va, current_user_token,
     run_tasks, schedule, take_current_tcb,
 };
 pub use signal::{add_signal_to_current, check_signals_error_of_current, SignalFlags};
-#[allow(clippy::module_name_repetitions)]
-pub use tcb::{Status, TaskControlBlock};
 
 use context::Context;
 use id::TaskUserRes;
+use pcb::ProcessControlBlock;
+use tcb::{Status, TaskControlBlock};
 
 lazy_static! {
     /// Global process that init user shell
@@ -72,7 +67,7 @@ pub fn suspend_current_and_run_next() {
     // --- release current TCB
 
     // push back to ready queue.
-    add_task(task);
+    manager::add(task);
     // jump to scheduling cycle.
     schedule(task_cx_ptr);
 }
@@ -179,6 +174,6 @@ pub fn exit_current_and_run_next(exit_code: i32) {
 }
 
 pub fn remove_inactive(task: &Arc<TaskControlBlock>) {
-    remove_task(task);
+    manager::remove(task);
     remove_timer(task);
 }

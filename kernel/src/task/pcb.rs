@@ -1,6 +1,6 @@
 use super::{
-    add_task,
     id::{pid_alloc, PidHandle, RecycleAllocator},
+    manager,
     manager::insert_into_pid2process,
     SignalFlags, TaskControlBlock,
 };
@@ -8,7 +8,7 @@ use crate::{
     fs::{inode, File, Stdin, Stdout},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPSafeCell},
-    trap::{user_handler, Context as TrapContext},
+    trap::{user_handler, Context},
 };
 use alloc::{
     format,
@@ -72,7 +72,7 @@ impl ProcessControlBlock {
         let ustack_top = task_inner.res.as_ref().unwrap().ustack_top();
         let kstack_top = task.kstack.top();
         drop(task_inner);
-        *trap_cx = TrapContext::app_init_context(
+        *trap_cx = Context::app_init_context(
             entry_point,
             ustack_top,
             KERNEL_SPACE.exclusive_access().token(),
@@ -87,7 +87,7 @@ impl ProcessControlBlock {
         insert_into_pid2process(process.pid(), Arc::clone(&process));
 
         // add main thread to scheduler
-        add_task(task);
+        manager::add(task);
         process
     }
 
@@ -145,7 +145,7 @@ impl ProcessControlBlock {
         }
 
         // initialize trap_cx
-        let mut trap_cx = TrapContext::app_init_context(
+        let mut trap_cx = Context::app_init_context(
             entry_point,
             user_sp,
             KERNEL_SPACE.exclusive_access().token(),
@@ -236,7 +236,7 @@ impl ProcessControlBlock {
         insert_into_pid2process(child.pid(), child.clone());
 
         // add this thread to scheduler
-        add_task(task);
+        manager::add(task);
 
         child
     }

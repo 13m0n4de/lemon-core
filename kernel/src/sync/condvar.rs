@@ -1,6 +1,6 @@
 use alloc::{collections::VecDeque, sync::Arc};
 
-use crate::task::{block_current_and_run_next, current_tcb, wakeup_task, TaskControlBlock};
+use crate::task::{block_current_and_run_next, current_tcb, manager, tcb::TaskControlBlock};
 
 use super::{Mutex, UPSafeCell};
 
@@ -26,7 +26,7 @@ impl Condvar {
     pub fn signal(&self) {
         let mut inner = self.inner.exclusive_access();
         if let Some(task) = inner.wait_queue.pop_front() {
-            wakeup_task(task);
+            manager::wakeup(task);
         }
     }
 
