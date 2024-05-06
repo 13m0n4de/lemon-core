@@ -2,14 +2,14 @@
 #![no_main]
 
 extern crate alloc;
+#[macro_use]
 extern crate user_lib;
 
 use alloc::vec;
-use user_lib::fs::*;
-use user_lib::*;
+use user_lib::fs::{close, fstat, open, read, Dirent, OpenFlags, Stat, StatMode, DIRENT_SIZE};
 
 #[no_mangle]
-fn main(argc: usize, argv: &[&str]) -> i32 {
+extern "Rust" fn main(argc: usize, argv: &[&str]) -> i32 {
     let targets = if argc > 1 { &argv[1..] } else { &["."] };
     for target in targets {
         list(target);
@@ -19,18 +19,19 @@ fn main(argc: usize, argv: &[&str]) -> i32 {
 
 fn list(target: &str) {
     let fd = open(target, OpenFlags::RDONLY);
-    let mut stat = Stat::new();
     if fd == -1 {
         println!("cannot access '{}': No such file or directory", target);
         return;
     }
+
+    let mut stat = Stat::new();
     match fstat(fd as usize, &mut stat) {
         0 => {}
         -1 => {
             println!("{}: Bad file descriptor", fd);
             return;
         }
-        _ => panic!(),
+        _ => panic!("Unexpected fstat error"),
     }
 
     match stat.mode {
@@ -41,15 +42,12 @@ fn list(target: &str) {
             let size = stat.size as usize;
             let mut buf = vec![0u8; size];
             read(fd as usize, &mut buf);
-            for i in 2..size / DIRENT_SIZE {
-                let offset = i * DIRENT_SIZE;
-                let dirent = unsafe { &*(buf.as_ptr().add(offset) as *const Dirent) };
-                let len = dirent
-                    .name
-                    .iter()
-                    .position(|&v| v == 0)
-                    .unwrap_or(dirent.name.len());
-                let name = core::str::from_utf8(&dirent.name[..len]).unwrap();
+            let entries = buf.chunks_exact(DIRENT_SIZE);
+            for entry in entries.skip(2) {
+                let dirent: &Dirent = unsafe { &entry.as_ptr().cast::<Dirent>().read_unaligned() };
+                let name_len = dirent.name.iter().take_while(|&&c| c != 0).count();
+                let name = core::str::from_utf8(&dirent.name[..name_len])
+                    .expect("Invalid UTF-8 in directory name");
                 print!("{}\n", name);
             }
         }
