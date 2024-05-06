@@ -1,6 +1,6 @@
 //! Implementation of [`MapArea`] and [`MemorySet`].
 
-use super::frame_alloc;
+use super::frame_allocator;
 use super::StepByOne;
 use super::{PTEFlags, PageTable, PageTableEntry};
 use super::{PhysAddr, PhysPageNum};
@@ -95,7 +95,7 @@ impl MapArea {
         let ppn = match self.map_type {
             MapType::Identical => PhysPageNum(vpn.0),
             MapType::Framed => {
-                let frame = frame_alloc().unwrap();
+                let frame = frame_allocator::alloc().unwrap();
                 let frame_ppn = frame.ppn;
                 page_table.insert(vpn, frame);
                 frame_ppn

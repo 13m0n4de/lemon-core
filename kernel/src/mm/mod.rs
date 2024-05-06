@@ -9,14 +9,14 @@
 //!
 //! Every task or process has a [`memory_set::MemorySet`] to control its virtual memory.
 
-mod address;
-mod frame_allocator;
-mod heap_allocator;
-mod memory_set;
-mod page_table;
+pub mod address;
+pub mod frame_allocator;
+pub mod heap_allocator;
+pub mod memory_set;
+pub mod page_table;
 
 pub use address::{PhysAddr, PhysPageNum, StepByOne, VirtAddr, VirtPageNum};
-pub use frame_allocator::{frame_alloc, frame_dealloc, FrameTracker};
+pub use frame_allocator::FrameTracker;
 pub use memory_set::{kernel_token, MapPermission, MemorySet, KERNEL_SPACE};
 pub use page_table::{PTEFlags, PageTable, PageTableEntry};
 
