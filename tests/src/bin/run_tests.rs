@@ -1,18 +1,26 @@
 #![no_std]
 #![no_main]
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-#![allow(clippy::cast_sign_loss)]
-#![allow(clippy::missing_panics_doc)]
 
-extern crate alloc;
 #[macro_use]
 extern crate user_lib;
+extern crate alloc;
 
 use alloc::format;
 use user_lib::process::{exec, fork, waitpid};
 
 static TESTS: &[(&str, &[&str], i32)] = &[
+    (
+        "cmdline_args",
+        &["cmdline_args", "welcome", "to", "the", "wired", "world"],
+        0,
+    ),
+    ("condsync_condvar", &["condsync_condvar"], 0),
+    ("fork", &["fork"], 0),
+    ("fork_sleep", &["fork_sleep"], 0),
+    ("fork_tree", &["fork_tree"], 0),
+    ("sleep", &["sleep"], 0),
+    ("thread", &["thread"], 0),
+    ("panic", &["panic"], -6),
     ("priv_csr", &["priv_csr"], -4),
     ("priv_inst", &["priv_inst"], -4),
     ("race_addr", &["race_addr"], -6),
@@ -21,6 +29,8 @@ static TESTS: &[(&str, &[&str], i32)] = &[
     ("store_fault", &["store_fault"], -11),
     ("exit", &["exit"], 0),
     ("huge_write", &["huge_write"], 0),
+    ("pipe", &["pipe"], 0),
+    ("pipe_large", &["pipe_large"], 0),
     (
         "process_timeout",
         &["process_timeout", "2000", "/tests/loop_infinity"],

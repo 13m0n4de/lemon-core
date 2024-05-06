@@ -1,10 +1,5 @@
 #![no_std]
 #![no_main]
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-#![allow(clippy::similar_names)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::cast_sign_loss)]
 
 #[macro_use]
 extern crate user_lib;

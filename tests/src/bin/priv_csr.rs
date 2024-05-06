@@ -1,7 +1,5 @@
 #![no_std]
 #![no_main]
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
 
 #[macro_use]
 extern crate user_lib;
