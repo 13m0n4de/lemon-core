@@ -5,7 +5,7 @@ use super::{
     SignalFlags, TaskControlBlock,
 };
 use crate::{
-    fs::{find_inode, File, Stdin, Stdout},
+    fs::{inode, File, Stdin, Stdout},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPSafeCell},
     trap::{user_handler, Context as TrapContext},
@@ -104,7 +104,7 @@ impl ProcessControlBlock {
         let (memory_set, ustack_base, entry_point) = MemorySet::from_elf(elf_data);
         let new_token = memory_set.token();
 
-        let cmdline_inode = find_inode(&format!("/proc/{}/cmdline", self.pid.0))
+        let cmdline_inode = inode::find(&format!("/proc/{}/cmdline", self.pid.0))
             .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'", self.pid.0));
         cmdline_inode.clear();
         cmdline_inode.write_at(0, args.join(" ").as_bytes());
@@ -171,7 +171,7 @@ impl ProcessControlBlock {
         let new_fd_table = parent_inner.fd_table.clone();
 
         // write proc info
-        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
+        let procs_inode = inode::find("/proc").expect("Failed to find inode for '/proc/'.");
         let proc_inode = procs_inode
             .create_dir(&pid.0.to_string())
             .unwrap_or_else(|| panic!("Failed to create inode for '/proc/{}/'.", pid.0));
@@ -179,7 +179,7 @@ impl ProcessControlBlock {
         let cmdline_inode = proc_inode
             .create("cmdline")
             .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid.0));
-        if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
+        if let Some(parent_cmdline_inode) = inode::find(&format!("/proc/{}/cmdline", &self.pid.0)) {
             let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
             parent_cmdline_inode.read_at(0, &mut cmdline);
             cmdline_inode.write_at(0, &cmdline);
@@ -288,7 +288,7 @@ impl ProcessControlBlockInner {
 impl Drop for ProcessControlBlock {
     #[allow(clippy::similar_names)]
     fn drop(&mut self) {
-        let procs_inode = find_inode("/proc").expect("Failed to find inode for '/proc/'.");
+        let procs_inode = inode::find("/proc").expect("Failed to find inode for '/proc/'.");
         if let Some(proc_inode) = procs_inode.find(&self.pid.0.to_string()) {
             proc_inode.delete("cmdline");
             procs_inode.delete(&self.pid.0.to_string());

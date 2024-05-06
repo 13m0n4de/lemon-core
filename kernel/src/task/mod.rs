@@ -14,7 +14,7 @@ use lazy_static::lazy_static;
 use log::info;
 
 use crate::{
-    fs::{find_inode, open_file, OpenFlags},
+    fs::{inode, open_file, OpenFlags},
     sbi::shutdown,
     timer::remove_timer,
 };
@@ -47,7 +47,7 @@ lazy_static! {
 
 /// Add init process to the manager
 pub fn init() {
-    let root_inode = find_inode("/").expect("Failed to find inode for '/'.");
+    let root_inode = inode::find("/").expect("Failed to find inode for '/'.");
     let procs_inode = root_inode
         .create_dir("proc")
         .expect("Failed to create inode for '/proc/'.");

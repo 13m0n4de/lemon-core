@@ -4,7 +4,7 @@ use core::ptr::slice_from_raw_parts;
 
 use easy_fs::DIRENT_SIZE;
 
-use crate::fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat};
+use crate::fs::{get_full_path, inode, open_file, pipe, OpenFlags, Stat};
 use crate::mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer};
 use crate::task::{current_pcb, current_user_token};
 
@@ -116,7 +116,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
     let path = translated_str(token, path);
     let path = get_full_path(&process_inner.cwd, &path);
 
-    if let Some(inode) = find_inode(&path) {
+    if let Some(inode) = inode::find(&path) {
         if inode.is_dir() {
             process_inner.cwd = path;
             0
@@ -150,7 +150,7 @@ pub fn sys_mkdir(path: *const u8) -> isize {
     let (parent_path, target) = path
         .rsplit_once('/')
         .expect("Invalid path: the path must contain a '/'.");
-    match find_inode(parent_path) {
+    match inode::find(parent_path) {
         Some(parent_inode) => match parent_inode.create_dir(target) {
             Some(_cur_inode) => 0,
             None => -2,
@@ -185,7 +185,7 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let (parent_path, target) = path
         .rsplit_once('/')
         .expect("Invalid path: the path must contain a '/'.");
-    match find_inode(parent_path) {
+    match inode::find(parent_path) {
         Some(parent_inode) => match parent_inode.find(target) {
             Some(inode) => {
                 let remove_dir = flags & AT_REMOVEDIR == AT_REMOVEDIR;
@@ -385,7 +385,7 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
-    let (pipe_read, pipe_write) = make_pipe();
+    let (pipe_read, pipe_write) = pipe::make();
 
     let read_fd = process_inner.alloc_fd();
     process_inner.fd_table[read_fd] = Some(pipe_read);
