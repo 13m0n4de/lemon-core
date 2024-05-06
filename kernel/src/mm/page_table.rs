@@ -1,6 +1,6 @@
 //! Implementation of [`PageTableEntry`] and [`PageTable`].
 
-use super::{frame_alloc, FrameTracker, PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
+use super::{frame_allocator, FrameTracker, PhysAddr, PhysPageNum, VirtAddr, VirtPageNum};
 use alloc::{collections::BTreeMap, vec, vec::Vec};
 use bitflags::bitflags;
 
@@ -76,7 +76,7 @@ pub struct PageTable {
 
 impl PageTable {
     pub fn new() -> Self {
-        let frame = frame_alloc().unwrap();
+        let frame = frame_allocator::alloc().unwrap();
         PageTable {
             root_ppn: frame.ppn,
             data_frames: BTreeMap::new(),
@@ -100,7 +100,7 @@ impl PageTable {
         for &idx in &idxs[..2] {
             let pte = ppn.as_mut_pte_array().get_mut(idx)?;
             if !pte.is_valid() {
-                let frame = frame_alloc().unwrap();
+                let frame = frame_allocator::alloc().unwrap();
                 *pte = PageTableEntry::new(frame.ppn, PTEFlags::V);
                 self.metadata_frames.push(frame);
             }
