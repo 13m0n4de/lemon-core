@@ -41,52 +41,65 @@ impl File for Pipe {
 
     fn read(&self, mut buf: UserBuffer) -> usize {
         assert!(self.is_readable());
-        let buf_iter = buf.iter_mut();
+        let want_to_read = buf.len();
         let mut already_read = 0usize;
+        let mut buf_iter = buf.iter_mut();
 
-        for byte_ref in buf_iter {
-            loop {
-                let mut ring_buffer = self.buffer.exclusive_access();
-                let available_to_read = ring_buffer.available_to_read();
+        loop {
+            let mut ring_buffer = self.buffer.exclusive_access();
+            let available_to_read = ring_buffer.available_to_read();
 
-                if available_to_read > 0 {
-                    unsafe { *byte_ref = ring_buffer.read_byte() };
-                    already_read += 1;
-                    break;
-                }
+            if available_to_read == 0 {
                 if ring_buffer.all_write_ends_closed() {
                     return already_read;
                 }
                 drop(ring_buffer);
                 suspend_current_and_run_next();
+                continue;
+            }
+
+            for _ in 0..available_to_read {
+                if let Some(byte_ref) = buf_iter.next() {
+                    unsafe { *byte_ref = ring_buffer.read_byte() };
+                    already_read += 1;
+                    if already_read == want_to_read {
+                        return already_read;
+                    }
+                } else {
+                    return already_read;
+                }
             }
         }
-        already_read
     }
 
     fn write(&self, mut buf: UserBuffer) -> usize {
         assert!(self.is_writable());
-        let buf_iter = buf.iter_mut();
+        let want_to_write = buf.len();
         let mut already_write = 0usize;
+        let mut buf_iter = buf.iter_mut();
 
-        for byte_ref in buf_iter {
-            loop {
-                let mut ring_buffer = self.buffer.exclusive_access();
-                let available_to_write = ring_buffer.available_to_write();
+        loop {
+            let mut ring_buffer = self.buffer.exclusive_access();
+            let available_to_write = ring_buffer.available_to_write();
 
-                if available_to_write > 0 {
-                    ring_buffer.write_byte(unsafe { *byte_ref });
-                    already_write += 1;
-                    break;
-                }
-                if ring_buffer.all_write_ends_closed() {
-                    return already_write;
-                }
+            if available_to_write == 0 {
                 drop(ring_buffer);
                 suspend_current_and_run_next();
+                continue;
+            }
+
+            for _ in 0..available_to_write {
+                if let Some(byte_ref) = buf_iter.next() {
+                    ring_buffer.write_byte(unsafe { *byte_ref });
+                    already_write += 1;
+                    if already_write == want_to_write {
+                        return already_write;
+                    }
+                } else {
+                    return already_write;
+                }
             }
         }
-        already_write
     }
 }
 

@@ -103,7 +103,7 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
 
     if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = find_inode(path) {
+        if let Some(inode) = inode::find(path) {
             if inode.is_file() {
                 // clear size
                 inode.clear();
@@ -114,13 +114,13 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
                 Some((parent_path, target)) => (parent_path, target),
                 None => ("", path),
             };
-            let parent_inode = find_inode(parent_path)?;
+            let parent_inode = inode::find(parent_path)?;
             parent_inode
                 .create(target)
                 .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
-        find_inode(path).map(|inode| {
+        inode::find(path).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }
