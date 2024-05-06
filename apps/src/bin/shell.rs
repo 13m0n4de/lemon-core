@@ -1,17 +1,19 @@
 #![no_std]
 #![no_main]
 
-extern crate alloc;
+#[macro_use]
 extern crate user_lib;
+extern crate alloc;
 
 use alloc::format;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use user_lib::console::getchar;
-use user_lib::fs::*;
-use user_lib::process::*;
-use user_lib::*;
+use user_lib::{
+    console::getchar,
+    fs::{chdir, close, dup2, fstat, getcwd, open, OpenFlags, Stat, StatMode},
+    process::{exec, fork, waitpid},
+};
 
 const LF: u8 = 0x0au8;
 const CR: u8 = 0x0du8;
@@ -58,7 +60,7 @@ impl CommandArguments {
 }
 
 #[no_mangle]
-fn main() -> i32 {
+extern "Rust" fn main() -> i32 {
     let mut cwd = String::new();
     getcwd(&mut cwd);
     loop {
@@ -92,10 +94,10 @@ fn main() -> i32 {
                     let pid = fork();
                     if pid == 0 {
                         if let Some(input) = cmd_args.input_file {
-                            redirect_io(input, 0, OpenFlags::RDONLY);
+                            redirect_io(&input, 0, OpenFlags::RDONLY);
                         }
                         if let Some(output) = cmd_args.output_file {
-                            redirect_io(output, 1, OpenFlags::CREATE | OpenFlags::WRONLY);
+                            redirect_io(&output, 1, OpenFlags::CREATE | OpenFlags::WRONLY);
                         }
                         let path = if path.contains('/') {
                             path.to_string()
@@ -105,11 +107,10 @@ fn main() -> i32 {
                         exec(&path, &cmd_args.argv);
                         println!("{}: command not found", path);
                         return -1;
-                    } else {
-                        let mut exit_code: i32 = 0;
-                        let exit_pid = waitpid(pid as usize, &mut exit_code);
-                        assert_eq!(pid, exit_pid);
                     }
+                    let mut exit_code: i32 = 0;
+                    let exit_pid = waitpid(pid as usize, &mut exit_code);
+                    assert_eq!(pid, exit_pid);
                 }
             }
         }
@@ -117,8 +118,8 @@ fn main() -> i32 {
     0
 }
 
-fn redirect_io(file_name: String, fd: usize, flags: OpenFlags) {
-    let file_fd = open(&file_name, flags);
+fn redirect_io(file_name: &str, fd: usize, flags: OpenFlags) {
+    let file_fd = open(file_name, flags);
     if file_fd == -1 {
         println!("Error when opening file {}", file_name);
         return;
@@ -144,7 +145,7 @@ fn getline() -> String {
             }
             ch => {
                 print!("{}", ch as char);
-                input.push(ch as char)
+                input.push(ch as char);
             }
         }
     }

@@ -2,14 +2,14 @@
 #![no_main]
 
 extern crate alloc;
+#[macro_use]
 extern crate user_lib;
 
 use core::str;
-use user_lib::fs::*;
-use user_lib::*;
+use user_lib::fs::mkdir;
 
 #[no_mangle]
-fn main(argc: usize, argv: &[&str]) -> i32 {
+extern "Rust" fn main(argc: usize, argv: &[&str]) -> i32 {
     if argc == 1 {
         println!("missing operand");
         return 1;

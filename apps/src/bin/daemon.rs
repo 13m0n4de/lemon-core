@@ -6,7 +6,7 @@ extern crate user_lib;
 use user_lib::process::{exec, fork, wait, yield_};
 
 #[no_mangle]
-fn main() -> i32 {
+extern "Rust" fn main() -> i32 {
     if fork() == 0 {
         exec("/bin/shell", &["/bin/shell"]);
     } else {

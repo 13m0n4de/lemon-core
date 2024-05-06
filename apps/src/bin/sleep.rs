@@ -14,7 +14,7 @@ const SECONDS_PER_HOUR: usize = 3600;
 const SECONDS_PER_DAY: usize = 86400;
 
 #[no_mangle]
-pub extern "Rust" fn main(_argc: usize, argv: &[&str]) -> i32 {
+extern "Rust" fn main(_argc: usize, argv: &[&str]) -> i32 {
     let mut total_sleep_ms = 0;
 
     for &arg in argv.iter().skip(1) {
