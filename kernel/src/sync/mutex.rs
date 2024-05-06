@@ -1,7 +1,7 @@
 use super::UPIntrFreeCell;
 use crate::task::{
-    block_current_and_run_next, current_tcb, suspend_current_and_run_next, wakeup_task,
-    TaskControlBlock,
+    block_current_and_run_next, current_tcb, manager, suspend_current_and_run_next,
+    tcb::TaskControlBlock,
 };
 use alloc::{collections::VecDeque, sync::Arc};
 
@@ -91,7 +91,7 @@ impl Mutex for Blocking {
         let mut mutex_inner = self.inner.exclusive_access();
         assert!(mutex_inner.locked);
         if let Some(waking_task) = mutex_inner.wait_queue.pop_front() {
-            wakeup_task(waking_task);
+            manager::wakeup(waking_task);
         } else {
             mutex_inner.locked = false;
         }

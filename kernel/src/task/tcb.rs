@@ -6,7 +6,7 @@ use super::{
 use crate::{
     mm::PhysPageNum,
     sync::{UPIntrFreeCell, UPIntrRefMut},
-    trap::Context as TrapContext,
+    trap,
 };
 use alloc::sync::{Arc, Weak};
 
@@ -62,7 +62,7 @@ pub struct TaskControlBlockInner {
 }
 
 impl TaskControlBlockInner {
-    pub fn trap_cx(&self) -> &'static mut TrapContext {
+    pub fn trap_cx(&self) -> &'static mut trap::Context {
         self.trap_cx_ppn.as_mut_ref()
     }
 }
