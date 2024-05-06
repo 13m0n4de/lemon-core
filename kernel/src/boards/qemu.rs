@@ -27,7 +27,7 @@ pub fn init() {
     plic.set_threshold(hart_id, IntrTargetPriority::Supervisor, 0);
     plic.set_threshold(hart_id, IntrTargetPriority::Machine, 1);
     // irq nums: 5 keyboard, 6 mouse, 8 block, 10 uart
-    for intr_src_id in [8, 10] {
+    for intr_src_id in [5, 6, 8, 10] {
         plic.enable(hart_id, IntrTargetPriority::Supervisor, intr_src_id);
         plic.set_priority(intr_src_id, 1);
     }
