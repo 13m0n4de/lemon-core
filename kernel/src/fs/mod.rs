@@ -1,17 +1,16 @@
 //! File system
 
-mod inode;
-mod pipe;
-mod stdio;
+pub mod inode;
+pub mod pipe;
+pub mod stdio;
 
 use crate::mm::UserBuffer;
 use alloc::{string::String, sync::Arc, vec::Vec};
 use bitflags::bitflags;
-pub use inode::{find as find_inode, OpenFlags, PROC_INODE};
-pub use pipe::make as make_pipe;
-pub use stdio::{Stdin, Stdout};
+use inode::OSInode;
 
-use self::inode::OSInode;
+pub use inode::{OpenFlags, PROC_INODE};
+pub use stdio::{Stdin, Stdout};
 
 /// File trait
 pub trait File: Send + Sync {
