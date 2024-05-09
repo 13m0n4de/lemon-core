@@ -5,7 +5,7 @@ use crate::{
     block_dev::BlockDevice,
     config::{
         BLOCK_SIZE, DIRECT_BOUND, DIRECT_COUNT, EFS_MAGIC, INDIRECT1_BOUND, INDIRECT1_COUNT,
-        INDIRECT2_BOUND, INDIRECT2_COUNT, INDIRECT3_COUNT, INDIRECT_COUNT, NAME_LENGTH_LIMIT,
+        INDIRECT2_COUNT, INDIRECT_COUNT, NAME_LENGTH_LIMIT,
     },
 };
 
@@ -68,7 +68,6 @@ pub struct DiskInode {
     pub direct: [u32; DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
-    pub indirect3: u32,
 }
 
 impl DiskInode {
@@ -80,7 +79,6 @@ impl DiskInode {
         self.direct.fill(0);
         self.indirect1 = 0;
         self.indirect2 = 0;
-        self.indirect3 = 0;
     }
 
     /// Whether this inode is a directory
@@ -107,7 +105,7 @@ impl DiskInode {
                 .read(0, |indirect_block: &IndirectBlock| {
                     indirect_block[block_index - DIRECT_BOUND]
                 })
-        } else if block_index < INDIRECT2_BOUND {
+        } else {
             let index = block_index - INDIRECT1_BOUND;
             let indirect1 = block_cache::get(self.indirect2 as usize, block_device)
                 .lock()
@@ -118,23 +116,6 @@ impl DiskInode {
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
                     indirect1[index % INDIRECT1_COUNT]
-                })
-        } else {
-            let index = block_index - INDIRECT2_BOUND;
-            let indirect2 = block_cache::get(self.indirect3 as usize, block_device)
-                .lock()
-                .read(0, |indirect3: &IndirectBlock| {
-                    indirect3[index / INDIRECT2_COUNT]
-                });
-            let indirect1 = block_cache::get(indirect2 as usize, block_device)
-                .lock()
-                .read(0, |indirect2: &IndirectBlock| {
-                    indirect2[index % INDIRECT2_COUNT / INDIRECT1_COUNT]
-                });
-            block_cache::get(indirect1 as usize, block_device)
-                .lock()
-                .read(0, |indirect1: &IndirectBlock| {
-                    indirect1[index % INDIRECT2_COUNT % INDIRECT1_COUNT]
                 })
         }
     }
@@ -158,14 +139,6 @@ impl DiskInode {
             let remaining = data_blocks - INDIRECT1_BOUND;
             let indirect1_needed = remaining.div_ceil(INDIRECT1_COUNT);
             total += indirect1_needed.min(INDIRECT1_COUNT);
-        }
-
-        if data_blocks > INDIRECT2_BOUND {
-            total += 1;
-            let remaining = data_blocks - INDIRECT2_BOUND;
-            let indirect2_needed = remaining.div_ceil(INDIRECT2_COUNT);
-            let indirect3_needed = remaining.div_ceil(INDIRECT1_COUNT);
-            total += indirect2_needed + indirect3_needed;
         }
 
         total as u32
@@ -262,62 +235,6 @@ impl DiskInode {
                 }
             });
         // ----------------- End of Indirect Level 2 ------------
-
-        if new_total_blocks <= INDIRECT2_COUNT {
-            return;
-        }
-
-        // -------------------- Indirect Level 3 -----------------
-        if block_index == INDIRECT2_COUNT {
-            self.indirect3 = new_blocks.next().unwrap();
-        }
-        block_index -= INDIRECT2_COUNT;
-        new_total_blocks -= INDIRECT2_COUNT;
-
-        let mut index3 = block_index / INDIRECT2_COUNT;
-        let mut index2 = block_index % INDIRECT2_COUNT / INDIRECT1_COUNT;
-        let mut index1 = block_index % INDIRECT1_COUNT;
-        let end3 = new_total_blocks / INDIRECT2_COUNT;
-        let end2 = new_total_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
-        let end1 = new_total_blocks % INDIRECT1_COUNT;
-
-        block_cache::get(self.indirect3 as usize, block_device)
-            .lock()
-            .modify(0, |indirect3: &mut IndirectBlock| {
-                while (index3 < end3)
-                    || (index3 == end3 && index2 < end2)
-                    || (index3 == end3 && index2 == end2 && index1 < end1)
-                {
-                    if index2 == 0 && index1 == 0 {
-                        indirect3[index3] = new_blocks.next().unwrap();
-                    }
-
-                    block_cache::get(indirect3[index3] as usize, block_device)
-                        .lock()
-                        .modify(0, |indirect2: &mut IndirectBlock| {
-                            if index1 == 0 {
-                                indirect2[index2] = new_blocks.next().unwrap();
-                            }
-
-                            block_cache::get(indirect2[index2] as usize, block_device)
-                                .lock()
-                                .modify(0, |indirect1: &mut IndirectBlock| {
-                                    indirect1[index1] = new_blocks.next().unwrap();
-                                });
-
-                            index1 += 1;
-                            if index1 == INDIRECT1_COUNT {
-                                index1 = 0;
-                                index2 += 1;
-                                if index2 == INDIRECT2_COUNT {
-                                    index2 = 0;
-                                    index3 += 1;
-                                }
-                            }
-                        });
-                }
-            });
-        // ----------------- End of Indirect Level 3 ------------
     }
 
     /// Decrease the size
@@ -404,62 +321,6 @@ impl DiskInode {
             });
         // ----------------- End of Indirect Level 2 ------------
 
-        if recycled_blocks <= INDIRECT2_COUNT {
-            return drop_data_blocks;
-        }
-
-        // -------------------- Indirect Level 3 -----------------
-        if block_index == INDIRECT2_COUNT {
-            drop_data_blocks.push(self.indirect3);
-        }
-        block_index -= INDIRECT2_COUNT;
-        recycled_blocks -= INDIRECT2_COUNT;
-
-        let mut index3 = block_index / INDIRECT2_COUNT;
-        let mut index2 = block_index % INDIRECT2_COUNT / INDIRECT1_COUNT;
-        let mut index1 = block_index % INDIRECT1_COUNT;
-        let end3 = recycled_blocks / INDIRECT2_COUNT;
-        let end2 = recycled_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
-        let end1 = recycled_blocks % INDIRECT1_COUNT;
-
-        block_cache::get(self.indirect3 as usize, block_device)
-            .lock()
-            .modify(0, |indirect3: &mut IndirectBlock| {
-                while (index3 < end3)
-                    || (index3 == end3 && index2 < end2)
-                    || (index3 == end3 && index2 == end2 && index1 < end1)
-                {
-                    if index2 == 0 && index1 == 0 {
-                        drop_data_blocks.push(indirect3[index3]);
-                    }
-
-                    block_cache::get(indirect3[index3] as usize, block_device)
-                        .lock()
-                        .modify(0, |indirect2: &mut IndirectBlock| {
-                            if index1 == 0 {
-                                drop_data_blocks.push(indirect2[index2]);
-                            }
-
-                            block_cache::get(indirect2[index2] as usize, block_device)
-                                .lock()
-                                .modify(0, |indirect1: &mut IndirectBlock| {
-                                    drop_data_blocks.push(indirect1[index1]);
-                                });
-
-                            index1 += 1;
-                            if index1 == INDIRECT1_COUNT {
-                                index1 = 0;
-                                index2 += 1;
-                                if index2 == INDIRECT2_COUNT {
-                                    index2 = 0;
-                                    index3 += 1;
-                                }
-                            }
-                        });
-                }
-            });
-        // ----------------- End of Indirect Level 3 ------------
-
         drop_data_blocks
     }
 
@@ -531,70 +392,6 @@ impl DiskInode {
             });
         self.indirect2 = 0;
         // ----------------- End of Indirect Level 2 ------------
-
-        if data_blocks <= INDIRECT2_COUNT {
-            return drop_data_blocks;
-        }
-
-        // -------------------- Indirect Level 3 -----------------
-        assert!(data_blocks <= INDIRECT3_COUNT);
-        drop_data_blocks.push(self.indirect3);
-        data_blocks -= INDIRECT2_COUNT;
-
-        let index3 = data_blocks / INDIRECT2_COUNT;
-        let index2 = data_blocks % INDIRECT2_COUNT / INDIRECT1_COUNT;
-        let index1 = data_blocks % INDIRECT1_COUNT;
-
-        block_cache::get(self.indirect3 as usize, block_device)
-            .lock()
-            .read(0, |indirect3: &IndirectBlock| {
-                for &block in indirect3.iter().take(index3) {
-                    drop_data_blocks.push(block);
-                    block_cache::get(block as usize, block_device).lock().read(
-                        0,
-                        |indirect2: &IndirectBlock| {
-                            for &block in indirect2 {
-                                drop_data_blocks.push(block);
-                                block_cache::get(block as usize, block_device).lock().read(
-                                    0,
-                                    |indirect1: &IndirectBlock| {
-                                        drop_data_blocks.extend_from_slice(indirect1);
-                                    },
-                                );
-                            }
-                        },
-                    );
-                }
-
-                if index2 > 0 {
-                    drop_data_blocks.push(indirect3[index3]);
-                    block_cache::get(indirect3[index3] as usize, block_device)
-                        .lock()
-                        .read(0, |indirect2: &IndirectBlock| {
-                            for &block in indirect2.iter().take(index2) {
-                                drop_data_blocks.push(block);
-                                block_cache::get(block as usize, block_device).lock().read(
-                                    0,
-                                    |indirect1: &IndirectBlock| {
-                                        drop_data_blocks.extend_from_slice(indirect1);
-                                    },
-                                );
-                            }
-
-                            if index1 > 0 {
-                                drop_data_blocks.push(indirect2[index2]);
-                                block_cache::get(indirect2[index2] as usize, block_device)
-                                    .lock()
-                                    .read(0, |indirect1: &IndirectBlock| {
-                                        drop_data_blocks.extend_from_slice(&indirect1[..index1]);
-                                    });
-                            }
-                        });
-                }
-            });
-        self.indirect3 = 0;
-        // ----------------- End of Indirect Level 3 ------------
-
         drop_data_blocks
     }
 

@@ -57,3 +57,7 @@ pub fn waitpid(pid: usize, exit_code: &mut i32) -> isize {
         }
     }
 }
+
+pub fn waitpid_nb(pid: usize, exit_code: &mut i32) -> isize {
+    sys_waitpid(pid as isize, core::ptr::from_mut(exit_code))
+}

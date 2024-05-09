@@ -6,8 +6,8 @@ use virtio_drivers::Hal;
 
 use crate::{
     mm::{
-        frame_alloc, frame_dealloc, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum,
-        StepByOne, VirtAddr,
+        frame_allocator, kernel_token, FrameTracker, PageTable, PhysAddr, PhysPageNum, StepByOne,
+        VirtAddr,
     },
     sync::UPIntrFreeCell,
 };
@@ -21,12 +21,12 @@ pub struct VirtIOHal;
 
 impl Hal for VirtIOHal {
     fn dma_alloc(pages: usize) -> usize {
-        let frame = frame_alloc().unwrap();
+        let frame = frame_allocator::alloc().unwrap();
         let ppn_base = frame.ppn;
         QUEUE_FRAMES.exclusive_access().push(frame);
 
         for i in 1..pages {
-            let frame = frame_alloc().unwrap();
+            let frame = frame_allocator::alloc().unwrap();
             assert_eq!(frame.ppn.0, ppn_base.0 + i);
             QUEUE_FRAMES.exclusive_access().push(frame);
         }
@@ -39,7 +39,7 @@ impl Hal for VirtIOHal {
         let pa = PhysAddr::from(pa);
         let mut ppn_base: PhysPageNum = pa.into();
         for _ in 0..pages {
-            frame_dealloc(ppn_base);
+            frame_allocator::dealloc(ppn_base);
             ppn_base.step();
         }
         0

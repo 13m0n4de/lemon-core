@@ -2,14 +2,14 @@
 #![no_main]
 
 extern crate alloc;
+#[macro_use]
 extern crate user_lib;
 
 use alloc::vec;
-use user_lib::fs::*;
-use user_lib::*;
+use user_lib::fs::{OpenFlags, Stat, StatMode, close, fstat, open, read};
 
 #[no_mangle]
-pub fn main(_argc: usize, argv: &[&str]) -> i32 {
+extern "Rust" fn main(_argc: usize, argv: &[&str]) -> i32 {
     for filename in &argv[1..] {
         let fd = open(filename, OpenFlags::RDONLY);
         if fd == -1 {

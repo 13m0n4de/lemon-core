@@ -1,6 +1,6 @@
 use alloc::{collections::VecDeque, sync::Arc};
 
-use crate::task::{block_current_and_run_next, current_tcb, wakeup_task, TaskControlBlock};
+use crate::task::{block_current_and_run_next, current_tcb, manager, tcb::TaskControlBlock};
 
 use super::UPIntrFreeCell;
 
@@ -29,8 +29,8 @@ impl Semaphore {
         let mut inner = self.inner.exclusive_access();
         inner.count += 1;
         if inner.count <= 0 {
-            if let Some(task) = inner.wait_queue.pop_back() {
-                wakeup_task(task);
+            if let Some(task) = inner.wait_queue.pop_front() {
+                manager::wakeup(task);
             }
         }
     }

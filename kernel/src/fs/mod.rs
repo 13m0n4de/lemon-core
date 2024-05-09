@@ -1,17 +1,16 @@
 //! File system
 
-mod inode;
-mod pipe;
-mod stdio;
+pub mod inode;
+pub mod pipe;
+pub mod stdio;
 
 use crate::mm::UserBuffer;
 use alloc::{string::String, sync::Arc, vec::Vec};
 use bitflags::bitflags;
-pub use inode::{find as find_inode, OpenFlags, PROC_INODE};
-pub use pipe::make as make_pipe;
-pub use stdio::{Stdin, Stdout};
+use inode::OSInode;
 
-use self::inode::OSInode;
+pub use inode::{OpenFlags, PROC_INODE};
+pub use stdio::{Stdin, Stdout};
 
 /// File trait
 pub trait File: Send + Sync {
@@ -103,7 +102,7 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
     let writable = flags.contains(OpenFlags::WRONLY) || flags.contains(OpenFlags::RDWR);
 
     if flags.contains(OpenFlags::CREATE) {
-        if let Some(inode) = find_inode(path) {
+        if let Some(inode) = inode::find(path) {
             if inode.is_file() {
                 // clear size
                 inode.clear();
@@ -114,13 +113,13 @@ pub fn open_file(path: &str, flags: OpenFlags) -> Option<Arc<OSInode>> {
                 Some((parent_path, target)) => (parent_path, target),
                 None => ("", path),
             };
-            let parent_inode = find_inode(parent_path)?;
+            let parent_inode = inode::find(parent_path)?;
             parent_inode
                 .create(target)
                 .map(|inode| Arc::new(OSInode::new(readable, writable, inode)))
         }
     } else {
-        find_inode(path).map(|inode| {
+        inode::find(path).map(|inode| {
             if flags.contains(OpenFlags::TRUNC) {
                 inode.clear();
             }

@@ -5,7 +5,7 @@ use super::{
     SignalFlags,
 };
 use crate::{
-    fs::{find_inode, File, Stdin, Stdout, PROC_INODE},
+    fs::{inode, File, Stdin, Stdout, PROC_INODE},
     mm::{translated_mut_ref, MemorySet, KERNEL_SPACE},
     sync::{Condvar, Mutex, Semaphore, UPIntrFreeCell, UPIntrRefMut},
     trap::{user_handler, Context},
@@ -239,7 +239,7 @@ impl ProcessControlBlock {
         let cmdline_inode = proc_inode
             .create("cmdline")
             .unwrap_or_else(|| panic!("Failed to find inode for '/proc/{}/cmdline'.", pid_str));
-        if let Some(parent_cmdline_inode) = find_inode(&format!("/proc/{}/cmdline", &self.pid.0)) {
+        if let Some(parent_cmdline_inode) = inode::find(&format!("/proc/{}/cmdline", &self.pid.0)) {
             let mut cmdline = vec![0u8; parent_cmdline_inode.file_size() as usize];
             parent_cmdline_inode.read_at(0, &mut cmdline);
             cmdline_inode.write_at(0, &cmdline);

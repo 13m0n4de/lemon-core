@@ -1,7 +1,7 @@
 //! File System System Calls
 
 use crate::{
-    fs::{find_inode, get_full_path, make_pipe, open_file, OpenFlags, Stat},
+    fs::{get_full_path, inode, open_file, pipe, OpenFlags, Stat},
     mm::{translated_byte_buffer, translated_mut_ref, translated_str, UserBuffer},
     task::{current_pcb, current_user_token},
 };
@@ -118,7 +118,7 @@ pub fn sys_chdir(path: *const u8) -> isize {
 
     drop(process_inner);
 
-    if let Some(inode) = find_inode(&path) {
+    if let Some(inode) = inode::find(&path) {
         if inode.is_dir() {
             let mut process_inner = process.inner_exclusive_access();
             process_inner.cwd = path;
@@ -155,7 +155,7 @@ pub fn sys_mkdir(path: *const u8) -> isize {
     let (parent_path, target) = path
         .rsplit_once('/')
         .expect("Invalid path: the path must contain a '/'.");
-    match find_inode(parent_path) {
+    match inode::find(parent_path) {
         Some(parent_inode) => match parent_inode.create_dir(target) {
             Some(_cur_inode) => 0,
             None => -2,
@@ -192,7 +192,7 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let (parent_path, target) = path
         .rsplit_once('/')
         .expect("Invalid path: the path must contain a '/'.");
-    match find_inode(parent_path) {
+    match inode::find(parent_path) {
         Some(parent_inode) => match parent_inode.find(target) {
             Some(inode) => {
                 let remove_dir = flags & AT_REMOVEDIR == AT_REMOVEDIR;
@@ -397,7 +397,7 @@ pub fn sys_pipe(pipe: *mut usize) -> isize {
     let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
 
-    let (pipe_read, pipe_write) = make_pipe();
+    let (pipe_read, pipe_write) = pipe::make();
 
     let read_fd = process_inner.alloc_fd();
     process_inner.fd_table[read_fd] = Some(pipe_read);

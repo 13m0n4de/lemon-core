@@ -65,6 +65,10 @@ fn pack_directory(parent_inode: &Arc<Inode>, path: &Path) -> std::io::Result<()>
         let entry_path = entry?.path();
         let entry_name = entry_path.file_name().unwrap().to_str().unwrap();
 
+        if entry_name.starts_with('.') {
+            continue;
+        }
+
         if entry_path.is_dir() {
             let dir_inode = parent_inode.create_dir(entry_name).unwrap();
             pack_directory(&dir_inode, &entry_path)?;
