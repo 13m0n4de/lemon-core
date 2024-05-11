@@ -76,7 +76,7 @@ fn pack_directory(parent_inode: &Arc<Inode>, path: &Path) -> std::io::Result<()>
             let mut file = File::open(&entry_path)?;
             let inode = parent_inode.create(entry_name).unwrap();
 
-            let mut buffer = vec![0; 65536];
+            let mut buffer = vec![0; 8 << 20];
             let mut offset = 0;
             loop {
                 let bytes_read = file.read(&mut buffer)?;
