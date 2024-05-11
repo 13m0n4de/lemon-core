@@ -5,7 +5,7 @@ use crate::{
     block_dev::BlockDevice,
     config::{
         BLOCK_SIZE, DIRECT_BOUND, DIRECT_COUNT, EFS_MAGIC, INDIRECT1_BOUND, INDIRECT1_COUNT,
-        INDIRECT2_COUNT, INDIRECT_COUNT, NAME_LENGTH_LIMIT,
+        INDIRECT2_BOUND, INDIRECT2_COUNT, INDIRECT_COUNT, NAME_LENGTH_LIMIT,
     },
 };
 
@@ -68,6 +68,7 @@ pub struct DiskInode {
     pub direct: [u32; DIRECT_COUNT],
     pub indirect1: u32,
     pub indirect2: u32,
+    pub indirect3: u32,
 }
 
 impl DiskInode {
@@ -105,7 +106,7 @@ impl DiskInode {
                 .read(0, |indirect_block: &IndirectBlock| {
                     indirect_block[block_index - DIRECT_BOUND]
                 })
-        } else {
+        } else if block_index < INDIRECT2_BOUND {
             let index = block_index - INDIRECT1_BOUND;
             let indirect1 = block_cache::get(self.indirect2 as usize, block_device)
                 .lock()
@@ -116,6 +117,23 @@ impl DiskInode {
                 .lock()
                 .read(0, |indirect1: &IndirectBlock| {
                     indirect1[index % INDIRECT1_COUNT]
+                })
+        } else {
+            let index = block_index - INDIRECT2_BOUND;
+            let indirect2 = block_cache::get(self.indirect3 as usize, block_device)
+                .lock()
+                .read(0, |indirect3: &IndirectBlock| {
+                    indirect3[index / INDIRECT2_COUNT]
+                });
+            let indirect1 = block_cache::get(indirect2 as usize, block_device)
+                .lock()
+                .read(0, |indirect2: &IndirectBlock| {
+                    indirect2[index % INDIRECT2_COUNT / INDIRECT1_COUNT]
+                });
+            block_cache::get(indirect1 as usize, block_device)
+                .lock()
+                .read(0, |indirect1: &IndirectBlock| {
+                    indirect1[index % INDIRECT2_COUNT % INDIRECT1_COUNT]
                 })
         }
     }
@@ -141,6 +159,15 @@ impl DiskInode {
             total += indirect1_needed.min(INDIRECT1_COUNT);
         }
 
+        // indirect3
+        if data_blocks > INDIRECT2_BOUND {
+            total += 1;
+            let remaining = data_blocks - INDIRECT2_BOUND;
+            let indirect2_needed = remaining.div_ceil(INDIRECT2_COUNT);
+            let indirect3_needed = remaining.div_ceil(INDIRECT1_COUNT);
+            total += indirect2_needed + indirect3_needed;
+        }
+
         total as u32
     }
 
@@ -151,7 +178,6 @@ impl DiskInode {
     }
 
     /// Increase the size of current disk inode
-    #[allow(clippy::too_many_lines)]
     pub fn increase_size(
         &mut self,
         new_size: u32,
@@ -164,8 +190,7 @@ impl DiskInode {
         let mut new_blocks = new_blocks.into_iter();
 
         // -------------------- Direct Blocks --------------------
-        let direct_end = new_total_blocks.min(DIRECT_COUNT);
-        while block_index < direct_end {
+        while block_index < new_total_blocks.min(DIRECT_COUNT) {
             self.direct[block_index] = new_blocks.next().unwrap();
             block_index += 1;
         }
@@ -182,15 +207,17 @@ impl DiskInode {
         block_index -= DIRECT_COUNT;
         new_total_blocks -= DIRECT_COUNT;
 
-        block_cache::get(self.indirect1 as usize, block_device)
-            .lock()
-            .modify(0, |indirect1: &mut IndirectBlock| {
-                let indirect1_end = new_total_blocks.min(INDIRECT1_COUNT);
-                while block_index < indirect1_end {
-                    indirect1[block_index] = new_blocks.next().unwrap();
-                    block_index += 1;
-                }
-            });
+        let cur_leaf = Self::build_tree(
+            &mut new_blocks,
+            self.indirect1,
+            0,
+            block_index,
+            new_total_blocks,
+            0,
+            1,
+            block_device,
+        );
+        block_index = block_index.max(cur_leaf);
         // ----------------- End of Indirect Level 1 ------------
 
         if new_total_blocks <= INDIRECT1_COUNT {
@@ -204,41 +231,117 @@ impl DiskInode {
         block_index -= INDIRECT1_COUNT;
         new_total_blocks -= INDIRECT1_COUNT;
 
-        let mut index2 = block_index / INDIRECT1_COUNT;
-        let mut index1 = block_index % INDIRECT1_COUNT;
-        let end2 = new_total_blocks / INDIRECT1_COUNT;
-        let end1 = new_total_blocks % INDIRECT1_COUNT;
+        let cur_leaf = Self::build_tree(
+            &mut new_blocks,
+            self.indirect2,
+            0,
+            block_index,
+            new_total_blocks,
+            0,
+            2,
+            block_device,
+        );
+        block_index = block_index.max(cur_leaf);
+        // ----------------- End of Indirect Level 2 ------------
 
-        block_cache::get(self.indirect2 as usize, block_device)
+        if new_total_blocks <= INDIRECT2_COUNT {
+            return;
+        }
+
+        // -------------------- Indirect Level 3 -----------------
+        if block_index == INDIRECT2_COUNT {
+            self.indirect3 = new_blocks.next().unwrap();
+        }
+        block_index -= INDIRECT2_COUNT;
+        new_total_blocks -= INDIRECT2_COUNT;
+
+        Self::build_tree(
+            &mut new_blocks,
+            self.indirect3,
+            0,
+            block_index,
+            new_total_blocks,
+            0,
+            3,
+            block_device,
+        );
+        // ----------------- End of Indirect Level 3 ------------
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_tree(
+        blocks: &mut alloc::vec::IntoIter<u32>,
+        block_id: u32,
+        mut cur_leaf: usize,
+        src_leaf: usize,
+        dst_leaf: usize,
+        cur_depth: usize,
+        dst_depth: usize,
+        block_device: &Arc<dyn BlockDevice>,
+    ) -> usize {
+        if cur_depth == dst_depth {
+            return cur_leaf + 1;
+        }
+        block_cache::get(block_id as usize, block_device)
             .lock()
-            .modify(0, |indirect2: &mut IndirectBlock| {
-                while block_index < INDIRECT2_COUNT
-                    && ((index2 < end2) || (index2 == end2 && index1 < end1))
-                {
-                    if index1 == 0 {
-                        indirect2[index2] = new_blocks.next().unwrap();
-                        block_index += 1;
+            .modify(0, |indirect_block: &mut IndirectBlock| {
+                for indirect in indirect_block.iter_mut().take(INDIRECT_COUNT) {
+                    if cur_leaf >= dst_leaf {
+                        break;
                     }
-
-                    block_cache::get(indirect2[index2] as usize, block_device)
-                        .lock()
-                        .modify(0, |indirect1: &mut IndirectBlock| {
-                            indirect1[index1] = new_blocks.next().unwrap();
-                            block_index += 1;
-                        });
-
-                    index1 += 1;
-                    if index1 == INDIRECT1_COUNT {
-                        index1 = 0;
-                        index2 += 1;
+                    if cur_leaf >= src_leaf {
+                        *indirect = blocks.next().unwrap();
                     }
+                    cur_leaf = Self::build_tree(
+                        blocks,
+                        *indirect,
+                        cur_leaf,
+                        src_leaf,
+                        dst_leaf,
+                        cur_depth + 1,
+                        dst_depth,
+                        block_device,
+                    );
                 }
             });
-        // ----------------- End of Indirect Level 2 ------------
+        cur_leaf
+    }
+
+    fn collect_tree(
+        collected: &mut Vec<u32>,
+        block_id: u32,
+        mut cur_leaf: usize,
+        max_leaf: usize,
+        cur_depth: usize,
+        dst_depth: usize,
+        block_device: &Arc<dyn BlockDevice>,
+    ) -> usize {
+        if cur_depth == dst_depth {
+            return cur_leaf + 1;
+        }
+        block_cache::get(block_id as usize, block_device)
+            .lock()
+            .read(0, |indirect_block: &IndirectBlock| {
+                for indirect in indirect_block.iter().take(INDIRECT_COUNT) {
+                    if cur_leaf >= max_leaf {
+                        break;
+                    }
+                    collected.push(*indirect);
+                    cur_leaf = Self::collect_tree(
+                        collected,
+                        *indirect,
+                        cur_leaf,
+                        max_leaf,
+                        cur_depth + 1,
+                        dst_depth,
+                        block_device,
+                    );
+                }
+            });
+        cur_leaf
     }
 
     /// Decrease the size
-    #[allow(clippy::too_many_lines)]
     pub fn decrease_size(
         &mut self,
         new_size: u32,
@@ -270,15 +373,16 @@ impl DiskInode {
         block_index -= DIRECT_COUNT;
         recycled_blocks -= DIRECT_COUNT;
 
-        block_cache::get(self.indirect1 as usize, block_device)
-            .lock()
-            .modify(0, |indirect1: &mut IndirectBlock| {
-                let indirect1_recycle_count = recycled_blocks.min(INDIRECT1_COUNT);
-                while block_index < indirect1_recycle_count {
-                    drop_data_blocks.push(indirect1[block_index]);
-                    block_index += 1;
-                }
-            });
+        let cur_leaf = Self::collect_tree(
+            &mut drop_data_blocks,
+            self.indirect1,
+            0,
+            recycled_blocks,
+            0,
+            1,
+            block_device,
+        );
+        block_index = block_index.min(cur_leaf);
         // ----------------- End of Indirect Level 1 ------------
 
         if recycled_blocks <= INDIRECT1_COUNT {
@@ -293,40 +397,46 @@ impl DiskInode {
         block_index -= INDIRECT1_COUNT;
         recycled_blocks -= INDIRECT1_COUNT;
 
-        let mut index2 = block_index / INDIRECT1_COUNT;
-        let mut index1 = block_index % INDIRECT1_COUNT;
-        let end2 = recycled_blocks / INDIRECT1_COUNT;
-        let end1 = recycled_blocks % INDIRECT1_COUNT;
-
-        block_cache::get(self.indirect2 as usize, block_device)
-            .lock()
-            .modify(0, |indirect2: &mut IndirectBlock| {
-                while (index2 < end2) || (index2 == end2 && index1 < end1) {
-                    if index1 == 0 {
-                        drop_data_blocks.push(indirect2[index2]);
-                    }
-
-                    block_cache::get(indirect2[index2] as usize, block_device)
-                        .lock()
-                        .modify(0, |indirect1: &mut IndirectBlock| {
-                            drop_data_blocks.push(indirect1[index1]);
-                        });
-
-                    index1 += 1;
-                    if index1 == INDIRECT1_COUNT {
-                        index1 = 0;
-                        index2 += 1;
-                    }
-                }
-            });
+        let cur_leaf = Self::collect_tree(
+            &mut drop_data_blocks,
+            self.indirect2,
+            0,
+            recycled_blocks,
+            0,
+            2,
+            block_device,
+        );
+        block_index = block_index.min(cur_leaf);
         // ----------------- End of Indirect Level 2 ------------
+
+        if recycled_blocks <= INDIRECT2_COUNT {
+            return drop_data_blocks;
+        }
+
+        // -------------------- Indirect Level 3 -----------------
+        if block_index == INDIRECT2_COUNT {
+            drop_data_blocks.push(self.indirect3);
+            self.indirect3 = 0;
+        }
+        // block_index -= INDIRECT1_COUNT;
+        recycled_blocks -= INDIRECT1_COUNT;
+
+        Self::collect_tree(
+            &mut drop_data_blocks,
+            self.indirect3,
+            0,
+            recycled_blocks,
+            0,
+            3,
+            block_device,
+        );
+        // ----------------- End of Indirect Level 3 ------------
 
         drop_data_blocks
     }
 
     /// Clear size to zero and return blocks that should be deallocated.
     /// We will clear the block contents to zero later.
-    #[allow(clippy::too_many_lines)]
     pub fn clear_size(&mut self, block_device: &Arc<dyn BlockDevice>) -> Vec<u32> {
         let mut drop_data_blocks: Vec<u32> = Vec::new();
         let mut data_blocks = Self::count_data_block(self.size) as usize;
@@ -345,11 +455,16 @@ impl DiskInode {
         drop_data_blocks.push(self.indirect1);
         data_blocks -= DIRECT_COUNT;
 
-        block_cache::get(self.indirect1 as usize, block_device)
-            .lock()
-            .read(0, |indirect1: &IndirectBlock| {
-                drop_data_blocks.extend_from_slice(&indirect1[..data_blocks.min(INDIRECT1_COUNT)]);
-            });
+        Self::collect_tree(
+            &mut drop_data_blocks,
+            self.indirect1,
+            0,
+            data_blocks,
+            0,
+            1,
+            block_device,
+        );
+
         self.indirect1 = 0;
         // ----------------- End of Indirect Level 1 ------------
 
@@ -361,37 +476,40 @@ impl DiskInode {
         drop_data_blocks.push(self.indirect2);
         data_blocks -= INDIRECT1_COUNT;
 
-        let index2 = if data_blocks <= INDIRECT2_COUNT {
-            data_blocks / INDIRECT1_COUNT
-        } else {
-            INDIRECT_COUNT
-        };
-        let index1 = data_blocks % INDIRECT1_COUNT;
+        Self::collect_tree(
+            &mut drop_data_blocks,
+            self.indirect2,
+            0,
+            data_blocks,
+            0,
+            2,
+            block_device,
+        );
 
-        block_cache::get(self.indirect2 as usize, block_device)
-            .lock()
-            .read(0, |indirect2: &IndirectBlock| {
-                indirect2.iter().take(index2).for_each(|&block| {
-                    drop_data_blocks.push(block);
-                    block_cache::get(block as usize, block_device).lock().read(
-                        0,
-                        |indirect1: &IndirectBlock| {
-                            drop_data_blocks.extend_from_slice(indirect1);
-                        },
-                    );
-                });
-
-                if index1 > 0 && index2 != INDIRECT_COUNT {
-                    drop_data_blocks.push(indirect2[index2]);
-                    block_cache::get(indirect2[index2] as usize, block_device)
-                        .lock()
-                        .read(0, |indirect1: &IndirectBlock| {
-                            drop_data_blocks.extend_from_slice(&indirect1[..index1]);
-                        });
-                }
-            });
         self.indirect2 = 0;
         // ----------------- End of Indirect Level 2 ------------
+
+        if data_blocks <= INDIRECT2_COUNT {
+            return drop_data_blocks;
+        }
+
+        // -------------------- Indirect Level 3 -----------------
+        drop_data_blocks.push(self.indirect3);
+        data_blocks -= INDIRECT2_COUNT;
+
+        Self::collect_tree(
+            &mut drop_data_blocks,
+            self.indirect3,
+            0,
+            data_blocks,
+            0,
+            3,
+            block_device,
+        );
+
+        self.indirect3 = 0;
+        // ----------------- End of Indirect Level 2 ------------
+
         drop_data_blocks
     }
 
