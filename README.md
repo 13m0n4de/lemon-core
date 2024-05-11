@@ -11,15 +11,15 @@ A Simple RISC-V OS Kernel, Inspired by [rCore-Tutorial-v3](https://github.com/rc
 - [x] Colorful logging
 - [x] FIFO / RR scheduler
 - [x] SV39 3-level page table
-- [x] Easy File System
+- [x] Easy File System (Triple indirect pointer)
 - [x] Multi-thread
 - [x] Synchronization
 - [x] VirtIO blk/input/gpu drivers
 - [x] Test framework (unit test and integration test)
 - [ ] MLFQ/CFS scheduler
 - [ ] VirtIO net drivers
-- [ ] Triple indirect pointer
 - [ ] K210 platform support for `ch1` - `ch7`
+- [ ] Refactor file system
 - [ ] A detailed documentation or step-by-step tutorial
 
 ## Difference with rCore-Tutorial-v3
