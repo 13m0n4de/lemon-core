@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn efs_test() -> std::io::Result<()> {
         // create a block device
-        let block_file = Arc::new(BlockFile(Mutex::new({
+        let block_file: Arc<dyn BlockDevice> = Arc::new(BlockFile(Mutex::new({
             let f = OpenOptions::new()
                 .read(true)
                 .write(true)
@@ -93,10 +93,10 @@ mod tests {
             f.set_len(8192 * 512)?;
             f
         })));
-        EasyFileSystem::create(block_file.clone(), 4096, 1);
+        EasyFileSystem::create(&block_file, 4096, 1);
 
         // open the file system from the block device
-        let efs = EasyFileSystem::open(block_file.clone());
+        let efs = EasyFileSystem::open(&block_file);
 
         // get the Inode of the root directory
         let root_inode = EasyFileSystem::root_inode(&efs);
