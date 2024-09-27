@@ -92,7 +92,12 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
     if new_fd >= fd_table.len() {
         fd_table.resize(new_fd + 1, None);
     }
-    fd_table[new_fd] = fd_table[old_fd].clone();
+
+    if let Some(file) = &fd_table[old_fd] {
+        fd_table[new_fd] = Some(file.clone());
+    } else {
+        fd_table[new_fd] = None;
+    }
 
     0
 }
