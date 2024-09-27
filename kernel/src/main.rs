@@ -12,13 +12,6 @@
 //! - Enable non-blocking I/O
 //! - Begins process execution and scheduling.
 
-#![deny(missing_docs)]
-#![deny(warnings)]
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-#![allow(clippy::cast_sign_loss)]
-#![allow(clippy::cast_possible_wrap)]
-#![allow(clippy::cast_possible_truncation)]
 #![no_std]
 #![no_main]
 #![feature(alloc_error_handler)]

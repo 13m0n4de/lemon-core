@@ -7,3 +7,10 @@ edition = "2021"
 clap = { version = "4.5.2", features = ["derive"] }
 easy-fs = { path = "../easy-fs" }
 rand = "0.8.5"
+
+[lints.rust]
+warnings = "deny"
+
+[lints.clippy]
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }

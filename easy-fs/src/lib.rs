@@ -1,16 +1,6 @@
 //! Easy file system
 
 #![no_std]
-#![deny(missing_docs)]
-#![deny(warnings)]
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::cast_sign_loss)]
-#![allow(clippy::cast_possible_wrap)]
-#![allow(clippy::cast_possible_truncation)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::module_name_repetitions)]
 
 extern crate alloc;
 extern crate log;

@@ -9,3 +9,17 @@ buddy_system_allocator = "0.9.1"
 embedded-graphics = "0.8.1"
 riscv = { git = "https://github.com/rcore-os/riscv", features = ["inline-asm"] }
 virtio-input-decoder = "0.1.4"
+
+[lints.rust]
+warnings = "deny"
+
+[lints.clippy]
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+similar_names = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+cast_possible_truncation = "allow"
+
+all = { level = "deny", priority = -1 }
+pedantic = { level = "deny", priority = -1 }

@@ -1,6 +1,3 @@
-#![deny(clippy::all)]
-#![deny(clippy::pedantic)]
-
 use block_file::BlockFile;
 use clap::Parser;
 use easy_fs::{BlockDevice, EasyFileSystem, Inode};
