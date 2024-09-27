@@ -14,13 +14,13 @@ use easy_fs::DIRENT_SIZE;
 ///
 /// # Arguments
 ///
-/// - `buf`: A pointer to the buffer where the current working directory should be copied.
-/// - `len`: The maximum number of bytes to copy into the buffer.
+/// * `buf` - A pointer to the buffer where the current working directory should be copied.
+/// * `len` - The maximum number of bytes to copy into the buffer.
 ///
 /// # Returns
 ///
-/// - The length of the directory path if successful.
-/// - `-1` if the buffer is too small.
+/// * The length of the directory path if successful.
+/// * `-1` if the buffer is too small.
 pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -47,12 +47,12 @@ pub fn sys_getcwd(buf: *const u8, len: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `fd`: The file descriptor to duplicate.
+/// * `fd` - The file descriptor to duplicate.
 ///
 /// # Returns
 ///
-/// - The new file descriptor if successful.
-/// - `-1` if the original file descriptor is invalid.
+/// * The new file descriptor if successful.
+/// * `-1` if the original file descriptor is invalid.
 pub fn sys_dup(fd: usize) -> isize {
     let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
@@ -74,13 +74,13 @@ pub fn sys_dup(fd: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `old_fd`: The original file descriptor to duplicate.
-/// - `new_fd`: The file descriptor number to duplicate to.
+/// * `old_fd` - The original file descriptor to duplicate.
+/// * `new_fd` - The file descriptor number to duplicate to.
 ///
 /// # Returns
 ///
-/// - `0` if successful.
-/// - `-1` if either `old_fd` or `new_fd` is invalid.
+/// * `0` if successful.
+/// * `-1` if either `old_fd` or `new_fd` is invalid.
 pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
     let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
@@ -106,13 +106,13 @@ pub fn sys_dup2(old_fd: usize, new_fd: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `path`: A pointer to the null-terminated string representing the path to the new directory.
+/// * `path` - A pointer to the null-terminated string representing the path to the new directory.
 ///
 /// # Returns
 ///
-/// - `0` if successful.
-/// - `-1` if no such file.
-/// - `-2` if is not a directory.
+/// * `0` if successful.
+/// * `-1` if no such file.
+/// * `-2` if is not a directory.
 pub fn sys_chdir(path: *const u8) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -140,13 +140,13 @@ pub fn sys_chdir(path: *const u8) -> isize {
 ///
 /// # Arguments
 ///
-/// - `path`: A pointer to the path where the directory will be created.
+/// * `path` - A pointer to the path where the directory will be created.
 ///
 /// # Returns
 ///
-/// - `0` on successful creation.
-/// - `-1` if the parent directory does not exist or cannot be accessed.
-/// - `-2` if the directory cannot be created (e.g., due to permissions or if the directory already exists).
+/// * `0` on successful creation.
+/// * `-1` if the parent directory does not exist or cannot be accessed.
+/// * `-2` if the directory cannot be created (e.g., due to permissions or if the directory already exists).
 pub fn sys_mkdir(path: *const u8) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -175,15 +175,15 @@ const AT_REMOVEDIR: u32 = 1;
 ///
 /// # Arguments
 ///
-/// - `path`: A pointer to the path of the file or directory to delete.
-/// - `flags`: Modification flags (e.g., `AT_REMOVEDIR` to specify directory removal).
+/// * `path` - A pointer to the path of the file or directory to delete.
+/// * `flags` - Modification flags (e.g., `AT_REMOVEDIR` to specify directory removal).
 ///
 /// # Returns
 ///
-/// - `0` on successful deletion,
-/// - `-1` if the path does not exist.
-/// - `-2` if the type does not match (e.g., trying to delete a directory without `AT_REMOVEDIR`).
-/// - `-3` if the directory is not empty.
+/// * `0` on successful deletion,
+/// * `-1` if the path does not exist.
+/// * `-2` if the type does not match (e.g., trying to delete a directory without `AT_REMOVEDIR`).
+/// * `-3` if the directory is not empty.
 pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -226,13 +226,13 @@ pub fn sys_unlink(path: *const u8, flags: u32) -> isize {
 ///
 /// # Arguments
 ///
-/// - `path`: A pointer to the path of the file or directory.
-/// - `flags`: Operation flags.
+/// * `path` - A pointer to the path of the file or directory.
+/// * `flags` - Operation flags.
 ///
 /// # Returns
 ///
-/// - A file descriptor on success.
-/// - `-1` on failure.
+/// * A file descriptor on success.
+/// * `-1` on failure.
 pub fn sys_open(path: *const u8, flags: u32) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -257,12 +257,12 @@ pub fn sys_open(path: *const u8, flags: u32) -> isize {
 ///
 /// # Arguments
 ///
-/// - `fd`: The file descriptor to close.
+/// * `fd` - The file descriptor to close.
 ///
 /// # Returns
 ///
-/// - `0` on success.
-/// - `-1` if the file descriptor is invalid.
+/// * `0` on success.
+/// * `-1` if the file descriptor is invalid.
 pub fn sys_close(fd: usize) -> isize {
     let process = current_pcb();
     let mut process_inner = process.inner_exclusive_access();
@@ -281,14 +281,14 @@ pub fn sys_close(fd: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `fd`: The file descriptor from which to read.
-/// - `buf`: A pointer to the buffer where data will be stored.
-/// - `len`: The maximum number of bytes to read.
+/// * `fd` - The file descriptor from which to read.
+/// * `buf` - A pointer to the buffer where data will be stored.
+/// * `len` - The maximum number of bytes to read.
 ///
 /// # Returns
 ///
-/// - The number of bytes read on success.
-/// - `-1` on failure or if the file descriptor is invalid.
+/// * The number of bytes read on success.
+/// * `-1` on failure or if the file descriptor is invalid.
 pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -315,14 +315,14 @@ pub fn sys_read(fd: usize, buf: *const u8, len: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `fd`: The file descriptor to write to.
-/// - `buf`: A pointer to the buffer containing the data to write.
-/// - `len`: The number of bytes to write.
+/// * `fd` - The file descriptor to write to.
+/// * `buf` - A pointer to the buffer containing the data to write.
+/// * `len` - The number of bytes to write.
 ///
 /// # Returns
 ///
-/// - The number of bytes written on success,
-/// - `-1` on failure or if the file descriptor is invalid.
+/// * The number of bytes written on success,
+/// * `-1` on failure or if the file descriptor is invalid.
 pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -349,13 +349,13 @@ pub fn sys_write(fd: usize, buf: *const u8, len: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `fd`: The file descriptor of the file.
-/// - `stat`: A pointer to a buffer where file status information will be written.
+/// * `fd` - The file descriptor of the file.
+/// * `stat` - A pointer to a buffer where file status information will be written.
 ///
 /// # Returns
 ///
-/// - `0` on success.
-/// - `-1` if the file descriptor is invalid.
+/// * `0` on success.
+/// * `-1` if the file descriptor is invalid.
 pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
     let token = current_user_token();
     let process = current_pcb();
@@ -392,11 +392,11 @@ pub fn sys_fstat(fd: usize, stat: *mut u8) -> isize {
 ///
 /// # Arguments
 ///
-/// - `pipe`: A pointer where the file descriptors for the read and write ends of the pipe will be stored.
+/// * `pipe` - A pointer where the file descriptors for the read and write ends of the pipe will be stored.
 ///
 /// # Returns
 ///
-/// - `0` on success.
+/// * `0` on success.
 pub fn sys_pipe(pipe: *mut usize) -> isize {
     let token = current_user_token();
     let process = current_pcb();

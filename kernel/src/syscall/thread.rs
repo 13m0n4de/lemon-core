@@ -15,12 +15,12 @@ use alloc::sync::Arc;
 ///
 /// # Arguments
 ///
-/// - `entry`: The entry point address where the new thread starts execution.
-/// - `arg`: An argument passed to the thread's entry point function.
+/// * `entry` - The entry point address where the new thread starts execution.
+/// * `arg` - An argument passed to the thread's entry point function.
 ///
 /// # Returns
 ///
-/// - The Thread ID (TID) of the newly created thread on success.
+/// * The Thread ID (TID) of the newly created thread on success.
 pub fn sys_thread_create(entry: usize, arg: usize) -> isize {
     let task = current_tcb().unwrap();
     let process = task.process.upgrade().unwrap();
@@ -83,13 +83,13 @@ pub fn sys_gettid() -> isize {
 ///
 /// # Arguments
 ///
-/// - `tid`: The TID of the thread to wait for.
+/// * `tid` - The TID of the thread to wait for.
 ///
 /// # Returns
 ///
-/// - The exit code of the waited thread on success.
-/// - `-1` if the thread attempts to wait on itself or if the specified thread does not exist.
-/// - `-2` if the specified thread has not yet exited.
+/// * The exit code of the waited thread on success.
+/// * `-1` if the thread attempts to wait on itself or if the specified thread does not exist.
+/// * `-2` if the specified thread has not yet exited.
 pub fn sys_waittid(tid: usize) -> i32 {
     let task = current_tcb().unwrap();
     let process = task.process.upgrade().unwrap();

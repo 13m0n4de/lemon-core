@@ -42,8 +42,8 @@ macro_rules! test {
 ///
 /// # Usages
 ///
-/// - `test_assert!(expression, "error message")`: Asserts with a custom message.
-/// 0 `test_assert!(expression)`: Asserts with a default failure message.
+/// * `test_assert!(expression, "error message")`: Asserts with a custom message.
+/// * `test_assert!(expression)`: Asserts with a default failure message.
 #[macro_export]
 #[allow(clippy::module_name_repetitions)]
 macro_rules! test_assert {

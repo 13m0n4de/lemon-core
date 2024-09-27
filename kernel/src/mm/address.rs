@@ -233,9 +233,9 @@ impl PhysPageNum {
 * VirtPageNum
 */
 impl VirtPageNum {
-    /// - `id[0]`: VPN[38..=30]
-    /// - `id[1]`: VPN[29..=21]
-    /// - `id[2]`: VPN[20..=12]
+    /// * `id[0]` - VPN[38..=30]
+    /// * `id[1]` - VPN[29..=21]
+    /// * `id[2]` - VPN[20..=12]
     pub fn indexes(self) -> [usize; 3] {
         [
             (self.0 >> 18) & 0b1_1111_1111,

@@ -17,7 +17,7 @@ use crate::{
 ///
 /// # Arguments
 ///
-/// - `exit_code`: The exit code to be submitted on task exit.
+/// * `exit_code` - The exit code to be submitted on task exit.
 ///
 /// # Panics
 ///
@@ -84,13 +84,13 @@ pub fn sys_fork() -> isize {
 ///
 /// # Arguments
 ///
-/// - `path`: A pointer to the null-terminated string representing the file path of the new program.
-/// - `args`: A pointer to the array of arguments for the new program.
+/// * `path` - A pointer to the null-terminated string representing the file path of the new program.
+/// * `args` - A pointer to the array of arguments for the new program.
 ///
 /// # Returns
 ///
-/// - The number of arguments (`argc`) on success.
-/// - `-1` if the file cannot be opened.
+/// * The number of arguments (`argc`) on success.
+/// * `-1` if the file cannot be opened.
 #[allow(clippy::similar_names)]
 pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
     let token = current_user_token();
@@ -129,14 +129,14 @@ pub fn sys_exec(path: *const u8, mut args: *const usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `pid`: The PID of the child process. If `-1`, waits for any child process.
-/// - `exit_code_ptr`: A pointer to where the exit code of the child process will be stored.
+/// * `pid` - The PID of the child process. If `-1`, waits for any child process.
+/// * `exit_code_ptr` - A pointer to where the exit code of the child process will be stored.
 ///
 /// # Returns
 ///
-/// - The PID of the child process if it has exited.
-/// - `-1` if no matching child process exists.
-/// - `-2` if the child process is still running.
+/// * The PID of the child process if it has exited.
+/// * `-1` if no matching child process exists.
+/// * `-2` if the child process is still running.
 pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
     let process = current_pcb();
     // find a child process
@@ -176,13 +176,13 @@ pub fn sys_waitpid(pid: isize, exit_code_ptr: *mut i32) -> isize {
 ///
 /// # Arguments
 ///
-/// - `pid`: The PID of the process to signal.
-/// - `signal`: The signal to send.
+/// * `pid` - The PID of the process to signal.
+/// * `signal` - The signal to send.
 ///
 /// # Returns
 ///
-/// - `0` on successfully sending the signal.
-/// - `-1` if the specified process does not exist or the signal is invalid.
+/// * `0` on successfully sending the signal.
+/// * `-1` if the specified process does not exist or the signal is invalid.
 pub fn sys_kill(pid: usize, signal: u32) -> isize {
     if let Some(process) = pid2process(pid) {
         if let Some(flag) = SignalFlags::from_bits(signal) {

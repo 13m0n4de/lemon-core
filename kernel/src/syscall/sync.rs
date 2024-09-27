@@ -17,7 +17,7 @@ use crate::{
 ///
 /// # Arguments
 ///
-/// - `ms`: The duration in milliseconds for which the current task should sleep.
+/// * `ms` - The duration in milliseconds for which the current task should sleep.
 ///
 /// # Returns
 ///
@@ -37,8 +37,8 @@ pub fn sys_sleep(ms: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `blocking`: A boolean flag indicating whether the mutex should be a blocking
-/// mutex (`true`) or a spin-lock mutex (`false`).
+/// * `blocking`- A boolean flag indicating whether the mutex should be a blocking
+///     mutex (`true`) or a spin-lock mutex (`false`).
 ///
 /// # Returns
 ///
@@ -74,13 +74,13 @@ pub fn sys_mutex_create(blocking: bool) -> isize {
 ///
 /// # Arguments
 ///
-/// - `mutex_id`: The identifier of the mutex to lock, which corresponds to its index
-/// in the current process's mutex list.
+/// * `mutex_id` - The identifier of the mutex to lock, which corresponds to its index
+///     in the current process's mutex list.
 ///
 /// # Returns
 ///
-/// - `0` on successful lock operation.
-/// - `-1` if the mutex does not exist.
+/// * `0` on successful lock operation.
+/// * `-1` if the mutex does not exist.
 pub fn sys_mutex_lock(mutex_id: usize) -> isize {
     let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
@@ -104,13 +104,13 @@ pub fn sys_mutex_lock(mutex_id: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `mutex_id`: The identifier of the mutex to unlock, which corresponds to its
-/// index in the current process's mutex list.
+/// * `mutex_id` - The identifier of the mutex to unlock, which corresponds to its
+///     index in the current process's mutex list.
 ///
 /// # Returns
 ///
-/// - `0` on successful unlock operation.
-/// - `-1` if the mutex does not exist.
+/// * `0` on successful unlock operation.
+/// * `-1` if the mutex does not exist.
 pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
     let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
@@ -134,7 +134,7 @@ pub fn sys_mutex_unlock(mutex_id: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `res_count`: The initial resource count for the semaphore.
+/// * `res_count` - The initial resource count for the semaphore.
 ///
 /// # Returns
 ///
@@ -166,13 +166,13 @@ pub fn sys_semaphore_create(res_count: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `sem_id`: The identifier of the semaphore to signal, which corresponds to its
-/// index in the current process's semaphore list.
+/// * `sem_id` - The identifier of the semaphore to signal, which corresponds to its
+///     index in the current process's semaphore list.
 ///
 /// # Returns
 ///
-/// - `0` on successful operation.
-/// - `-1` if the semaphore does not exist.
+/// * `0` on successful operation.
+/// * `-1` if the semaphore does not exist.
 pub fn sys_semaphore_up(sem_id: usize) -> isize {
     let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
@@ -196,13 +196,13 @@ pub fn sys_semaphore_up(sem_id: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `sem_id`: The identifier of the semaphore to wait on, which corresponds to its
-/// index in the current process's semaphore list.
+/// * `sem_id` - The identifier of the semaphore to wait on, which corresponds to its
+///     index in the current process's semaphore list.
 ///
 /// # Returns
 ///
-/// - `0` on successful operation.
-/// - `-1` if the semaphore does not exist.
+/// * `0` on successful operation.
+/// * `-1` if the semaphore does not exist.
 pub fn sys_semaphore_down(sem_id: usize) -> isize {
     let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
@@ -252,13 +252,13 @@ pub fn sys_condvar_create() -> isize {
 ///
 /// # Arguments
 ///
-/// - `condvar_id`: The identifier of the condition variable to signal, which corresponds
-/// to its index in the current process's condition variable list.
+/// * `condvar_id` - The identifier of the condition variable to signal, which corresponds
+///     to its index in the current process's condition variable list.
 ///
 /// # Returns
 ///
-/// - `0` on successful operation.
-/// - `-1` if the condition variable does not exist.
+/// * `0` on successful operation.
+/// * `-1` if the condition variable does not exist.
 pub fn sys_condvar_signal(condvar_id: usize) -> isize {
     let process = current_pcb();
     let process_inner = process.inner_exclusive_access();
@@ -283,17 +283,17 @@ pub fn sys_condvar_signal(condvar_id: usize) -> isize {
 ///
 /// # Arguments
 ///
-/// - `condvar_id`: The identifier of the condition variable to wait on, which corresponds
-/// to its index in the current process's condition variable list.
-/// - `mutex_id`: The identifier of the mutex to be released while waiting and
-/// re-acquired upon waking up, which corresponds to its index in the current
-/// process's mutex list.
+/// * `condvar_id` - The identifier of the condition variable to wait on, which corresponds
+///     to its index in the current process's condition variable list.
+/// * `mutex_id` - The identifier of the mutex to be released while waiting and
+///     re-acquired upon waking up, which corresponds to its index in the current
+///     process's mutex list.
 ///
 /// # Returns
 ///
-/// - `0` on successful operation.
-/// - `-1` if either the condition variable or the mutex does not exist, or if any other
-/// error occurs.
+/// * `0` on successful operation.
+/// * `-1` if either the condition variable or the mutex does not exist, or if any other
+///     error occurs.
 pub fn sys_condvar_wait(condvar_id: usize, mutex_id: usize) -> isize {
     let process = current_pcb();
     let process_inner = process.inner_exclusive_access();

@@ -65,9 +65,9 @@ impl PageTableEntry {
 }
 
 /// Page Table
-/// - `root_ppn`: The physical page number of the root of the page table
-/// - `data_frames`: Physical frames for the data
-/// - `metadata_frames`: Physical frames for the page table itself and its directory entries
+/// * `root_ppn` - The physical page number of the root of the page table
+/// * `data_frames` - Physical frames for the data
+/// * `metadata_frames` - Physical frames for the page table itself and its directory entries
 pub struct PageTable {
     root_ppn: PhysPageNum,
     data_frames: BTreeMap<VirtPageNum, FrameTracker>,
