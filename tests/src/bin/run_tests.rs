@@ -15,6 +15,7 @@ static TESTS: &[(&str, &[&str], i32)] = &[
         0,
     ),
     ("condsync_condvar", &["condsync_condvar"], 0),
+    ("file", &["file"], 0),
     ("fork", &["fork"], 0),
     ("fork_sleep", &["fork_sleep"], 0),
     ("fork_tree", &["fork_tree"], 0),
