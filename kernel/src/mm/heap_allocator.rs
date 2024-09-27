@@ -2,14 +2,14 @@
 
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
-use core::cell::UnsafeCell;
+use core::{cell::UnsafeCell, mem::MaybeUninit};
 
 /// Heap allocator instance
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap<32> = LockedHeap::<32>::empty();
 
 struct HeapSpace {
-    data: UnsafeCell<[u8; KERNEL_HEAP_SIZE]>,
+    data: UnsafeCell<MaybeUninit<[u8; KERNEL_HEAP_SIZE]>>,
 }
 
 unsafe impl Sync for HeapSpace {}
@@ -17,12 +17,12 @@ unsafe impl Sync for HeapSpace {}
 impl HeapSpace {
     const fn new() -> Self {
         Self {
-            data: UnsafeCell::new([0; KERNEL_HEAP_SIZE]),
+            data: UnsafeCell::new(MaybeUninit::zeroed()),
         }
     }
 
     fn as_usize(&self) -> usize {
-        self.data.get() as *mut u8 as usize
+        self.data.get() as usize
     }
 }
 
@@ -39,7 +39,7 @@ pub fn init() {
     unsafe {
         HEAP_ALLOCATOR
             .lock()
-            .init(HEAP_SPACE.as_usize() as usize, KERNEL_HEAP_SIZE);
+            .init(HEAP_SPACE.as_usize(), KERNEL_HEAP_SIZE);
     }
 }
 

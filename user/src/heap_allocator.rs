@@ -1,10 +1,10 @@
 use buddy_system_allocator::LockedHeap;
-use core::cell::UnsafeCell;
+use core::{cell::UnsafeCell, mem::MaybeUninit};
 
 const USER_HEAP_SIZE: usize = 1024 * 1024 * 8;
 
 struct HeapSpace {
-    data: UnsafeCell<[u8; USER_HEAP_SIZE]>,
+    data: UnsafeCell<MaybeUninit<[u8; USER_HEAP_SIZE]>>,
 }
 
 unsafe impl Sync for HeapSpace {}
@@ -12,12 +12,12 @@ unsafe impl Sync for HeapSpace {}
 impl HeapSpace {
     const fn new() -> Self {
         Self {
-            data: UnsafeCell::new([0; USER_HEAP_SIZE]),
+            data: UnsafeCell::new(MaybeUninit::zeroed()),
         }
     }
 
     fn as_usize(&self) -> usize {
-        self.data.get() as *mut u8 as usize
+        self.data.get() as usize
     }
 }
 
