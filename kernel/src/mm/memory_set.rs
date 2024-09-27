@@ -141,6 +141,10 @@ impl MapArea {
     pub fn copy_data(&mut self, page_table: &PageTable, data: &[u8]) {
         assert_eq!(self.map_type, MapType::Framed);
 
+        if data.is_empty() {
+            return;
+        }
+
         let chunk_size = PAGE_SIZE.min(data.len());
         let mut current_vpn = self.vpn_range.start();
 

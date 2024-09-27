@@ -2,13 +2,31 @@
 
 use crate::config::KERNEL_HEAP_SIZE;
 use buddy_system_allocator::LockedHeap;
+use core::cell::UnsafeCell;
 
 /// Heap allocator instance
 #[global_allocator]
 static HEAP_ALLOCATOR: LockedHeap<32> = LockedHeap::<32>::empty();
 
-/// Heap space (`[u8; KERNEL_HEAP_SIZE]`)
-static mut HEAP_SPACE: [u8; KERNEL_HEAP_SIZE] = [0; KERNEL_HEAP_SIZE];
+struct HeapSpace {
+    data: UnsafeCell<[u8; KERNEL_HEAP_SIZE]>,
+}
+
+unsafe impl Sync for HeapSpace {}
+
+impl HeapSpace {
+    const fn new() -> Self {
+        Self {
+            data: UnsafeCell::new([0; KERNEL_HEAP_SIZE]),
+        }
+    }
+
+    fn as_usize(&self) -> usize {
+        self.data.get() as *mut u8 as usize
+    }
+}
+
+static HEAP_SPACE: HeapSpace = HeapSpace::new();
 
 /// Panic when headp allocation error occurs
 #[alloc_error_handler]
@@ -21,7 +39,7 @@ pub fn init() {
     unsafe {
         HEAP_ALLOCATOR
             .lock()
-            .init(HEAP_SPACE.as_ptr() as usize, KERNEL_HEAP_SIZE);
+            .init(HEAP_SPACE.as_usize() as usize, KERNEL_HEAP_SIZE);
     }
 }
 
