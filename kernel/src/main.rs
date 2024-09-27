@@ -21,7 +21,6 @@
 #![allow(clippy::cast_possible_truncation)]
 #![no_std]
 #![no_main]
-#![feature(panic_info_message)]
 #![feature(alloc_error_handler)]
 #![feature(custom_test_frameworks)]
 #![test_runner(test::test_runner)]
