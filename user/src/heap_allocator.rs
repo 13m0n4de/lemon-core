@@ -1,7 +1,7 @@
 use buddy_system_allocator::LockedHeap;
 use core::{cell::UnsafeCell, mem::MaybeUninit};
 
-const USER_HEAP_SIZE: usize = 1024 * 1024 * 8;
+const USER_HEAP_SIZE: usize = 1024 * 32;
 
 struct HeapSpace {
     data: UnsafeCell<MaybeUninit<[u8; USER_HEAP_SIZE]>>,
