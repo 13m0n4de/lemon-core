@@ -6,6 +6,8 @@ extern crate user_lib;
 
 extern crate alloc;
 
+use core::cell::UnsafeCell;
+
 use user_lib::{
     process::exit,
     sync::{
@@ -15,7 +17,29 @@ use user_lib::{
     thread::{thread_create, waittid},
 };
 
-static mut A: usize = 0;
+struct ConditionFlag {
+    value: UnsafeCell<usize>,
+}
+
+impl ConditionFlag {
+    const fn new(value: usize) -> Self {
+        ConditionFlag {
+            value: UnsafeCell::new(value),
+        }
+    }
+
+    unsafe fn get(&self) -> usize {
+        *self.value.get()
+    }
+
+    unsafe fn set(&self, new_value: usize) {
+        *self.value.get() = new_value;
+    }
+}
+
+unsafe impl Sync for ConditionFlag {}
+
+static A: ConditionFlag = ConditionFlag::new(0);
 
 const CONDVAR_ID: usize = 0;
 const MUTEX_ID: usize = 0;
@@ -24,7 +48,7 @@ unsafe fn first() -> ! {
     sleep(10);
     println!("First work, Change A --> 1 and wakeup Second");
     mutex_lock(MUTEX_ID);
-    A = 1;
+    A.set(1);
     condvar_signal(CONDVAR_ID);
     mutex_unlock(MUTEX_ID);
     exit(0)
@@ -33,11 +57,11 @@ unsafe fn first() -> ! {
 unsafe fn second() -> ! {
     println!("Second want to continue,but need to wait A=1");
     mutex_lock(MUTEX_ID);
-    while A == 0 {
-        println!("Second: A is {}", A);
+    while A.get() == 0 {
+        println!("Second: A is {}", A.get());
         condvar_wait(CONDVAR_ID, MUTEX_ID);
     }
-    println!("A is {}, Second can work now", A);
+    println!("A is {}, Second can work now", A.get());
     mutex_unlock(MUTEX_ID);
     exit(0)
 }
