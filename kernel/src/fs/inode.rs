@@ -120,6 +120,7 @@ lazy_static! {
         root_inode
     };
     pub static ref PROC_INODE: Arc<Inode> = {
+        ROOT_INODE.delete("proc");
         let proc_inode = ROOT_INODE
             .create_dir("proc")
             .expect("Failed to create inode for '/proc/'.");
