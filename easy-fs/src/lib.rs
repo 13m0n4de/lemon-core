@@ -13,6 +13,7 @@
 #![allow(clippy::module_name_repetitions)]
 
 extern crate alloc;
+extern crate log;
 
 mod bitmap;
 mod block_cache;
